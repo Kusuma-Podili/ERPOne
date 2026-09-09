@@ -1,0 +1,3 @@
+"""
+EnterpriseOne Settings Package.
+"""
