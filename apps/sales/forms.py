@@ -14,6 +14,8 @@ from .models import (
     Quote,
     QuoteLineItem,
     QuoteApproval,
+    SalesOrder,
+    OrderLineItem,
 )
 
 
@@ -180,4 +182,67 @@ class QuoteApprovalActionForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={"class": "form-textarea", "rows": 3, "placeholder": "Approval or rejection notes..."}),
     )
+
+
+class SalesOrderForm(BaseSalesForm):
+    class Meta:
+        model = SalesOrder
+        fields = [
+            "account",
+            "contact",
+            "deal",
+            "required_date",
+            "payment_terms",
+            "shipping_address",
+            "billing_address",
+            "shipping_amount",
+            "customer_notes",
+            "internal_notes",
+        ]
+        widgets = {
+            "required_date": forms.DateInput(attrs={"type": "date"}),
+            "shipping_address": forms.Textarea(attrs={"rows": 2}),
+            "billing_address": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["account"].queryset = Account.objects.filter(organization=organization)
+            self.fields["contact"].queryset = Contact.objects.filter(organization=organization)
+            self.fields["deal"].queryset = Deal.objects.filter(organization=organization)
+
+
+class OrderLineItemForm(BaseSalesForm):
+    class Meta:
+        model = OrderLineItem
+        fields = [
+            "product",
+            "description",
+            "quantity_ordered",
+            "unit_price",
+            "discount_amount",
+            "tax_amount",
+        ]
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+
+
+class QuoteConvertForm(forms.Form):
+    required_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "form-input", "type": "date"}),
+    )
+    shipping_address = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-textarea", "rows": 2, "placeholder": "Shipping destination address..."}),
+    )
+    billing_address = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-textarea", "rows": 2, "placeholder": "Billing invoice address..."}),
+    )
+
 

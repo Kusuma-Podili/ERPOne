@@ -22,6 +22,7 @@ This document tracks all formal Pull Requests prepared, reviewed, and merged thr
 | #12 | `feature/phase3-crm-activities-dashboard-tests` | CRM Activities, Notes, Executive Revenue Dashboard & 18 Tests | Phase 3 | Merged | 2026-09-09 |
 | #13 | `feature/phase4-products-pricebooks` | Product Catalog, UOMs, Multi-Tier Price Books & Pricing Engine | Phase 4 | Merged & Closed | 2026-09-09 |
 | #14 | `feature/phase4-quotes-approvals` | Commercial Quotations, Tax Engine & Managerial Approval Workflows | Phase 4 | Merged & Closed | 2026-09-09 |
+| #15 | `feature/phase4-orders-fulfillment` | Sales Orders, State Machine Governance & Line Item Fulfillment | Phase 4 | Merged & Closed | 2026-09-09 |
 
 ---
 
@@ -120,5 +121,13 @@ This document tracks all formal Pull Requests prepared, reviewed, and merged thr
 - **Branch**: `feature/phase4-quotes-approvals` -> `development` | **Status**: Merged & Closed
 - **Phase**: Phase 4 — Sales & Order Management
 - **Purpose**: Deliver Quotation domain models (`TaxRule`, `TaxRate`, `Quote` with sequential auto-numbering, `QuoteLineItem` with precision calculation, `QuoteApproval`), `QuoteCalculationService` managing multi-rate tax and discount aggregation, `QuoteApprovalService` enforcing a 15% discount threshold policy, Quote CRUD views, line item formsets, approval decision modals, customer presentation/acceptance transitions, and 8 automated unit & integration tests (87 total tests passing at 100%).
+
+---
+
+## PR #15 — Sales Orders, State Machine Governance & Line Item Fulfillment
+- **Branch**: `feature/phase4-orders-fulfillment` -> `development` | **Status**: Merged & Closed
+- **Phase**: Phase 4 — Sales & Order Management
+- **Purpose**: Implement binding commercial `SalesOrder` (`SO-YYYY-00001`), `OrderLineItem`, and immutable `OrderStatusHistory` audit models. Build `OrderStateMachineService` governing permissible state transitions, fulfillment tracking, and cancellation constraints. Develop atomic `QuoteToOrderConversionService` mapping accepted quotes to orders with pricing snapshots. Provide complete Order list, detail, create/edit views, fulfillment and transition modals, and 6 comprehensive integration tests (93 total tests passing at 100%).
+
 
 

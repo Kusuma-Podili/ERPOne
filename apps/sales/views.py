@@ -26,6 +26,10 @@ from .models import (
     QuoteLineItem,
     QuoteApproval,
     QuoteStatus,
+    SalesOrder,
+    OrderLineItem,
+    OrderStatusHistory,
+    OrderStatus,
 )
 from .forms import (
     ProductForm,
@@ -36,11 +40,16 @@ from .forms import (
     QuoteForm,
     QuoteLineItemForm,
     QuoteApprovalActionForm,
+    SalesOrderForm,
+    OrderLineItemForm,
+    QuoteConvertForm,
 )
 from .services import (
     PricingEngineService,
     QuoteCalculationService,
     QuoteApprovalService,
+    OrderStateMachineService,
+    QuoteToOrderConversionService,
 )
 
 
@@ -505,4 +514,213 @@ class QuoteAcceptView(OrganizationAccessMixin, View):
         except Exception as e:
             messages.error(request, str(e))
         return redirect("sales:quote_detail", pk=quote.pk)
+
+
+# =====================================================================
+# SALES ORDER & FULFILLMENT VIEWS
+# =====================================================================
+
+class OrderListView(OrganizationAccessMixin, ListView):
+    model = SalesOrder
+    template_name = "sales/order_list.html"
+    context_object_name = "orders"
+    paginate_by = 25
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return SalesOrder.objects.none()
+        qs = SalesOrder.objects.filter(organization=org).select_related("account", "contact", "deal", "created_by")
+        search = self.request.GET.get("q")
+        if search:
+            qs = qs.filter(
+                Q(order_number__icontains=search)
+                | Q(account__name__icontains=search)
+                | Q(customer_notes__icontains=search)
+            )
+        status = self.request.GET.get("status")
+        if status:
+            qs = qs.filter(status=status)
+        return qs.order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["status_choices"] = OrderStatus.choices
+        ctx["current_status"] = self.request.GET.get("status", "")
+        ctx["search_query"] = self.request.GET.get("q", "")
+        return ctx
+
+
+class OrderDetailView(OrganizationAccessMixin, DetailView):
+    model = SalesOrder
+    template_name = "sales/order_detail.html"
+    context_object_name = "order"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return SalesOrder.objects.none()
+        return SalesOrder.objects.filter(organization=org).select_related(
+            "account", "contact", "deal", "quote", "created_by"
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        order = self.object
+        ctx["line_items"] = order.line_items.select_related("product", "product__uom").order_by("line_number")
+        ctx["status_history"] = order.status_history.select_related("changed_by").order_by("-timestamp")
+        ctx["line_form"] = OrderLineItemForm(organization=self.request.organization)
+        ctx["next_allowed_statuses"] = OrderStateMachineService.PERMISSIBLE_TRANSITIONS.get(order.status, [])
+        return ctx
+
+
+class OrderCreateView(OrganizationAccessMixin, CreateView):
+    model = SalesOrder
+    form_class = SalesOrderForm
+    template_name = "sales/order_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.organization
+        form.instance.created_by = self.request.user
+        form.instance.status = OrderStatus.DRAFT
+        messages.success(self.request, "Sales order created successfully.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("sales:order_detail", kwargs={"pk": self.object.pk})
+
+
+class OrderUpdateView(OrganizationAccessMixin, UpdateView):
+    model = SalesOrder
+    form_class = SalesOrderForm
+    template_name = "sales/order_form.html"
+
+    def get_queryset(self):
+        org = self.request.organization
+        return SalesOrder.objects.filter(organization=org)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def form_valid(self, form):
+        if form.instance.status not in [OrderStatus.DRAFT, OrderStatus.CONFIRMED]:
+            messages.error(self.request, "Cannot modify an order that is already processing or fulfilled.")
+            return redirect("sales:order_detail", pk=form.instance.pk)
+        messages.success(self.request, "Sales order updated.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("sales:order_detail", kwargs={"pk": self.object.pk})
+
+
+class OrderLineItemCreateView(OrganizationAccessMixin, View):
+    """Adds a line item to a draft or confirmed sales order."""
+    def post(self, request, pk):
+        org = request.organization
+        order = get_object_or_404(SalesOrder, pk=pk, organization=org)
+        if order.status not in [OrderStatus.DRAFT, OrderStatus.CONFIRMED]:
+            messages.error(request, "Cannot modify items on this order.")
+            return redirect("sales:order_detail", pk=order.pk)
+
+        form = OrderLineItemForm(request.POST, organization=org)
+        if form.is_valid():
+            line = form.save(commit=False)
+            line.organization = org
+            line.order = order
+            line.line_number = order.line_items.count() + 1
+            line.calculate_amounts()
+            line.save()
+            order.recalculate_totals()
+            messages.success(request, f"Added line item {line.product.name}.")
+        else:
+            messages.error(request, "Failed to add line item.")
+        return redirect("sales:order_detail", pk=order.pk)
+
+
+class OrderLineItemDeleteView(OrganizationAccessMixin, View):
+    """Removes a line item from a draft or confirmed sales order."""
+    def post(self, request, pk):
+        org = request.organization
+        line = get_object_or_404(OrderLineItem, pk=pk, organization=org)
+        order = line.order
+        if order.status not in [OrderStatus.DRAFT, OrderStatus.CONFIRMED]:
+            messages.error(request, "Cannot modify items on this order.")
+            return redirect("sales:order_detail", pk=order.pk)
+
+        line.delete()
+        order.recalculate_totals()
+        messages.success(request, "Line item removed.")
+        return redirect("sales:order_detail", pk=order.pk)
+
+
+class OrderStatusTransitionView(OrganizationAccessMixin, View):
+    """Executes state machine status transition for a sales order."""
+    def post(self, request, pk):
+        org = request.organization
+        order = get_object_or_404(SalesOrder, pk=pk, organization=org)
+        target_status = request.POST.get("target_status")
+        notes = request.POST.get("notes", "")
+        try:
+            OrderStateMachineService.transition_order(order, target_status, request.user, notes=notes)
+            messages.success(request, f"Order status updated to '{order.get_status_display()}'.")
+        except Exception as e:
+            messages.error(request, str(e))
+        return redirect("sales:order_detail", pk=order.pk)
+
+
+class OrderFulfillView(OrganizationAccessMixin, View):
+    """Fulfills item quantities on a sales order."""
+    def post(self, request, pk):
+        org = request.organization
+        order = get_object_or_404(SalesOrder, pk=pk, organization=org)
+        fulfillment_map = {}
+        for key, val in request.POST.items():
+            if key.startswith("fulfill_line_"):
+                line_id = key.replace("fulfill_line_", "")
+                try:
+                    qty = int(val)
+                    if qty > 0:
+                        fulfillment_map[line_id] = qty
+                except ValueError:
+                    pass
+
+        notes = request.POST.get("fulfillment_notes", "")
+        try:
+            OrderStateMachineService.fulfill_line_items(order, fulfillment_map, request.user, notes=notes)
+            messages.success(request, f"Order fulfillment updated ({order.fulfillment_percentage}% complete).")
+        except Exception as e:
+            messages.error(request, str(e))
+        return redirect("sales:order_detail", pk=order.pk)
+
+
+class QuoteConvertToOrderView(OrganizationAccessMixin, View):
+    """Promotes an accepted quotation into a binding Sales Order."""
+    def post(self, request, pk):
+        org = request.organization
+        quote = get_object_or_404(Quote, pk=pk, organization=org)
+        form = QuoteConvertForm(request.POST)
+        if form.is_valid():
+            try:
+                order = QuoteToOrderConversionService.convert_quote_to_order(
+                    quote=quote,
+                    user=request.user,
+                    required_date=form.cleaned_data.get("required_date"),
+                    shipping_address=form.cleaned_data.get("shipping_address", ""),
+                    billing_address=form.cleaned_data.get("billing_address", ""),
+                )
+                messages.success(request, f"Quotation {quote.quote_number} successfully converted to Sales Order {order.order_number}!")
+                return redirect("sales:order_detail", pk=order.pk)
+            except Exception as e:
+                messages.error(request, str(e))
+        else:
+            messages.error(request, "Invalid order conversion parameters.")
+        return redirect("sales:quote_detail", pk=quote.pk)
+
 

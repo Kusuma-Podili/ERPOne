@@ -728,3 +728,233 @@ class QuoteApproval(models.Model):
     def __str__(self):
         return f"Approval for {self.quote.quote_number} ({self.status})"
 
+
+class OrderStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    CONFIRMED = "confirmed", "Confirmed"
+    PROCESSING = "processing", "In Processing"
+    PARTIALLY_FULFILLED = "partially_fulfilled", "Partially Fulfilled"
+    FULFILLED = "fulfilled", "Fulfilled"
+    INVOICED = "invoiced", "Invoiced"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class SalesOrder(models.Model):
+    """
+    Binding commercial sales order tracking fulfillment, shipping, and invoicing.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="sales_orders",
+    )
+    order_number = models.CharField(max_length=64, db_index=True)
+    quote = models.ForeignKey(
+        Quote,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales_orders",
+    )
+    account = models.ForeignKey(
+        "crm.Account",
+        on_delete=models.CASCADE,
+        related_name="sales_orders",
+    )
+    contact = models.ForeignKey(
+        "crm.Contact",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales_orders",
+    )
+    deal = models.ForeignKey(
+        "crm.Deal",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales_orders",
+    )
+    status = models.CharField(
+        max_length=30,
+        choices=OrderStatus.choices,
+        default=OrderStatus.DRAFT,
+        db_index=True,
+    )
+    order_date = models.DateField(default=timezone.now)
+    required_date = models.DateField(null=True, blank=True)
+    shipping_address = models.TextField(blank=True)
+    billing_address = models.TextField(blank=True)
+    payment_terms = models.CharField(max_length=100, default="Net 30")
+    currency = models.CharField(max_length=3, default="USD")
+    subtotal_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    tax_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    shipping_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    grand_total = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    customer_notes = models.TextField(blank=True)
+    internal_notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_sales_orders",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Sales Order"
+        verbose_name_plural = "Sales Orders"
+        ordering = ["-created_at"]
+        unique_together = ("organization", "order_number")
+
+    def __str__(self):
+        return f"{self.order_number} ({self.account.name})"
+
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            self.order_number = self.generate_order_number()
+        super().save(*args, **kwargs)
+
+    def generate_order_number(self) -> str:
+        """Generates sequential order identifier e.g. SO-2026-00001."""
+        year = timezone.now().year
+        count = SalesOrder.objects.filter(
+            organization=self.organization,
+            order_number__startswith=f"SO-{year}",
+        ).count() + 1
+        return f"SO-{year}-{count:05d}"
+
+    @property
+    def fulfillment_percentage(self) -> int:
+        """Calculates total quantity fulfilled vs ordered."""
+        total_ordered = sum(line.quantity_ordered for line in self.line_items.all())
+        if total_ordered == 0:
+            return 100
+        total_fulfilled = sum(line.quantity_fulfilled for line in self.line_items.all())
+        return int((total_fulfilled / total_ordered) * 100)
+
+    @property
+    def is_fully_fulfilled(self) -> bool:
+        return all(line.is_fulfilled for line in self.line_items.all())
+
+    def recalculate_totals(self):
+        """Recalculates subtotal, discounts, taxes, and grand total."""
+        subtotal = Decimal("0.00")
+        discounts = Decimal("0.00")
+        taxes = Decimal("0.00")
+        for line in self.line_items.all():
+            subtotal += line.subtotal
+            discounts += line.discount_amount
+            taxes += line.tax_amount
+
+        self.subtotal_amount = subtotal.quantize(Decimal("0.01"))
+        self.discount_amount = discounts.quantize(Decimal("0.01"))
+        self.tax_amount = taxes.quantize(Decimal("0.01"))
+        self.grand_total = (
+            subtotal - discounts + taxes + self.shipping_amount
+        ).quantize(Decimal("0.01"))
+        self.save(update_fields=[
+            "subtotal_amount",
+            "discount_amount",
+            "tax_amount",
+            "grand_total",
+            "updated_at",
+        ])
+
+
+class OrderLineItem(models.Model):
+    """
+    Individual product line within a confirmed Sales Order.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="order_line_items",
+    )
+    order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="line_items",
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="order_lines",
+    )
+    line_number = models.PositiveIntegerField(default=1)
+    description = models.TextField(blank=True)
+    quantity_ordered = models.PositiveIntegerField(default=1)
+    quantity_fulfilled = models.PositiveIntegerField(default=0)
+    unit_price = models.DecimalField(max_digits=14, decimal_places=2)
+    discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    tax_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    total_price = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Order Line Item"
+        verbose_name_plural = "Order Line Items"
+        ordering = ["order", "line_number"]
+
+    def __str__(self):
+        return f"{self.order.order_number} - Line {self.line_number}: {self.product.name}"
+
+    @property
+    def is_fulfilled(self) -> bool:
+        return self.quantity_fulfilled >= self.quantity_ordered
+
+    @property
+    def remaining_quantity(self) -> int:
+        return max(0, self.quantity_ordered - self.quantity_fulfilled)
+
+    def calculate_amounts(self):
+        self.subtotal = (self.unit_price * Decimal(self.quantity_ordered)).quantize(Decimal("0.01"))
+        self.total_price = (self.subtotal - self.discount_amount + self.tax_amount).quantize(Decimal("0.01"))
+
+    def save(self, *args, **kwargs):
+        self.calculate_amounts()
+        super().save(*args, **kwargs)
+
+
+class OrderStatusHistory(models.Model):
+    """
+    Immutable state machine transition audit trail for sales orders.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="order_status_history",
+    )
+    order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="status_history",
+    )
+    from_status = models.CharField(max_length=30)
+    to_status = models.CharField(max_length=30)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Order Status History"
+        verbose_name_plural = "Order Status Histories"
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"{self.order.order_number}: {self.from_status} -> {self.to_status}"
+
+
