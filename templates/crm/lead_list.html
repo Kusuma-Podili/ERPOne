@@ -1,0 +1,231 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Sales Leads &bull; CRM &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">CRM</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Leads</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Sales Leads & Prospects</h1>
+        <p class="page-subtitle">Track inbound inquiries, evaluate algorithmic lead scores, and convert qualified opportunities.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'crm:lead_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Capture Lead
+        </a>
+    </div>
+</div>
+
+<!-- Metrics Bar -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Pipeline Leads</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">{{ total_leads_count }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Hot Leads (Score &ge; 75)</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #ef4444; margin-top: 0.25rem;">{{ hot_leads_count }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Sales Qualified (SQL)</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #10b981; margin-top: 0.25rem;">{{ qualified_leads_count }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Converted to Customers</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary-color, #2563eb); margin-top: 0.25rem;">{{ converted_leads_count }}</div>
+    </div>
+</div>
+
+<!-- Filter & Search Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem;">
+    <form method="get" action="{% url 'crm:lead_list' %}" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+        <div style="flex: 2; min-width: 200px;">
+            <input type="text" name="q" value="{{ current_q }}" class="form-control enterprise-input" placeholder="Search by name, company, email, phone...">
+        </div>
+        <div style="flex: 1; min-width: 140px;">
+            <select name="status" class="form-select enterprise-input">
+                <option value="">All Statuses</option>
+                {% for val, label in lead_statuses %}
+                <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 140px;">
+            <select name="source" class="form-select enterprise-input">
+                <option value="">All Sources</option>
+                {% for val, label in lead_sources %}
+                <option value="{{ val }}" {% if current_source == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 120px;">
+            <select name="priority" class="form-select enterprise-input">
+                <option value="">All Priorities</option>
+                {% for val, label in lead_priorities %}
+                <option value="{{ val }}" {% if current_priority == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 120px;">
+            <select name="min_score" class="form-select enterprise-input">
+                <option value="">Any Score</option>
+                <option value="75" {% if current_min_score == "75" %}selected{% endif %}>Hot (&ge; 75)</option>
+                <option value="50" {% if current_min_score == "50" %}selected{% endif %}>Warm (&ge; 50)</option>
+                <option value="25" {% if current_min_score == "25" %}selected{% endif %}>Cool (&ge; 25)</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">Filter</button>
+        {% if current_q or current_status or current_source or current_priority or current_min_score %}
+        <a href="{% url 'crm:lead_list' %}" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Reset</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Leads Table -->
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">Leads Directory ({{ paginator.count }})</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Lead Name</th>
+                    <th>Company</th>
+                    <th>Score</th>
+                    <th>Status</th>
+                    <th>Source</th>
+                    <th>Priority</th>
+                    <th>Est. Value</th>
+                    <th>Owner</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in leads %}
+                <tr>
+                    <td>
+                        <a href="{% url 'crm:lead_detail' pk=l.pk %}" style="font-weight: 600; color: var(--text-primary); text-decoration: none;">
+                            {{ l.full_name }}
+                        </a>
+                        {% if l.job_title %}
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ l.job_title }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ l.company_name }}</strong>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            <a href="mailto:{{ l.email }}" style="color: inherit; text-decoration: none;">{{ l.email }}</a>
+                        </div>
+                    </td>
+                    <td>
+                        <!-- Lead Score Badge -->
+                        {% if l.lead_score >= 75 %}
+                        <span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #dc2626; font-weight: 700; border: 1px solid rgba(239,68,68,0.3);">
+                            &#9733; {{ l.lead_score }}
+                        </span>
+                        {% elif l.lead_score >= 50 %}
+                        <span class="badge" style="background: rgba(37, 99, 235, 0.15); color: #2563eb; font-weight: 700; border: 1px solid rgba(37,99,235,0.3);">
+                            {{ l.lead_score }}
+                        </span>
+                        {% elif l.lead_score >= 25 %}
+                        <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #d97706; font-weight: 700; border: 1px solid rgba(245,158,11,0.3);">
+                            {{ l.lead_score }}
+                        </span>
+                        {% else %}
+                        <span class="badge" style="background: rgba(148, 163, 184, 0.2); color: #64748b; font-weight: 600;">
+                            {{ l.lead_score }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if l.is_converted %}
+                        <span class="badge badge-success">Converted</span>
+                        {% elif l.status == 'QUALIFIED' %}
+                        <span class="badge badge-primary">Qualified</span>
+                        {% elif l.status == 'CONTACTED' %}
+                        <span class="badge badge-info">Contacted</span>
+                        {% elif l.status == 'UNQUALIFIED' %}
+                        <span class="badge badge-secondary">Unqualified</span>
+                        {% else %}
+                        <span class="badge badge-outline">New</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ l.get_lead_source_display }}</span>
+                    </td>
+                    <td>
+                        {% if l.priority == 'URGENT' %}
+                        <span class="badge badge-danger">Urgent</span>
+                        {% elif l.priority == 'HIGH' %}
+                        <span class="badge badge-warning">High</span>
+                        {% else %}
+                        <span class="badge badge-secondary">{{ l.get_priority_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if l.estimated_value %}
+                        ${{ l.estimated_value|floatformat:2 }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if l.owner %}
+                        {{ l.owner.get_full_name|default:l.owner.email }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        {% if not l.is_converted %}
+                        <a href="{% url 'crm:lead_convert' pk=l.pk %}" class="btn btn-sm btn-primary" title="Convert to Customer Account">
+                            Convert
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'crm:lead_detail' pk=l.pk %}" class="btn btn-sm btn-secondary" title="View Details">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.5;"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                        <p style="font-size: 1.1rem; font-weight: 500; margin-bottom: 0.5rem;">No leads found in pipeline</p>
+                        <p style="font-size: 0.875rem;">Add inbound inquiries to begin algorithmic qualification and scoring.</p>
+                        <a href="{% url 'crm:lead_create' %}" class="btn btn-primary" style="margin-top: 1rem;">
+                            Capture First Lead
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div style="padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);">
+        <div style="font-size: 0.875rem; color: var(--text-muted);">
+            Showing page {{ page_obj.number }} of {{ paginator.num_pages }}
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}" class="btn btn-sm btn-secondary">&laquo; Previous</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}" class="btn btn-sm btn-secondary">Next &raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

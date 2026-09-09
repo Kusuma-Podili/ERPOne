@@ -70,6 +70,10 @@
 
         <div class="nav-section-title">Customer Relationship (CRM)</div>
         {% if active_organization %}
+        <a href="{% url 'crm:lead_list' %}" class="nav-item {% if request.resolver_match.app_name == 'crm' and 'lead' in request.resolver_match.url_name %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+            <span>Leads</span>
+        </a>
         <a href="{% url 'crm:account_list' %}" class="nav-item {% if request.resolver_match.app_name == 'crm' and 'account' in request.resolver_match.url_name %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
             <span>Accounts</span>
