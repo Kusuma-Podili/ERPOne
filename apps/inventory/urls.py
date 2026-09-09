@@ -26,4 +26,15 @@ urlpatterns = [
     path("stock/create/", views.StockItemCreateView.as_view(), name="stock_create"),
     path("stock/<uuid:pk>/", views.StockItemDetailView.as_view(), name="stock_detail"),
     path("stock/<uuid:pk>/edit/", views.StockItemUpdateView.as_view(), name="stock_edit"),
+
+    # Stock Movements & Goods Receipts
+    path("movements/", views.StockMovementListView.as_view(), name="movement_list"),
+    path("movements/create/", views.StockMovementCreateView.as_view(), name="movement_create"),
+    path("movements/<uuid:pk>/", views.StockMovementDetailView.as_view(), name="movement_detail"),
+    path("movements/<uuid:pk>/post/", views.StockMovementPostView.as_view(), name="movement_post"),
+    path("movements/<uuid:pk>/cancel/", views.StockMovementCancelView.as_view(), name="movement_cancel"),
+    path("movements/<uuid:pk>/print/", views.StockMovementPrintView.as_view(), name="movement_print"),
+
+    # Stock Movement Ledger / Audit
+    path("ledger/", views.StockLedgerView.as_view(), name="stock_ledger"),
 ]

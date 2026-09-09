@@ -13,6 +13,10 @@ from .models import (
     StorageZone,
     StorageLocation,
     StockItem,
+    StockMovement,
+    StockMovementLine,
+    StockMovementType,
+    StockMovementStatus,
 )
 
 
@@ -156,3 +160,157 @@ class StockItemForm(forms.ModelForm):
             self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
             self.fields["warehouse"].queryset = Warehouse.objects.filter(organization=organization, is_active=True)
             self.fields["location"].queryset = StorageLocation.objects.filter(organization=organization, is_active=True)
+
+from django.forms import inlineformset_factory
+
+
+class StockMovementForm(forms.ModelForm):
+    class Meta:
+        model = StockMovement
+        fields = [
+            "movement_type",
+            "source_warehouse",
+            "destination_warehouse",
+            "reference_document",
+            "movement_date",
+            "notes",
+        ]
+        widgets = {
+            "movement_type": forms.Select(attrs={"class": "form-select", "id": "id_movement_type"}),
+            "source_warehouse": forms.Select(attrs={"class": "form-select"}),
+            "destination_warehouse": forms.Select(attrs={"class": "form-select"}),
+            "reference_document": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. PO-2026-0045, RMA-102"}),
+            "movement_date": forms.DateTimeInput(attrs={"class": "form-control", "type": "datetime-local"}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Reason or operational notes..."}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            wh_qs = Warehouse.objects.filter(organization=organization, is_active=True)
+            self.fields["source_warehouse"].queryset = wh_qs
+            self.fields["destination_warehouse"].queryset = wh_qs
+
+
+class StockMovementLineForm(forms.ModelForm):
+    class Meta:
+        model = StockMovementLine
+        fields = [
+            "product",
+            "source_location",
+            "destination_location",
+            "quantity",
+            "unit_cost",
+            "batch_number",
+            "serial_number",
+            "notes",
+        ]
+        widgets = {
+            "product": forms.Select(attrs={"class": "form-select"}),
+            "source_location": forms.Select(attrs={"class": "form-select"}),
+            "destination_location": forms.Select(attrs={"class": "form-select"}),
+            "quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01"}),
+            "unit_cost": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "batch_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "Lot/Batch"}),
+            "serial_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "Serial #"}),
+            "notes": forms.TextInput(attrs={"class": "form-control", "placeholder": "Notes"}),
+        }
+
+    def __init__(self, *args, organization=None, source_warehouse=None, destination_warehouse=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+        if source_warehouse:
+            self.fields["source_location"].queryset = StorageLocation.objects.filter(
+                warehouse=source_warehouse, is_active=True
+            )
+        else:
+            self.fields["source_location"].queryset = StorageLocation.objects.none() if not self.instance.pk else self.fields["source_location"].queryset
+
+        if destination_warehouse:
+            self.fields["destination_location"].queryset = StorageLocation.objects.filter(
+                warehouse=destination_warehouse, is_active=True
+            )
+        else:
+            self.fields["destination_location"].queryset = StorageLocation.objects.none() if not self.instance.pk else self.fields["destination_location"].queryset
+
+
+StockMovementLineFormSet = inlineformset_factory(
+    StockMovement,
+    StockMovementLine,
+    fields=[
+        "product",
+        "source_location",
+        "destination_location",
+        "quantity",
+        "unit_cost",
+        "batch_number",
+        "serial_number",
+        "notes",
+    ],
+    extra=1,
+    can_delete=True,
+    widgets={
+        "product": forms.Select(attrs={"class": "form-select"}),
+        "source_location": forms.Select(attrs={"class": "form-select"}),
+        "destination_location": forms.Select(attrs={"class": "form-select"}),
+        "quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01"}),
+        "unit_cost": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+        "batch_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "Lot #"}),
+        "serial_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "Serial"}),
+        "notes": forms.TextInput(attrs={"class": "form-control", "placeholder": "Notes"}),
+    }
+)
+
+
+class StockQuickAdjustmentForm(forms.Form):
+    ADJUSTMENT_CHOICES = [
+        ("gain", "Inventory Gain / Found Stock"),
+        ("loss", "Inventory Loss / Shrinkage"),
+        ("scrap", "Damaged Goods / Scrap Write-Off"),
+    ]
+
+    warehouse = forms.ModelChoiceField(
+        queryset=Warehouse.objects.none(),
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Target Warehouse",
+    )
+    location = forms.ModelChoiceField(
+        queryset=StorageLocation.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Storage Location",
+    )
+    product = forms.ModelChoiceField(
+        queryset=Product.objects.none(),
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Product",
+    )
+    adjustment_type = forms.ChoiceField(
+        choices=ADJUSTMENT_CHOICES,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Adjustment Type",
+    )
+    quantity = forms.DecimalField(
+        min_value=Decimal("0.01"),
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+        label="Quantity",
+    )
+    reference = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. AUDIT-2026-Q1"}),
+        label="Audit / Reference Code",
+    )
+    reason = forms.CharField(
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Reason for variance..."}),
+        label="Reason & Justification",
+    )
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["warehouse"].queryset = Warehouse.objects.filter(organization=organization, is_active=True)
+            self.fields["location"].queryset = StorageLocation.objects.filter(organization=organization, is_active=True)
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)

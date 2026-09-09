@@ -5,7 +5,7 @@ and real-time stock allocation/reservation logic.
 """
 from decimal import Decimal
 from typing import Optional, List, Dict
-from django.db import transaction
+from django.db import transaction, models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from apps.organizations.models import Organization
@@ -17,6 +17,10 @@ from .models import (
     StorageZoneType,
     StorageLocation,
     StockItem,
+    StockMovement,
+    StockMovementType,
+    StockMovementStatus,
+    StockMovementLine,
 )
 
 
@@ -309,3 +313,233 @@ class StockLevelService:
 
         alerts = [item for item in qs if item.needs_reorder]
         return alerts
+
+
+class StockMovementService:
+    """
+    Transactional stock movement service ensuring double-entry balance integrity across warehouses
+    and bin locations for receipts, transfers, relocations, and inventory write-offs.
+    """
+
+    @classmethod
+    @transaction.atomic
+    def create_movement(
+        cls,
+        organization: Organization,
+        movement_type: str,
+        source_warehouse: Optional[Warehouse] = None,
+        destination_warehouse: Optional[Warehouse] = None,
+        reference_document: str = "",
+        movement_date=None,
+        notes: str = "",
+        created_by=None,
+        lines_data: Optional[List[Dict]] = None,
+    ) -> StockMovement:
+        """
+        Initializes a stock movement header document and optionally attaches line items.
+        """
+        movement = StockMovement(
+            organization=organization,
+            movement_type=movement_type,
+            source_warehouse=source_warehouse,
+            destination_warehouse=destination_warehouse,
+            reference_document=reference_document,
+            notes=notes,
+            created_by=created_by,
+        )
+        if movement_date:
+            movement.movement_date = movement_date
+        movement.full_clean()
+        movement.save()
+
+        if lines_data:
+            for line_item in lines_data:
+                cls.add_movement_line(
+                    movement=movement,
+                    product=line_item["product"],
+                    quantity=line_item["quantity"],
+                    source_location=line_item.get("source_location"),
+                    destination_location=line_item.get("destination_location"),
+                    unit_cost=line_item.get("unit_cost", Decimal("0.00")),
+                    batch_number=line_item.get("batch_number", ""),
+                    serial_number=line_item.get("serial_number", ""),
+                    notes=line_item.get("notes", ""),
+                )
+
+        return movement
+
+    @classmethod
+    def add_movement_line(
+        cls,
+        movement: StockMovement,
+        product: Product,
+        quantity: Decimal,
+        source_location: Optional[StorageLocation] = None,
+        destination_location: Optional[StorageLocation] = None,
+        unit_cost: Decimal = Decimal("0.00"),
+        batch_number: str = "",
+        serial_number: str = "",
+        notes: str = "",
+    ) -> StockMovementLine:
+        """
+        Adds a line item to a draft or approved stock movement document.
+        """
+        if movement.status not in [StockMovementStatus.DRAFT, StockMovementStatus.APPROVED]:
+            raise ValidationError("Cannot modify lines on a movement that is not Draft or Approved.")
+
+        if quantity <= Decimal("0.00"):
+            raise ValidationError("Quantity moved must be greater than zero.")
+
+        line = StockMovementLine(
+            movement=movement,
+            product=product,
+            source_location=source_location,
+            destination_location=destination_location,
+            quantity=quantity,
+            unit_cost=unit_cost,
+            batch_number=batch_number,
+            serial_number=serial_number,
+            notes=notes,
+        )
+        line.full_clean()
+        line.save()
+        return line
+
+    @classmethod
+    @transaction.atomic
+    def post_movement(
+        cls,
+        movement: StockMovement,
+        posted_by=None,
+    ) -> StockMovement:
+        """
+        Atomically executes the stock movement, debiting and crediting inventory balances.
+        """
+        if not movement.can_post:
+            raise ValidationError(
+                f"Movement '{movement.movement_number}' is {movement.get_status_display()} and cannot be posted."
+            )
+
+        lines = movement.lines.select_related("product", "source_location", "destination_location").all()
+        if not lines.exists():
+            raise ValidationError("Cannot post a stock movement document with no line items.")
+
+        # Execute stock ledger balance shifts according to movement type
+        for line in lines:
+            if movement.movement_type == StockMovementType.RECEIPT:
+                # Inbound goods receipt -> Increment destination warehouse
+                StockLevelService.adjust_physical_stock(
+                    product=line.product,
+                    warehouse=movement.destination_warehouse,
+                    location=line.destination_location,
+                    delta_quantity=line.quantity,
+                )
+
+            elif movement.movement_type == StockMovementType.TRANSFER:
+                # Inter-warehouse transfer -> Decrement source, Increment destination
+                StockLevelService.adjust_physical_stock(
+                    product=line.product,
+                    warehouse=movement.source_warehouse,
+                    location=line.source_location,
+                    delta_quantity=-line.quantity,
+                )
+                StockLevelService.adjust_physical_stock(
+                    product=line.product,
+                    warehouse=movement.destination_warehouse,
+                    location=line.destination_location,
+                    delta_quantity=line.quantity,
+                )
+
+            elif movement.movement_type == StockMovementType.LOCATION_TRANSFER:
+                # Intra-warehouse relocation between bins
+                StockLevelService.adjust_physical_stock(
+                    product=line.product,
+                    warehouse=movement.source_warehouse,
+                    location=line.source_location,
+                    delta_quantity=-line.quantity,
+                )
+                StockLevelService.adjust_physical_stock(
+                    product=line.product,
+                    warehouse=movement.source_warehouse,
+                    location=line.destination_location,
+                    delta_quantity=line.quantity,
+                )
+
+            elif movement.movement_type in [StockMovementType.SCRAP, StockMovementType.ADJUSTMENT]:
+                # Negative adjustment / scrap write-off -> Decrement source
+                StockLevelService.adjust_physical_stock(
+                    product=line.product,
+                    warehouse=movement.source_warehouse,
+                    location=line.source_location,
+                    delta_quantity=-line.quantity,
+                )
+
+            elif movement.movement_type == StockMovementType.RETURN:
+                # Customer / RMA return -> Increment destination
+                StockLevelService.adjust_physical_stock(
+                    product=line.product,
+                    warehouse=movement.destination_warehouse,
+                    location=line.destination_location,
+                    delta_quantity=line.quantity,
+                )
+
+        movement.status = StockMovementStatus.COMPLETED
+        movement.posted_at = timezone.now()
+        movement.posted_by = posted_by
+        movement.save(update_fields=["status", "posted_at", "posted_by", "updated_at"])
+        return movement
+
+    @classmethod
+    @transaction.atomic
+    def cancel_movement(
+        cls,
+        movement: StockMovement,
+        cancelled_by=None,
+        reason: str = "",
+    ) -> StockMovement:
+        """
+        Cancels an unposted stock movement document.
+        """
+        if not movement.can_cancel:
+            raise ValidationError(
+                f"Movement '{movement.movement_number}' is already {movement.get_status_display()} and cannot be cancelled."
+            )
+
+        movement.status = StockMovementStatus.CANCELLED
+        if reason:
+            movement.notes = (movement.notes + f"\n[Cancelled: {reason}]").strip()
+        movement.save(update_fields=["status", "notes", "updated_at"])
+        return movement
+
+    @classmethod
+    def get_ledger_history(
+        cls,
+        organization: Organization,
+        product: Optional[Product] = None,
+        warehouse: Optional[Warehouse] = None,
+    ):
+        """
+        Retrieves chronological ledger audit entries for completed stock movements.
+        """
+        qs = StockMovementLine.objects.filter(
+            movement__organization=organization,
+            movement__status=StockMovementStatus.COMPLETED,
+        ).select_related(
+            "movement",
+            "product",
+            "movement__source_warehouse",
+            "movement__destination_warehouse",
+            "source_location",
+            "destination_location",
+            "movement__posted_by",
+        ).order_by("-movement__posted_at", "-created_at")
+
+        if product:
+            qs = qs.filter(product=product)
+        if warehouse:
+            qs = qs.filter(
+                models.Q(movement__source_warehouse=warehouse) |
+                models.Q(movement__destination_warehouse=warehouse)
+            )
+
+        return qs

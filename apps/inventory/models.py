@@ -337,3 +337,222 @@ class StockItem(models.Model):
             raise ValidationError(
                 {"quantity_reserved": _("Reserved quantity cannot exceed total physical on-hand stock.")}
             )
+
+
+class StockMovementType(models.TextChoices):
+    RECEIPT = "receipt", _("Inbound Goods Receipt")
+    TRANSFER = "transfer", _("Warehouse Transfer")
+    LOCATION_TRANSFER = "location_transfer", _("Internal Location Relocation")
+    ADJUSTMENT = "adjustment", _("Inventory Adjustment / Variance")
+    SCRAP = "scrap", _("Damaged / Scrap Write-Off")
+    RETURN = "return", _("Customer / Vendor Return")
+
+
+class StockMovementStatus(models.TextChoices):
+    DRAFT = "draft", _("Draft")
+    APPROVED = "approved", _("Approved")
+    COMPLETED = "completed", _("Completed / Posted")
+    CANCELLED = "cancelled", _("Cancelled")
+
+
+class StockMovement(models.Model):
+    """
+    Stock movement ledger document tracking physical inventory transfers,
+    goods receipts, scrap write-offs, and location relocations.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="stock_movements",
+    )
+    movement_number = models.CharField(_("Movement Number"), max_length=64, blank=True, db_index=True)
+    movement_type = models.CharField(
+        _("Movement Type"),
+        max_length=30,
+        choices=StockMovementType.choices,
+        default=StockMovementType.RECEIPT,
+    )
+    status = models.CharField(
+        _("Status"),
+        max_length=30,
+        choices=StockMovementStatus.choices,
+        default=StockMovementStatus.DRAFT,
+    )
+    source_warehouse = models.ForeignKey(
+        Warehouse,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="outbound_movements",
+        help_text=_("Origin facility for transfers, scrap, and negative adjustments."),
+    )
+    destination_warehouse = models.ForeignKey(
+        Warehouse,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="inbound_movements",
+        help_text=_("Destination facility for receipts, inbound transfers, and returns."),
+    )
+    reference_document = models.CharField(
+        _("Reference Document"),
+        max_length=100,
+        blank=True,
+        help_text=_("External PO number, Sales Order, RMA, or Audit Count ID."),
+    )
+    movement_date = models.DateTimeField(_("Movement Date"), default=timezone.now)
+    posted_at = models.DateTimeField(_("Posted At"), null=True, blank=True)
+    posted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="posted_stock_movements",
+    )
+    notes = models.TextField(_("Notes & Operational Justification"), blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_stock_movements",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Stock Movement")
+        verbose_name_plural = _("Stock Movements")
+        ordering = ["-created_at"]
+        unique_together = ("organization", "movement_number")
+
+    def __str__(self):
+        return f"{self.movement_number} ({self.get_movement_type_display()}) - {self.get_status_display()}"
+
+    def save(self, *args, **kwargs):
+        if not self.movement_number:
+            self.movement_number = self.generate_movement_number()
+        super().save(*args, **kwargs)
+
+    def generate_movement_number(self) -> str:
+        year = timezone.now().year
+        count = StockMovement.objects.filter(
+            organization=self.organization,
+            movement_date__year=year,
+        ).count() + 1
+        return f"SM-{year}-{count:05d}"
+
+    def clean(self):
+        super().clean()
+        if not self.movement_number and self.organization_id:
+            self.movement_number = self.generate_movement_number()
+        if self.movement_type == StockMovementType.TRANSFER:
+            if not self.source_warehouse:
+                raise ValidationError({"source_warehouse": _("Source warehouse is required for transfers.")})
+            if not self.destination_warehouse:
+                raise ValidationError({"destination_warehouse": _("Destination warehouse is required for transfers.")})
+            if self.source_warehouse_id == self.destination_warehouse_id:
+                raise ValidationError(
+                    {"destination_warehouse": _("Source and destination warehouses cannot be the same.")}
+                )
+        elif self.movement_type == StockMovementType.LOCATION_TRANSFER:
+            if not self.source_warehouse:
+                raise ValidationError({"source_warehouse": _("Warehouse facility is required for location transfers.")})
+            if not self.destination_warehouse:
+                self.destination_warehouse = self.source_warehouse
+        elif self.movement_type == StockMovementType.RECEIPT:
+            if not self.destination_warehouse:
+                raise ValidationError({"destination_warehouse": _("Destination warehouse is required for goods receipts.")})
+        elif self.movement_type in [StockMovementType.SCRAP, StockMovementType.ADJUSTMENT]:
+            if not self.source_warehouse:
+                raise ValidationError({"source_warehouse": _("Warehouse is required for inventory adjustments / scrap.")})
+
+    @property
+    def total_lines_count(self) -> int:
+        return self.lines.count()
+
+    @property
+    def total_quantity(self) -> Decimal:
+        return sum((line.quantity for line in self.lines.all()), Decimal("0.00"))
+
+    @property
+    def total_value(self) -> Decimal:
+        return sum((line.total_value for line in self.lines.all()), Decimal("0.00"))
+
+    @property
+    def can_post(self) -> bool:
+        return self.status in [StockMovementStatus.DRAFT, StockMovementStatus.APPROVED]
+
+    @property
+    def can_cancel(self) -> bool:
+        return self.status in [StockMovementStatus.DRAFT, StockMovementStatus.APPROVED]
+
+
+class StockMovementLine(models.Model):
+    """
+    Individual item entry within a stock movement document.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    movement = models.ForeignKey(
+        StockMovement,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    product = models.ForeignKey(
+        "sales.Product",
+        on_delete=models.CASCADE,
+        related_name="movement_lines",
+    )
+    source_location = models.ForeignKey(
+        StorageLocation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="source_movement_lines",
+    )
+    destination_location = models.ForeignKey(
+        StorageLocation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dest_movement_lines",
+    )
+    quantity = models.DecimalField(
+        _("Quantity Moved"),
+        max_digits=12,
+        decimal_places=2,
+    )
+    unit_cost = models.DecimalField(
+        _("Unit Cost"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    batch_number = models.CharField(_("Batch / Lot #"), max_length=60, blank=True)
+    serial_number = models.CharField(_("Serial Number"), max_length=60, blank=True)
+    notes = models.CharField(_("Line Notes"), max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Stock Movement Line")
+        verbose_name_plural = _("Stock Movement Lines")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.product.name} x {self.quantity} ({self.movement.movement_number})"
+
+    @property
+    def total_value(self) -> Decimal:
+        return (self.quantity or Decimal("0.00")) * (self.unit_cost or Decimal("0.00"))
+
+    def clean(self):
+        super().clean()
+        if self.quantity is not None and self.quantity <= Decimal("0.00"):
+            raise ValidationError({"quantity": _("Quantity moved must be greater than zero.")})
+        if self.source_location and self.movement.source_warehouse_id:
+            if self.source_location.warehouse_id != self.movement.source_warehouse_id:
+                raise ValidationError({"source_location": _("Source location must belong to movement source warehouse.")})
+        if self.destination_location and self.movement.destination_warehouse_id:
+            if self.destination_location.warehouse_id != self.movement.destination_warehouse_id:
+                raise ValidationError({"destination_location": _("Destination location must belong to movement destination warehouse.")})

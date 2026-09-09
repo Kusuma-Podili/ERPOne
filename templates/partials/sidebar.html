@@ -142,9 +142,17 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <span>Warehouses</span>
         </a>
-        <a href="{% url 'inventory:stock_list' %}" class="nav-item {% if request.resolver_match.app_name == 'inventory' and 'stock' in request.resolver_match.url_name %}active{% endif %}">
+        <a href="{% url 'inventory:stock_list' %}" class="nav-item {% if request.resolver_match.app_name == 'inventory' and 'stock' in request.resolver_match.url_name and 'ledger' not in request.resolver_match.url_name %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="m7 11 4-4-4-4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
             <span>Stock Levels</span>
+        </a>
+        <a href="{% url 'inventory:movement_list' %}" class="nav-item {% if request.resolver_match.app_name == 'inventory' and 'movement' in request.resolver_match.url_name %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+            <span>Stock Movements</span>
+        </a>
+        <a href="{% url 'inventory:stock_ledger' %}" class="nav-item {% if request.resolver_match.app_name == 'inventory' and 'ledger' in request.resolver_match.url_name %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <span>Stock Ledger</span>
         </a>
         {% else %}
         <div class="nav-item" style="opacity: 0.6; cursor: default;">
