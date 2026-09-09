@@ -1,0 +1,58 @@
+{% extends "layouts/auth.html" %}
+
+{% block title %}Sign In &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-form-header">
+    <h2 class="auth-form-title">Enterprise Sign In</h2>
+    <p class="auth-form-subtitle">Enter your corporate credentials to access your workspace.</p>
+</div>
+
+<form method="post" action="{% url 'accounts:login' %}" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="form-group">
+        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+        <div class="form-error">{{ form.email.errors.0 }}</div>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label for="{{ form.password.id_for_label }}" class="form-label" style="margin-bottom: 0;">{{ form.password.label }}</label>
+            <a href="{% url 'accounts:password_reset' %}" style="font-size: 0.8rem;">Forgot password?</a>
+        </div>
+        <div style="position: relative;">
+            {{ form.password }}
+        </div>
+        {% if form.password.errors %}
+        <div class="form-error">{{ form.password.errors.0 }}</div>
+        {% endif %}
+    </div>
+
+    <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
+        {{ form.remember_me }}
+        <label for="{{ form.remember_me.id_for_label }}" class="form-label" style="margin-bottom: 0; cursor: pointer; font-size: 0.85rem;">
+            {{ form.remember_me.label }}
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 0.95rem; margin-top: 0.5rem;">
+        Sign In to Platform
+    </button>
+</form>
+
+<div class="auth-form-footer">
+    Don't have an enterprise account? <a href="{% url 'accounts:register' %}" style="font-weight: 600;">Register here</a>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "layouts/auth.html" %}
+
+{% block title %}Create Account &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-form-header">
+    <h2 class="auth-form-title">Create Account</h2>
+    <p class="auth-form-subtitle">Register your employee profile with EnterpriseOne.</p>
+</div>
+
+<form method="post" action="{% url 'accounts:register' %}" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+            <label for="{{ form.first_name.id_for_label }}" class="form-label">{{ form.first_name.label }}</label>
+            {{ form.first_name }}
+            {% if form.first_name.errors %}
+            <div class="form-error">{{ form.first_name.errors.0 }}</div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.last_name.id_for_label }}" class="form-label">{{ form.last_name.label }}</label>
+            {{ form.last_name }}
+            {% if form.last_name.errors %}
+            <div class="form-error">{{ form.last_name.errors.0 }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+        <div class="form-error">{{ form.email.errors.0 }}</div>
+        {% endif %}
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+            <label for="{{ form.phone.id_for_label }}" class="form-label">{{ form.phone.label }}</label>
+            {{ form.phone }}
+            {% if form.phone.errors %}
+            <div class="form-error">{{ form.phone.errors.0 }}</div>
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label for="{{ form.job_title.id_for_label }}" class="form-label">{{ form.job_title.label }}</label>
+            {{ form.job_title }}
+            {% if form.job_title.errors %}
+            <div class="form-error">{{ form.job_title.errors.0 }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
+        <div style="position: relative;">
+            {{ form.password }}
+        </div>
+        {% if form.password.errors %}
+        <div class="form-error">{{ form.password.errors.0 }}</div>
+        {% endif %}
+        <div class="form-text">
+            Must contain &ge; 10 characters with uppercase, lowercase, number, and special character.
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.password_confirm.id_for_label }}" class="form-label">{{ form.password_confirm.label }}</label>
+        <div style="position: relative;">
+            {{ form.password_confirm }}
+        </div>
+        {% if form.password_confirm.errors %}
+        <div class="form-error">{{ form.password_confirm.errors.0 }}</div>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 0.95rem; margin-top: 0.5rem;">
+        Complete Registration
+    </button>
+</form>
+
+<div class="auth-form-footer">
+    Already registered? <a href="{% url 'accounts:login' %}" style="font-weight: 600;">Sign in here</a>
+</div>
+{% endblock %}
