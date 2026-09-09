@@ -29,7 +29,7 @@ class Project(models.Model):
     status=models.CharField(max_length=20,choices=ProjectStatus.choices,default=ProjectStatus.PLANNING,db_index=True)
     priority=models.CharField(max_length=20,choices=ProjectPriority.choices,default=ProjectPriority.MEDIUM,db_index=True)
     start_date=models.DateField(null=True,blank=True); target_end_date=models.DateField(null=True,blank=True); actual_end_date=models.DateField(null=True,blank=True)
-    budget=models.DecimalField(max_digits=16,decimal_places=2,default=Decimal('0')); currency=models.CharField(max_length=10,default='USD')
+    budget=models.DecimalField(max_digits=16,decimal_places=2,default=Decimal('0')); currency=models.CharField(max_length=10,default='INR')
     progress_percent=models.DecimalField(max_digits=5,decimal_places=2,default=Decimal('0')); tags=models.JSONField(default=list,blank=True)
     created_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,related_name='created_projects'); created_at=models.DateTimeField(auto_now_add=True); updated_at=models.DateTimeField(auto_now=True)
     class Meta:
@@ -82,12 +82,12 @@ class ProjectTimeEntry(models.Model):
         if self.hours<=0 or self.hours>24: raise ValidationError('Hours must be greater than zero and no more than 24.')
 
 class ProjectExpense(models.Model):
-    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False); project=models.ForeignKey(Project,on_delete=models.CASCADE,related_name='expenses'); task=models.ForeignKey(ProjectTask,on_delete=models.SET_NULL,null=True,blank=True,related_name='expenses'); submitted_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,related_name='submitted_project_expenses'); expense_date=models.DateField(); category=models.CharField(max_length=80); description=models.CharField(max_length=255); amount=models.DecimalField(max_digits=14,decimal_places=2); currency=models.CharField(max_length=10,default='USD'); status=models.CharField(max_length=20,choices=ExpenseStatus.choices,default=ExpenseStatus.DRAFT); approved_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name='approved_project_expenses'); approved_at=models.DateTimeField(null=True,blank=True); created_at=models.DateTimeField(auto_now_add=True)
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False); project=models.ForeignKey(Project,on_delete=models.CASCADE,related_name='expenses'); task=models.ForeignKey(ProjectTask,on_delete=models.SET_NULL,null=True,blank=True,related_name='expenses'); submitted_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,related_name='submitted_project_expenses'); expense_date=models.DateField(); category=models.CharField(max_length=80); description=models.CharField(max_length=255); amount=models.DecimalField(max_digits=14,decimal_places=2); currency=models.CharField(max_length=10,default='INR'); status=models.CharField(max_length=20,choices=ExpenseStatus.choices,default=ExpenseStatus.DRAFT); approved_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name='approved_project_expenses'); approved_at=models.DateTimeField(null=True,blank=True); created_at=models.DateTimeField(auto_now_add=True)
     def clean(self):
         if self.amount<=0: raise ValidationError('Expense amount must be positive.')
 
 class ProjectBudgetLine(models.Model):
-    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False); project=models.ForeignKey(Project,on_delete=models.CASCADE,related_name='budget_lines'); category=models.CharField(max_length=100); description=models.CharField(max_length=255,blank=True); planned_amount=models.DecimalField(max_digits=14,decimal_places=2); committed_amount=models.DecimalField(max_digits=14,decimal_places=2,default=0); actual_amount=models.DecimalField(max_digits=14,decimal_places=2,default=0); currency=models.CharField(max_length=10,default='USD')
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False); project=models.ForeignKey(Project,on_delete=models.CASCADE,related_name='budget_lines'); category=models.CharField(max_length=100); description=models.CharField(max_length=255,blank=True); planned_amount=models.DecimalField(max_digits=14,decimal_places=2); committed_amount=models.DecimalField(max_digits=14,decimal_places=2,default=0); actual_amount=models.DecimalField(max_digits=14,decimal_places=2,default=0); currency=models.CharField(max_length=10,default='INR')
     @property
     def remaining_amount(self): return self.planned_amount-self.actual_amount
 

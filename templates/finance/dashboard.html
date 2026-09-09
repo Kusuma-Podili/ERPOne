@@ -28,42 +28,42 @@
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Assets</div>
         <div style="font-size: 1.6rem; font-weight: 800; color: #10b981; margin-top: 0.25rem;">
-            ${{ asset_balance|floatformat:2 }}
+            ₹{{ asset_balance|floatformat:2 }}
         </div>
         <div style="font-size: 0.75rem; color: var(--text-muted);">Debit Normal Balance</div>
     </div>
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Liabilities</div>
         <div style="font-size: 1.6rem; font-weight: 800; color: #f59e0b; margin-top: 0.25rem;">
-            ${{ liability_balance|floatformat:2 }}
+            ₹{{ liability_balance|floatformat:2 }}
         </div>
         <div style="font-size: 0.75rem; color: var(--text-muted);">Credit Normal Balance</div>
     </div>
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Equity</div>
         <div style="font-size: 1.6rem; font-weight: 800; color: #6366f1; margin-top: 0.25rem;">
-            ${{ equity_balance|floatformat:2 }}
+            ₹{{ equity_balance|floatformat:2 }}
         </div>
         <div style="font-size: 0.75rem; color: var(--text-muted);">Capital & Retained Earnings</div>
     </div>
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Operating Revenue</div>
         <div style="font-size: 1.6rem; font-weight: 800; color: #0284c7; margin-top: 0.25rem;">
-            ${{ revenue_balance|floatformat:2 }}
+            ₹{{ revenue_balance|floatformat:2 }}
         </div>
         <div style="font-size: 0.75rem; color: var(--text-muted);">Cumulative Sales Income</div>
     </div>
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Operating Expenses</div>
         <div style="font-size: 1.6rem; font-weight: 800; color: #ef4444; margin-top: 0.25rem;">
-            ${{ expense_balance|floatformat:2 }}
+            ₹{{ expense_balance|floatformat:2 }}
         </div>
         <div style="font-size: 0.75rem; color: var(--text-muted);">COGS & Operating Expenses</div>
     </div>
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Net Income (P&L)</div>
         <div style="font-size: 1.6rem; font-weight: 800; color: {% if net_income >= 0 %}#10b981{% else %}#ef4444{% endif %}; margin-top: 0.25rem;">
-            ${{ net_income|floatformat:2 }}
+            ₹{{ net_income|floatformat:2 }}
         </div>
         <div style="font-size: 0.75rem; color: var(--text-muted);">Revenue &minus; Expenses</div>
     </div>
@@ -105,7 +105,7 @@
                         <span class="badge" style="background: #ef444422; color: #ef4444; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">REVERSED</span>
                         {% endif %}
                     </td>
-                    <td style="padding: 0.6rem 0.5rem; text-align: right; font-weight: 600;">${{ entry.total_debit|floatformat:2 }}</td>
+                    <td style="padding: 0.6rem 0.5rem; text-align: right; font-weight: 600;">₹{{ entry.total_debit|floatformat:2 }}</td>
                     <td style="padding: 0.6rem 0.5rem; text-align: center;">
                         <a href="{% url 'finance:journal_entry_detail' entry.pk %}" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">View</a>
                     </td>

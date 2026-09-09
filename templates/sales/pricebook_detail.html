@@ -66,10 +66,10 @@
                                 <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">{{ entry.product.sku }}</div>
                             </td>
                             <td style="text-align: right; color: var(--text-muted); font-family: monospace;">
-                                ${{ entry.product.list_price|floatformat:2 }}
+                                ₹{{ entry.product.list_price|floatformat:2 }}
                             </td>
                             <td style="text-align: right; font-weight: 700; color: var(--primary); font-family: monospace;">
-                                ${{ entry.unit_price|floatformat:2 }}
+                                ₹{{ entry.unit_price|floatformat:2 }}
                             </td>
                             <td style="text-align: right; font-family: monospace;">
                                 {{ entry.minimum_quantity }}
@@ -80,7 +80,7 @@
                                 <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                                     {% for t in tiers %}
                                     <span style="font-size: 0.8rem; background: var(--bg-tertiary); padding: 0.15rem 0.4rem; border-radius: 4px; display: inline-block;">
-                                        Qty {{ t.min_quantity }}+: {% if t.discount_type == 'percentage' %}{{ t.discount_value }}% off{% else %}${{ t.discount_value }}{% endif %}
+                                        Qty {{ t.min_quantity }}+: {% if t.discount_type == 'percentage' %}{{ t.discount_value }}% off{% else %}₹{{ t.discount_value }}{% endif %}
                                     </span>
                                     {% endfor %}
                                 </div>
@@ -106,7 +106,7 @@
                                 <div id="tier-modal-{{ entry.pk }}" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; text-align: left;">
                                     <div class="card" style="width: 450px; padding: 1.5rem; background: var(--bg-primary);">
                                         <h4 style="margin-top: 0; margin-bottom: 0.5rem; font-weight: 600;">Add Volume Tier &bull; {{ entry.product.name }}</h4>
-                                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Base book price: ${{ entry.unit_price|floatformat:2 }}</p>
+                                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Base book price: ₹{{ entry.unit_price|floatformat:2 }}</p>
                                         <form method="post" action="{% url 'sales:tiered_discount_create' entry.pk %}">
                                             {% csrf_token %}
                                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
@@ -124,7 +124,7 @@
                                                     <label class="form-label" style="font-size: 0.8rem;">Discount Type</label>
                                                     <select name="discount_type" class="form-select">
                                                         <option value="percentage">Percentage (%)</option>
-                                                        <option value="fixed_price">Fixed Price ($)</option>
+                                                        <option value="fixed_price">Fixed Price (₹)</option>
                                                     </select>
                                                 </div>
                                                 <div>
@@ -166,7 +166,7 @@
                     {{ entry_form.product }}
                 </div>
                 <div style="margin-bottom: 1rem;">
-                    <label class="form-label" style="font-weight: 600;">Negotiated Unit Price ($) *</label>
+                    <label class="form-label" style="font-weight: 600;">Negotiated Unit Price (₹) *</label>
                     {{ entry_form.unit_price }}
                 </div>
                 <div style="margin-bottom: 1rem;">

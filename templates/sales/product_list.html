@@ -105,10 +105,10 @@
                         <span style="font-size: 0.85rem;">{{ product.uom.code }}</span>
                     </td>
                     <td style="text-align: right; font-family: monospace;">
-                        ${{ product.cost_price|floatformat:2 }}
+                        ₹{{ product.cost_price|floatformat:2 }}
                     </td>
                     <td style="text-align: right; font-weight: 600; font-family: monospace;">
-                        ${{ product.list_price|floatformat:2 }}
+                        ₹{{ product.list_price|floatformat:2 }}
                     </td>
                     <td style="text-align: right; font-family: monospace; {% if product.margin_percentage > 30 %}color: #10b981;{% else %}color: var(--text-secondary);{% endif %}">
                         {{ product.margin_percentage }}%

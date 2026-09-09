@@ -14,6 +14,9 @@ from apps.accounts.views import (
     EnterprisePasswordChangeView,
     SecurityAuditView,
     UserListView,
+    AdminUserCreateView,
+    AdminUserEditView,
+    AdminUserToggleStatusView,
     UnlockUserView,
 )
 
@@ -36,5 +39,8 @@ urlpatterns = [
 
     # Administration
     path("users/", UserListView.as_view(), name="user_list"),
+    path("users/create/", AdminUserCreateView.as_view(), name="user_create"),
+    path("users/<uuid:user_id>/edit/", AdminUserEditView.as_view(), name="user_edit"),
+    path("users/<uuid:user_id>/toggle-status/", AdminUserToggleStatusView.as_view(), name="user_toggle_status"),
     path("users/<uuid:user_id>/unlock/", UnlockUserView.as_view(), name="unlock_user"),
 ]

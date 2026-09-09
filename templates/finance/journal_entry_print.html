@@ -66,8 +66,8 @@
                 <th style="width: 15%;">Account Code</th>
                 <th style="width: 30%;">Account Title</th>
                 <th style="width: 20%;">Memo / Partner</th>
-                <th style="width: 15%; text-align: right;">Debit ($)</th>
-                <th style="width: 15%; text-align: right;">Credit ($)</th>
+                <th style="width: 15%; text-align: right;">Debit (₹)</th>
+                <th style="width: 15%; text-align: right;">Credit (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -77,16 +77,16 @@
                 <td style="font-family: monospace;">{{ line.account.code }}</td>
                 <td>{{ line.account.name }}</td>
                 <td>{{ line.narration }}{% if line.partner_name %} ({{ line.partner_name }}){% endif %}</td>
-                <td class="text-right">{% if line.debit > 0 %}${{ line.debit|floatformat:2 }}{% else %}-{% endif %}</td>
-                <td class="text-right">{% if line.credit > 0 %}${{ line.credit|floatformat:2 }}{% else %}-{% endif %}</td>
+                <td class="text-right">{% if line.debit > 0 %}₹{{ line.debit|floatformat:2 }}{% else %}-{% endif %}</td>
+                <td class="text-right">{% if line.credit > 0 %}₹{{ line.credit|floatformat:2 }}{% else %}-{% endif %}</td>
             </tr>
             {% endfor %}
         </tbody>
         <tfoot>
             <tr style="font-weight: 700; background: #f8fafc;">
                 <td colspan="4" class="text-right">Totals:</td>
-                <td class="text-right">${{ entry.total_debit|floatformat:2 }}</td>
-                <td class="text-right">${{ entry.total_credit|floatformat:2 }}</td>
+                <td class="text-right">₹{{ entry.total_debit|floatformat:2 }}</td>
+                <td class="text-right">₹{{ entry.total_credit|floatformat:2 }}</td>
             </tr>
         </tfoot>
     </table>

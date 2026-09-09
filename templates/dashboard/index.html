@@ -7,108 +7,172 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="page-header" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <div>
-        <h1 class="page-title">Enterprise Dashboard</h1>
-        <p class="page-subtitle">Welcome back, <strong>{{ request.user.get_full_name }}</strong>. Here is your enterprise operational overview.</p>
+        <h1 class="page-title" style="margin: 0; font-size: 1.6rem; font-weight: 700;">Enterprise Command Center</h1>
+        <p class="page-subtitle" style="margin: 0.25rem 0 0; color: var(--text-muted);">
+            Active Tenant: <strong>{{ request.organization.name|default:"EnterpriseOne Global Ltd." }}</strong> &bull; 
+            Base Currency: <strong style="color: #059669;">INR (₹)</strong> &bull;
+            Logged in as <strong>{{ request.user.get_full_name }}</strong>
+        </p>
     </div>
-    <div>
-        <span class="badge badge-primary" style="padding: 0.5rem 1rem; font-size: 0.825rem;">
-            Primary Role: {{ user_display_role }}
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <span class="badge" style="padding: 0.5rem 1rem; font-size: 0.825rem; background-color: #1e3a8a; color: #ffffff; border-radius: 6px;">
+            Role: {{ user_display_role|default:"Administrator" }}
         </span>
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-primary btn-sm">
+            Manage Users
+        </a>
     </div>
 </div>
 
-<!-- KPI Stats Grid -->
-<div class="stat-grid">
-    <div class="stat-card">
-        <div class="stat-content">
-            <div class="stat-label">Total Users</div>
-            <div class="stat-value">{{ total_users_count }}</div>
-            <div class="stat-subtext">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                Registered across tenant
-            </div>
-        </div>
-        <div class="stat-icon primary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        </div>
+<!-- Primary Enterprise KPIs -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+        <div style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Active Sales Revenue</div>
+        <div style="font-size: 1.7rem; font-weight: 700; color: #059669; margin: 0.35rem 0 0.15rem;">₹{{ total_revenue|default:"0.00" }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ total_orders_count }} sales orders recorded</div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-content">
-            <div class="stat-label">Active Accounts</div>
-            <div class="stat-value">{{ active_users_count }}</div>
-            <div class="stat-subtext" style="color: var(--color-success);">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                Healthy operational status
-            </div>
-        </div>
-        <div class="stat-icon success">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-        </div>
+    <div class="card" style="padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+        <div style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">CRM Pipeline</div>
+        <div style="font-size: 1.7rem; font-weight: 700; color: #4f46e5; margin: 0.35rem 0 0.15rem;">{{ total_crm_accounts }} Accounts</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ active_deals_count }} active pipeline deals</div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-content">
-            <div class="stat-label">System Roles</div>
-            <div class="stat-value">{{ roles_count }}</div>
-            <div class="stat-subtext" style="color: var(--color-info);">
-                RBAC Level: Tier 1
-            </div>
-        </div>
-        <div class="stat-icon info">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </div>
+    <div class="card" style="padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+        <div style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Warehouse Inventory</div>
+        <div style="font-size: 1.7rem; font-weight: 700; color: #0284c7; margin: 0.35rem 0 0.15rem;">{{ total_inventory_items }} SKUs</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Stock tracked across zones</div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-content">
-            <div class="stat-label">Platform Health</div>
-            <div class="stat-value" style="font-size: 1.4rem; color: var(--color-success);">Operational</div>
-            <div class="stat-subtext">
-                Phase 1: Foundation Active
-            </div>
-        </div>
-        <div class="stat-icon warning">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/><path d="M2 12h20"/><path d="m5 7-3 5 3 5"/><path d="m19 7 3 5-3 5"/></svg>
-        </div>
+    <div class="card" style="padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+        <div style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Open Support Tickets</div>
+        <div style="font-size: 1.7rem; font-weight: 700; color: #ea580c; margin: 0.35rem 0 0.15rem;">{{ open_tickets_count }} Open</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Client customer support queue</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+        <div style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Active Users & Staff</div>
+        <div style="font-size: 1.7rem; font-weight: 700; color: #1e3a8a; margin: 0.35rem 0 0.15rem;">{{ active_users_count }} / {{ total_users_count }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ roles_count }} RBAC system roles</div>
+    </div>
+</div>
+
+<!-- Operational Modules Directory -->
+<div class="card" style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+    <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 600;">Enterprise Operational Modules</h3>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">All Phase 1–17 subsystems online</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; padding: 1.25rem;">
+        <a href="{% url 'sales:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #059669; margin-bottom: 0.25rem;">💰 Sales & Commerce</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Quotations, Sales Orders in ₹, Pricebooks, Catalog</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Sales &rarr;</span>
+        </a>
+
+        <a href="{% url 'crm:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #4f46e5; margin-bottom: 0.25rem;">👥 CRM & Customers</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Accounts, Contacts, Leads, Kanban Pipeline Deals</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open CRM &rarr;</span>
+        </a>
+
+        <a href="{% url 'inventory:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #0284c7; margin-bottom: 0.25rem;">📦 Inventory & Warehouses</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Multi-facility Warehouses, Storage Bins, Stock Ledger</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Inventory &rarr;</span>
+        </a>
+
+        <a href="{% url 'procurement:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #0d9488; margin-bottom: 0.25rem;">🛒 Procurement & SCM</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Suppliers, RFQs, Purchase Orders, 3-Way Match</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Procurement &rarr;</span>
+        </a>
+
+        <a href="{% url 'finance:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #b45309; margin-bottom: 0.25rem;">📊 General Ledger & Finance</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Chart of Accounts, Journal Entries in ₹, Fiscal Periods</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Finance &rarr;</span>
+        </a>
+
+        <a href="{% url 'hr:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #7c3aed; margin-bottom: 0.25rem;">🏢 HR & Employee Records</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Staff Directory, Positions, Shifts, Leave & Attendance</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open HR &rarr;</span>
+        </a>
+
+        <a href="{% url 'payroll:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #0891b2; margin-bottom: 0.25rem;">💵 Payroll Management</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Salary Structures, Payslips, Allowances & Deductions</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Payroll &rarr;</span>
+        </a>
+
+        <a href="{% url 'projects:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #2563eb; margin-bottom: 0.25rem;">🚀 Projects & Delivery</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Project Workspaces, Task Assignments, Milestones</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Projects &rarr;</span>
+        </a>
+
+        <a href="{% url 'support:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #ea580c; margin-bottom: 0.25rem;">🎧 Support Helpdesk</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Customer Support Tickets, SLAs, Message Threads</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Support &rarr;</span>
+        </a>
+
+        <a href="{% url 'security:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #dc2626; margin-bottom: 0.25rem;">🔒 Security & Governance</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">RBAC Roles, Audit Logs, Access Policies, Lockouts</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Security &rarr;</span>
+        </a>
+
+        <a href="{% url 'monitoring:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #475569; margin-bottom: 0.25rem;">📈 Monitoring & Health</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">System Health, Performance Metrics, Error Tracking</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Monitoring &rarr;</span>
+        </a>
+
+        <a href="{% url 'integration:dashboard' %}" class="card-link" style="text-decoration: none; color: inherit; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; display: block; background: var(--bg-surface);">
+            <div style="font-weight: 600; color: #64748b; margin-bottom: 0.25rem;">🔌 Integration Gateway</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Webhooks, Connectors, External Data Synchronization</div>
+            <span class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">Open Integrations &rarr;</span>
+        </a>
     </div>
 </div>
 
 <!-- Main Row: Quick Shortcuts & Recent Login Audits -->
 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
     <!-- Recent Activity Table -->
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">My Recent Login History</h3>
-            <a href="{% url 'accounts:security_audit' %}" class="btn btn-secondary btn-sm">View Full Log</a>
+    <div class="card" style="border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+        <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 600;">My Recent Login History</h3>
+            <a href="{% url 'accounts:security_audit' %}" class="btn btn-secondary btn-sm">View Full Audit</a>
         </div>
         <div class="table-responsive">
-            <table class="enterprise-table">
+            <table class="enterprise-table" style="width: 100%; border-collapse: collapse;">
                 <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>IP Address</th>
-                        <th>Status</th>
-                        <th>User Agent / Device</th>
+                    <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                        <th style="padding: 0.75rem 1rem; font-size: 0.8rem; color: var(--text-muted);">Timestamp</th>
+                        <th style="padding: 0.75rem 1rem; font-size: 0.8rem; color: var(--text-muted);">IP Address</th>
+                        <th style="padding: 0.75rem 1rem; font-size: 0.8rem; color: var(--text-muted);">Status</th>
+                        <th style="padding: 0.75rem 1rem; font-size: 0.8rem; color: var(--text-muted);">Device / Agent</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in recent_logins %}
-                    <tr>
-                        <td>{{ item.timestamp|date:"Y-m-d H:i:s" }}</td>
-                        <td><code>{{ item.ip_address|default:"127.0.0.1" }}</code></td>
-                        <td>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">{{ item.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        <td style="padding: 0.75rem 1rem; font-size: 0.85rem;"><code>{{ item.ip_address|default:"127.0.0.1" }}</code></td>
+                        <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">
                             {% if item.status == 'SUCCESS' %}
-                            <span class="badge badge-success">Success</span>
+                            <span class="badge" style="background: #dcfce7; color: #166534; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">Success</span>
                             {% elif item.status == 'LOGOUT' %}
-                            <span class="badge badge-secondary">Logout</span>
+                            <span class="badge" style="background: #f1f5f9; color: #475569; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">Logout</span>
                             {% else %}
-                            <span class="badge badge-danger">{{ item.status }}</span>
+                            <span class="badge" style="background: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">{{ item.status }}</span>
                             {% endif %}
                         </td>
-                        <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <td style="padding: 0.75rem 1rem; font-size: 0.85rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             {{ item.user_agent|truncatechars:45 }}
                         </td>
                     </tr>
@@ -125,30 +189,34 @@
     </div>
 
     <!-- Quick Actions & System Info -->
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Quick Actions</h3>
+    <div class="card" style="border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface);">
+        <div class="card-header" style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 600;">Administrative Actions</h3>
         </div>
-        <div class="card-body" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div class="card-body" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <a href="{% url 'accounts:user_list' %}" class="btn btn-primary" style="justify-content: flex-start;">
+                👥 User & Access Directory
+            </a>
+            <a href="{% url 'organizations:dashboard' %}" class="btn btn-secondary" style="justify-content: flex-start;">
+                🏢 Organization & Branches
+            </a>
             <a href="{% url 'accounts:profile' %}" class="btn btn-secondary" style="justify-content: flex-start;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Manage Profile & Preferences
+                👤 Admin Profile & Preferences
             </a>
             <a href="{% url 'accounts:password_change' %}" class="btn btn-secondary" style="justify-content: flex-start;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                Update Security Password
+                🔑 Update Security Password
             </a>
-            {% if is_super_admin or is_org_admin %}
-            <a href="{% url 'accounts:user_list' %}" class="btn btn-primary" style="justify-content: flex-start;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                User & Access Administration
+            <a href="{% url 'employee:dashboard' %}" class="btn btn-outline-primary" style="justify-content: flex-start;">
+                📋 Employee Workspace View
             </a>
-            {% endif %}
+            <a href="{% url 'customer:dashboard' %}" class="btn btn-outline-primary" style="justify-content: flex-start;">
+                🌐 Customer Portal View
+            </a>
         </div>
 
-        <div class="card-footer" style="font-size: 0.75rem; color: var(--text-muted);">
-            <div>Tenant Architecture: <strong>Dedicated Multi-Module</strong></div>
-            <div style="margin-top: 0.25rem;">Database Engine: <strong>MySQL 8.0 / Active</strong></div>
+        <div class="card-footer" style="padding: 1rem 1.25rem; border-top: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-muted);">
+            <div>Platform Version: <strong>EnterpriseOne v2.0 (Phase 1–17)</strong></div>
+            <div style="margin-top: 0.25rem;">Multi-Tenancy: <strong>Scoped / Active</strong></div>
         </div>
     </div>
 </div>

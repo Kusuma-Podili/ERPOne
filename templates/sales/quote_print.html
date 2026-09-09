@@ -101,9 +101,9 @@
                         <div style="font-size: 11px; color: #64748b;">SKU: {{ line.product.sku }}{% if line.description and line.description != line.product.name %} ? {{ line.description }}{% endif %}</div>
                     </td>
                     <td class="text-end">{{ line.quantity }} {{ line.product.uom.code }}</td>
-                    <td class="text-end">${{ line.unit_price }}</td>
+                    <td class="text-end">₹{{ line.unit_price }}</td>
                     <td class="text-end">{% if line.discount_percent > 0 %}{{ line.discount_percent }}%{% else %}?{% endif %}</td>
-                    <td class="text-end fw-semibold">${{ line.total_price }}</td>
+                    <td class="text-end fw-semibold">₹{{ line.total_price }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -113,27 +113,27 @@
             <table class="totals-table">
                 <tr>
                     <td class="text-muted">Subtotal:</td>
-                    <td class="text-end">${{ quote.subtotal_amount }}</td>
+                    <td class="text-end">₹{{ quote.subtotal_amount }}</td>
                 </tr>
                 {% if quote.discount_amount > 0 %}
                 <tr>
                     <td class="text-muted">Total Discounts:</td>
-                    <td class="text-end text-success">-${{ quote.discount_amount }}</td>
+                    <td class="text-end text-success">-₹{{ quote.discount_amount }}</td>
                 </tr>
                 {% endif %}
                 <tr>
                     <td class="text-muted">Taxes:</td>
-                    <td class="text-end">${{ quote.tax_amount }}</td>
+                    <td class="text-end">₹{{ quote.tax_amount }}</td>
                 </tr>
                 {% if quote.shipping_amount > 0 %}
                 <tr>
                     <td class="text-muted">Shipping & Freight:</td>
-                    <td class="text-end">${{ quote.shipping_amount }}</td>
+                    <td class="text-end">₹{{ quote.shipping_amount }}</td>
                 </tr>
                 {% endif %}
                 <tr class="grand-total">
                     <td>Grand Total ({{ quote.currency }}):</td>
-                    <td class="text-end">${{ quote.grand_total }}</td>
+                    <td class="text-end">₹{{ quote.grand_total }}</td>
                 </tr>
             </table>
         </div>

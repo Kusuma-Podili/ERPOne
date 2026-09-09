@@ -62,12 +62,12 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
             <div>
-                <label class="form-label" style="font-weight: 600;">Cost Price ($) *</label>
+                <label class="form-label" style="font-weight: 600;">Cost Price (₹) *</label>
                 {{ form.cost_price }}
                 {% if form.cost_price.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.cost_price.errors }}</div>{% endif %}
             </div>
             <div>
-                <label class="form-label" style="font-weight: 600;">List Selling Price ($) *</label>
+                <label class="form-label" style="font-weight: 600;">List Selling Price (₹) *</label>
                 {{ form.list_price }}
                 {% if form.list_price.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.list_price.errors }}</div>{% endif %}
             </div>

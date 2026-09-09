@@ -120,7 +120,7 @@
                             {% endif %}
                         </td>
                         <td>{{ r.total_items_count }}</td>
-                        <td class="text-end fw-bold">${{ r.total_estimated_cost|floatformat:2 }}</td>
+                        <td class="text-end fw-bold">₹{{ r.total_estimated_cost|floatformat:2 }}</td>
                         <td>{{ r.required_by_date|date:"M d, Y"|default:"N/A" }}</td>
                         <td>{{ r.requested_by.get_full_name|default:r.requested_by.email }}</td>
                         <td class="text-end">

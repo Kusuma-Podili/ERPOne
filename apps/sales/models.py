@@ -161,7 +161,7 @@ class Product(models.Model):
     )
     cost_price = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     list_price = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
-    currency = models.CharField(max_length=3, default="USD")
+    currency = models.CharField(max_length=3, default="INR")
     taxable = models.BooleanField(default=True)
     track_inventory = models.BooleanField(
         default=True,
@@ -215,7 +215,7 @@ class PriceBook(models.Model):
     name = models.CharField(max_length=150)
     code = models.CharField(max_length=50)
     description = models.TextField(blank=True)
-    currency = models.CharField(max_length=3, default="USD")
+    currency = models.CharField(max_length=3, default="INR")
     is_default = models.BooleanField(
         default=False,
         help_text="Default price book applied when no customer-specific schedule is assigned.",
@@ -501,7 +501,7 @@ class Quote(models.Model):
         default=QuoteStatus.DRAFT,
         db_index=True,
     )
-    currency = models.CharField(max_length=3, default="USD")
+    currency = models.CharField(max_length=3, default="INR")
     subtotal_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     tax_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
@@ -787,7 +787,7 @@ class SalesOrder(models.Model):
     shipping_address = models.TextField(blank=True)
     billing_address = models.TextField(blank=True)
     payment_terms = models.CharField(max_length=100, default="Net 30")
-    currency = models.CharField(max_length=3, default="USD")
+    currency = models.CharField(max_length=3, default="INR")
     subtotal_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     tax_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
@@ -836,6 +836,16 @@ class SalesOrder(models.Model):
             return 100
         total_fulfilled = sum(line.quantity_fulfilled for line in self.line_items.all())
         return int((total_fulfilled / total_ordered) * 100)
+
+    @property
+    def total_amount(self):
+        """Backwards compatibility alias for grand_total."""
+        return self.grand_total
+
+    @property
+    def subtotal(self):
+        """Backwards compatibility alias for subtotal_amount."""
+        return self.subtotal_amount
 
     @property
     def is_fully_fulfilled(self) -> bool:

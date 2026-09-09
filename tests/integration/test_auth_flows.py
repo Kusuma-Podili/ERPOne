@@ -5,7 +5,7 @@ from django.core import mail
 from django.test import TestCase, Client
 from django.urls import reverse
 
-from apps.accounts.models import User, Role
+from apps.accounts.models import User, Role, AppRole
 from apps.accounts.services import TokenService
 from enterpriseone.configuration.roles import SystemRole
 
@@ -25,6 +25,7 @@ class AuthFlowsTestCase(TestCase):
             password="EnterpriseSecure123#",
             first_name="Test",
             last_name="User",
+            role=AppRole.ADMIN,
         )
 
     def test_registration_flow_success(self):

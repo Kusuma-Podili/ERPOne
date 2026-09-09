@@ -105,8 +105,8 @@
                 <th style="padding: 0.6rem;">Line Memo</th>
                 <th style="padding: 0.6rem;">Partner</th>
                 <th style="padding: 0.6rem;">Cost Center</th>
-                <th style="padding: 0.6rem; text-align: right;">Debit ($)</th>
-                <th style="padding: 0.6rem; text-align: right;">Credit ($)</th>
+                <th style="padding: 0.6rem; text-align: right;">Debit (₹)</th>
+                <th style="padding: 0.6rem; text-align: right;">Credit (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -120,10 +120,10 @@
                 <td style="padding: 0.6rem; font-size: 0.85rem;">{{ line.partner_name|default:"-" }}</td>
                 <td style="padding: 0.6rem; font-size: 0.85rem;">{{ line.cost_center|default:"-" }}</td>
                 <td style="padding: 0.6rem; text-align: right; font-weight: 600;">
-                    {% if line.debit > 0 %}${{ line.debit|floatformat:2 }}{% else %}-{% endif %}
+                    {% if line.debit > 0 %}₹{{ line.debit|floatformat:2 }}{% else %}-{% endif %}
                 </td>
                 <td style="padding: 0.6rem; text-align: right; font-weight: 600;">
-                    {% if line.credit > 0 %}${{ line.credit|floatformat:2 }}{% else %}-{% endif %}
+                    {% if line.credit > 0 %}₹{{ line.credit|floatformat:2 }}{% else %}-{% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -131,8 +131,8 @@
         <tfoot>
             <tr style="background: var(--surface-background); font-weight: 800; border-top: 2px solid var(--border-color); font-size: 1rem;">
                 <td colspan="5" style="padding: 0.75rem; text-align: right;">Total Voucher Amount:</td>
-                <td style="padding: 0.75rem; text-align: right; color: #0284c7;">${{ entry.total_debit|floatformat:2 }}</td>
-                <td style="padding: 0.75rem; text-align: right; color: #6366f1;">${{ entry.total_credit|floatformat:2 }}</td>
+                <td style="padding: 0.75rem; text-align: right; color: #0284c7;">₹{{ entry.total_debit|floatformat:2 }}</td>
+                <td style="padding: 0.75rem; text-align: right; color: #6366f1;">₹{{ entry.total_credit|floatformat:2 }}</td>
             </tr>
         </tfoot>
     </table>

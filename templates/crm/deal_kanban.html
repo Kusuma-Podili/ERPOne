@@ -35,13 +35,13 @@
     <div class="card" style="padding: 1rem 1.25rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Active Pipeline</div>
         <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">
-            ${{ forecast.total_pipeline_value|floatformat:2 }}
+            ₹{{ forecast.total_pipeline_value|floatformat:2 }}
         </div>
     </div>
     <div class="card" style="padding: 1rem 1.25rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Weighted Forecast</div>
         <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary-color, #2563eb); margin-top: 0.25rem;">
-            ${{ forecast.weighted_forecast_value|floatformat:2 }}
+            ₹{{ forecast.weighted_forecast_value|floatformat:2 }}
         </div>
     </div>
     <div class="card" style="padding: 1rem 1.25rem;">
@@ -74,7 +74,7 @@
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted);">
                 <span>Prob: <strong>{{ col.stage.default_probability }}%</strong></span>
-                <span style="font-weight: 600; color: var(--text-primary);">${{ col.total_amount|floatformat:2 }}</span>
+                <span style="font-weight: 600; color: var(--text-primary);">₹{{ col.total_amount|floatformat:2 }}</span>
             </div>
         </div>
 
@@ -92,7 +92,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-size: 0.8rem;">
                     <span style="font-weight: 700; color: #10b981;">
-                        ${{ deal.amount|floatformat:2 }}
+                        ₹{{ deal.amount|floatformat:2 }}
                     </span>
                     <span style="font-size: 0.75rem; color: var(--text-muted);">
                         {% if deal.expected_close_date %}{{ deal.expected_close_date|date:"M d" }}{% endif %}

@@ -1,0 +1,54 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Shared Documents &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'customer:dashboard' %}">Customer Portal</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Shared Documents</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">Shared Enterprise Documents</h1>
+        <p class="page-subtitle">Access contracts, MSAs, agreements, and documentation shared with your account.</p>
+    </div>
+    <a href="{% url 'customer:dashboard' %}" class="btn btn-secondary">&larr; Portal</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Document Title</th>
+                    <th>Category</th>
+                    <th>Version</th>
+                    <th>Shared Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td><strong>{{ doc.title }}</strong></td>
+                    <td>{{ doc.category.name|default:"General" }}</td>
+                    <td>v{{ doc.current_version_number|default:"1.0" }}</td>
+                    <td>{{ doc.created_at|date:"Y-m-d" }}</td>
+                    <td>
+                        <span class="badge badge-success">Available</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No documents shared with your account.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

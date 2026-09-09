@@ -20,6 +20,12 @@ def auth_context(request):
         "is_super_admin": False,
         "is_org_admin": False,
         "is_manager": False,
+        "is_user_admin": False,
+        "is_user_employee": False,
+        "is_user_customer": False,
+        "user_role": "GUEST",
+        "CURRENCY_SYMBOL": "₹",
+        "CURRENCY_CODE": "INR",
     }
 
     if hasattr(request, "user") and request.user.is_authenticated:
@@ -29,6 +35,10 @@ def auth_context(request):
         context["is_super_admin"] = user.is_superuser or user.has_role(SystemRole.SUPER_ADMIN)
         context["is_org_admin"] = user.has_role(SystemRole.ORG_ADMIN)
         context["is_manager"] = user.has_role(SystemRole.MANAGER)
+        context["is_user_admin"] = getattr(user, "is_admin", False)
+        context["is_user_employee"] = getattr(user, "is_employee", False)
+        context["is_user_customer"] = getattr(user, "is_customer", False)
+        context["user_role"] = getattr(user, "role", "EMPLOYEE")
 
         if hasattr(user, "profile"):
             context["user_theme"] = user.profile.theme

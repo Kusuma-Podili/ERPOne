@@ -1,0 +1,56 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}My Orders &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'customer:dashboard' %}">Customer Portal</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">My Orders</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">My Commercial Orders</h1>
+        <p class="page-subtitle">Track orders, invoices, and fulfillment history.</p>
+    </div>
+    <a href="{% url 'customer:dashboard' %}" class="btn btn-secondary">&larr; Back to Portal</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Order Number</th>
+                    <th>Account / Entity</th>
+                    <th>Order Date</th>
+                    <th>Total Amount</th>
+                    <th>Fulfillment Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in orders %}
+                <tr>
+                    <td><strong>{{ o.order_number }}</strong></td>
+                    <td>{{ o.account.name|default:"Direct Account" }}</td>
+                    <td>{{ o.created_at|date:"Y-m-d H:i" }}</td>
+                    <td><strong>₹{{ o.total_amount|default:"0.00" }}</strong></td>
+                    <td><span class="badge badge-success">{{ o.status }}</span></td>
+                    <td>
+                        <a href="{% url 'customer:order_detail' o.id %}" class="btn btn-sm btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View Order</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No orders found for your account.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

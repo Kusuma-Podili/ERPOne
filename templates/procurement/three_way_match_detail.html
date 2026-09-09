@@ -57,11 +57,11 @@
             </tr>
             <tr style="border-bottom: 1px solid var(--border-color);">
                 <td style="padding: 0.75rem 1rem; font-weight: 600;">Total Financial Value</td>
-                <td style="padding: 0.75rem 1rem;">${{ match.po_amount }}</td>
+                <td style="padding: 0.75rem 1rem;">₹{{ match.po_amount }}</td>
                 <td style="padding: 0.75rem 1rem;">&mdash;</td>
-                <td style="padding: 0.75rem 1rem;">${{ match.billed_amount }}</td>
+                <td style="padding: 0.75rem 1rem;">₹{{ match.billed_amount }}</td>
                 <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 700; color: {% if match.price_variance_amount == 0 %}#10b981{% else %}#ef4444{% endif %};">
-                    ${{ match.price_variance_amount }}
+                    ₹{{ match.price_variance_amount }}
                 </td>
             </tr>
         </tbody>

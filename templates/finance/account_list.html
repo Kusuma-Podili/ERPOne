@@ -88,7 +88,7 @@
                 <td style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--text-muted);">{{ acc.get_subtype_display }}</td>
                 <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">{{ acc.get_normal_balance_display }}</td>
                 <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 700;">
-                    ${{ acc.current_balance|floatformat:2 }}
+                    ₹{{ acc.current_balance|floatformat:2 }}
                 </td>
                 <td style="padding: 0.75rem 1rem; text-align: center;">
                     {% if acc.allow_direct_posting %}

@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.accounts.models import User, UserProfile
 from apps.accounts.validators import validate_work_email, validate_phone_number
+from enterpriseone.configuration.constants import AccountStatus
 
 
 class FormStylingMixin:
@@ -222,3 +223,48 @@ class EnterpriseSetPasswordForm(FormStylingMixin, forms.Form):
                 password_validation.validate_password(new_password, user=self.user)
 
         return cleaned_data
+
+
+class AdminUserCreateForm(FormStylingMixin, forms.ModelForm):
+    """
+    Administrative form to create users with role, organization, and status controls.
+    """
+    password = forms.CharField(
+        label=_("Initial Password"),
+        widget=forms.PasswordInput(attrs={"placeholder": "Temporary or initial password"}),
+    )
+
+    class Meta:
+        model = User
+        fields = ["email", "first_name", "last_name", "phone", "job_title", "role", "account_status", "is_active", "is_verified"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "account_status" in self.fields:
+            self.fields["account_status"].required = False
+            self.fields["account_status"].initial = AccountStatus.ACTIVE
+
+    def clean_account_status(self):
+        status = self.cleaned_data.get("account_status")
+        return status or AccountStatus.ACTIVE
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email", "").strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError(_("An account with this email address already exists."))
+        return email
+
+
+class AdminUserEditForm(FormStylingMixin, forms.ModelForm):
+    """
+    Administrative form to update existing user role and status.
+    """
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "phone", "job_title", "role", "account_status", "is_active", "is_verified"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "account_status" in self.fields:
+            self.fields["account_status"].required = False
+

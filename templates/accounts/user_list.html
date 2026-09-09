@@ -15,7 +15,7 @@
         <p class="page-subtitle">Manage organization users, role assignments, and security unlock actions.</p>
     </div>
     <div>
-        <a href="{% url 'accounts:register' %}" class="btn btn-primary">
+        <a href="{% url 'accounts:user_create' %}" class="btn btn-primary">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add New User
         </a>
@@ -23,11 +23,17 @@
 </div>
 
 <div class="card">
-    <div class="card-header">
-        <form method="get" style="display: flex; gap: 0.75rem; width: 100%; max-width: 400px;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <form method="get" style="display: flex; gap: 0.75rem; width: 100%; max-width: 500px;">
             <input type="text" name="q" value="{{ request.GET.q|default:'' }}" class="enterprise-input" placeholder="Search by name or email..." style="padding: 0.4rem 0.75rem;">
-            <button type="submit" class="btn btn-secondary btn-sm">Search</button>
-            {% if request.GET.q %}
+            <select name="role" class="enterprise-input" style="width: 140px; padding: 0.4rem;">
+                <option value="">All Roles</option>
+                <option value="ADMIN" {% if request.GET.role == 'ADMIN' %}selected{% endif %}>Admin</option>
+                <option value="EMPLOYEE" {% if request.GET.role == 'EMPLOYEE' %}selected{% endif %}>Employee</option>
+                <option value="CUSTOMER" {% if request.GET.role == 'CUSTOMER' %}selected{% endif %}>Customer</option>
+            </select>
+            <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+            {% if request.GET.q or request.GET.role %}
             <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary btn-sm">Clear</a>
             {% endif %}
         </form>
@@ -39,7 +45,7 @@
                 <tr>
                     <th>User</th>
                     <th>Email</th>
-                    <th>Assigned Roles</th>
+                    <th>App Role</th>
                     <th>Status</th>
                     <th>Security / Lockout</th>
                     <th>Joined Date</th>
@@ -56,17 +62,19 @@
                             </div>
                             <div>
                                 <strong>{{ u.get_full_name }}</strong>
-                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ u.job_title|default:"Staff" }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ u.job_title|default:"Enterprise User" }}</div>
                             </div>
                         </div>
                     </td>
                     <td>{{ u.email }}</td>
                     <td>
-                        {% for ur in u.user_roles.all %}
-                        <span class="badge badge-primary" style="margin-right: 4px;">{{ ur.role.name }}</span>
-                        {% empty %}
-                        <span class="badge badge-secondary">Employee</span>
-                        {% endfor %}
+                        {% if u.role == 'ADMIN' or u.is_superuser %}
+                        <span class="badge badge-primary" style="background: #4f46e5; color: white;">ADMIN</span>
+                        {% elif u.role == 'CUSTOMER' %}
+                        <span class="badge badge-info" style="background: #0d9488; color: white;">CUSTOMER</span>
+                        {% else %}
+                        <span class="badge badge-secondary" style="background: #0284c7; color: white;">EMPLOYEE</span>
+                        {% endif %}
                     </td>
                     <td>
                         {% if u.is_active %}
@@ -86,16 +94,25 @@
                     </td>
                     <td>{{ u.created_at|date:"Y-m-d" }}</td>
                     <td>
-                        {% if u.is_locked %}
-                        <form method="post" action="{% url 'accounts:unlock_user' u.id %}" style="display: inline;" onsubmit="return confirm('Unlock user {{ u.email }}?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
-                                Unlock
-                            </button>
-                        </form>
-                        {% else %}
-                        <span style="color: var(--text-muted); font-size: 0.8rem;">—</span>
-                        {% endif %}
+                        <div style="display: flex; gap: 0.35rem; align-items: center;">
+                            <a href="{% url 'accounts:user_edit' u.id %}" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">
+                                Edit
+                            </a>
+                            <form method="post" action="{% url 'accounts:user_toggle_status' u.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm {% if u.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" title="{% if u.is_active %}Deactivate{% else %}Activate{% endif %} user">
+                                    {% if u.is_active %}Disable{% else %}Enable{% endif %}
+                                </button>
+                            </form>
+                            {% if u.is_locked %}
+                            <form method="post" action="{% url 'accounts:unlock_user' u.id %}" style="display: inline;" onsubmit="return confirm('Unlock user {{ u.email }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">
+                                    Unlock
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% empty %}

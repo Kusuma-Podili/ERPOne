@@ -31,19 +31,19 @@
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Cumulative Posted Debits</div>
         <div style="font-size: 1.6rem; font-weight: 800; color: #0284c7; margin-top: 0.25rem;">
-            ${{ total_debits|floatformat:2 }}
+            ₹{{ total_debits|floatformat:2 }}
         </div>
     </div>
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Cumulative Posted Credits</div>
         <div style="font-size: 1.6rem; font-weight: 800; color: #6366f1; margin-top: 0.25rem;">
-            ${{ total_credits|floatformat:2 }}
+            ₹{{ total_credits|floatformat:2 }}
         </div>
     </div>
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Current Ending Balance</div>
         <div style="font-size: 1.6rem; font-weight: 800; color: #10b981; margin-top: 0.25rem;">
-            ${{ final_balance|floatformat:2 }}
+            ₹{{ final_balance|floatformat:2 }}
         </div>
         <div style="font-size: 0.75rem; color: var(--text-muted);">{{ account.get_normal_balance_display }} Balance</div>
     </div>
@@ -78,9 +78,9 @@
                     {{ row.memo }}
                     {% if row.partner %}<span style="color: var(--text-muted); font-size: 0.8rem;"> &bull; {{ row.partner }}</span>{% endif %}
                 </td>
-                <td style="padding: 0.6rem; text-align: right;">{% if row.debit > 0 %}${{ row.debit|floatformat:2 }}{% else %}-{% endif %}</td>
-                <td style="padding: 0.6rem; text-align: right;">{% if row.credit > 0 %}${{ row.credit|floatformat:2 }}{% else %}-{% endif %}</td>
-                <td style="padding: 0.6rem; text-align: right; font-weight: 700;">${{ row.running_balance|floatformat:2 }}</td>
+                <td style="padding: 0.6rem; text-align: right;">{% if row.debit > 0 %}₹{{ row.debit|floatformat:2 }}{% else %}-{% endif %}</td>
+                <td style="padding: 0.6rem; text-align: right;">{% if row.credit > 0 %}₹{{ row.credit|floatformat:2 }}{% else %}-{% endif %}</td>
+                <td style="padding: 0.6rem; text-align: right; font-weight: 700;">₹{{ row.running_balance|floatformat:2 }}</td>
             </tr>
             {% empty %}
             <tr>

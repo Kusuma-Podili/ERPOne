@@ -94,7 +94,7 @@
                         </div>
                     </td>
                     <td style="text-align: right; font-weight: 700; color: var(--primary); font-family: monospace; font-size: 1.05rem;">
-                        ${{ order.grand_total|floatformat:2 }}
+                        ₹{{ order.grand_total|floatformat:2 }}
                     </td>
                     <td>
                         {% if order.status == 'draft' %}

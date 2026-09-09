@@ -20,7 +20,7 @@
         </div>
         <div style="padding: 1.5rem;">
             <p style="font-size: 1rem; color: var(--text-primary); margin-bottom: 1rem;">
-                Are you sure you want to permanently remove deal <strong>"{{ object.name }}"</strong> (${{ object.amount|floatformat:2 }}) for <strong>{{ object.account.name }}</strong>?
+                Are you sure you want to permanently remove deal <strong>"{{ object.name }}"</strong> (₹{{ object.amount|floatformat:2 }}) for <strong>{{ object.account.name }}</strong>?
             </p>
             <div class="alert alert-warning" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #d97706; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
                 <strong>Notice:</strong> Removing this deal will erase all linked stage transition records from the audit trail.

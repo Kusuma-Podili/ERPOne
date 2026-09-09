@@ -1,0 +1,103 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Order {{ order.order_number }} &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'customer:dashboard' %}">Customer Portal</a>
+<span>/</span>
+<a href="{% url 'customer:order_list' %}">My Orders</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ order.order_number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">Order {{ order.order_number }}</h1>
+        <p class="page-subtitle">Placed on {{ order.created_at|date:"F d, Y H:i" }} &bull; Status: <span class="badge badge-info">{{ order.status }}</span></p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'customer:order_list' %}" class="btn btn-secondary">&larr; Back to Orders</a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" style="font-size: 1rem; margin: 0;">Order Line Items</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="enterprise-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Line Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order.items.all %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.product.name }}</strong>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ item.product.sku }}</div>
+                        </td>
+                        <td>{{ item.quantity }}</td>
+                        <td>₹{{ item.unit_price }}</td>
+                        <td><strong>₹{{ item.line_total }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No line items on record.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="3" style="text-align: right;">Subtotal:</th>
+                        <th>₹{{ order.subtotal_amount|default:order.total_amount }}</th>
+                    </tr>
+                    {% if order.tax_amount %}
+                    <tr>
+                        <th colspan="3" style="text-align: right;">GST / Tax:</th>
+                        <th>₹{{ order.tax_amount }}</th>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th colspan="3" style="text-align: right; font-size: 1.1rem;">Total Amount:</th>
+                        <th style="font-size: 1.1rem; color: #4f46e5;">₹{{ order.total_amount }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" style="font-size: 1rem; margin: 0;">Billing &amp; Entity Details</h3>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;">
+            <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Client Account</div>
+                <strong>{{ order.account.name }}</strong>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Primary Contact</div>
+                <div>{{ order.contact.first_name }} {{ order.contact.last_name }}</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">{{ order.contact.email }}</div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Currency</div>
+                <div><strong>INR (₹)</strong></div>
+            </div>
+            {% if order.shipping_address %}
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Shipping Address</div>
+                <div style="font-size: 0.85rem;">{{ order.shipping_address }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

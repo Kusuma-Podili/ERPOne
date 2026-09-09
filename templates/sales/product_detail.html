@@ -94,7 +94,7 @@
                                 {% endif %}
                             </td>
                             <td style="text-align: right; font-weight: 600; font-family: monospace;">
-                                ${{ entry.unit_price|floatformat:2 }}
+                                ₹{{ entry.unit_price|floatformat:2 }}
                             </td>
                             <td style="text-align: right; font-family: monospace;">
                                 {{ entry.minimum_quantity }}
@@ -104,7 +104,7 @@
                                 {% if tiers %}
                                 <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-secondary);">
                                     {% for t in tiers %}
-                                    <li>Qty {{ t.min_quantity }}+: {% if t.discount_type == 'percentage' %}{{ t.discount_value }}% off{% else %}${{ t.discount_value }} fixed{% endif %}</li>
+                                    <li>Qty {{ t.min_quantity }}+: {% if t.discount_type == 'percentage' %}{{ t.discount_value }}% off{% else %}₹{{ t.discount_value }} fixed{% endif %}</li>
                                     {% endfor %}
                                 </ul>
                                 {% else %}
@@ -139,15 +139,15 @@
             <div style="display: flex; flex-direction: column; gap: 1rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: var(--text-muted);">List Price:</span>
-                    <span style="font-size: 1.25rem; font-weight: 700; color: var(--primary); font-family: monospace;">${{ product.list_price|floatformat:2 }}</span>
+                    <span style="font-size: 1.25rem; font-weight: 700; color: var(--primary); font-family: monospace;">₹{{ product.list_price|floatformat:2 }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: var(--text-muted);">Unit Cost Price:</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; font-family: monospace;">${{ product.cost_price|floatformat:2 }}</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; font-family: monospace;">₹{{ product.cost_price|floatformat:2 }}</span>
                 </div>
                 <div style="border-top: 1px solid var(--border-color); padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: var(--text-muted);">Gross Profit Margin:</span>
-                    <span style="font-size: 1.1rem; font-weight: 700; color: #10b981; font-family: monospace;">${{ product.profit_margin|floatformat:2 }}</span>
+                    <span style="font-size: 1.1rem; font-weight: 700; color: #10b981; font-family: monospace;">₹{{ product.profit_margin|floatformat:2 }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: var(--text-muted);">Margin Percentage:</span>

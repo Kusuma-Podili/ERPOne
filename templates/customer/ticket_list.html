@@ -1,0 +1,65 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}My Support Tickets &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'customer:dashboard' %}">Customer Portal</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">My Support Tickets</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">My Support Tickets</h1>
+        <p class="page-subtitle">Track tickets and communicate with our customer support specialists.</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'customer:dashboard' %}" class="btn btn-secondary">&larr; Portal</a>
+        <a href="{% url 'customer:ticket_create' %}" class="btn btn-primary">+ New Ticket</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Ticket Number</th>
+                    <th>Subject</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tickets %}
+                <tr>
+                    <td><strong>{{ t.number }}</strong></td>
+                    <td>{{ t.subject }}</td>
+                    <td>{{ t.category.name|default:"General Support" }}</td>
+                    <td>
+                        <span class="badge badge-{% if t.priority == 'CRITICAL' or t.priority == 'HIGH' %}danger{% else %}secondary{% endif %}">
+                            {{ t.priority }}
+                        </span>
+                    </td>
+                    <td><span class="badge badge-info">{{ t.status }}</span></td>
+                    <td>{{ t.created_at|date:"Y-m-d" }}</td>
+                    <td>
+                        <a href="{% url 'customer:ticket_detail' t.id %}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No support tickets submitted yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

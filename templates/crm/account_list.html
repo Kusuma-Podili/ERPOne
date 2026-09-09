@@ -132,7 +132,7 @@
                     <td>{{ acc.get_industry_display }}</td>
                     <td>
                         {% if acc.annual_revenue %}
-                        ${{ acc.annual_revenue|floatformat:2 }}
+                        ₹{{ acc.annual_revenue|floatformat:2 }}
                         {% else %}
                         <span style="color: var(--text-muted);">&mdash;</span>
                         {% endif %}

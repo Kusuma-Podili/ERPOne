@@ -7,4 +7,4 @@ def drop_tables(apps,schema_editor):
     from apps.payroll import models
     for model in reversed([models.PayrollRunAudit,models.PayrollPayment,models.PayrollAdjustment,models.PayslipLine,models.Payslip,models.PayrollPeriod,models.EmployeeSalaryAssignment,models.SalaryStructureLine,models.SalaryStructure,models.PayrollComponent]): schema_editor.delete_model(model)
 class Migration(migrations.Migration):
-    initial=True; dependencies=[('hr','0001_phase8')]; operations=[migrations.RunPython(create_tables,drop_tables)]
+    initial=True; dependencies=[('hr','0001_phase8')]; operations=[]

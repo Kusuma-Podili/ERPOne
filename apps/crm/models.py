@@ -208,6 +208,14 @@ class Contact(models.Model):
         related_name="contacts",
         verbose_name=_("Account / Company"),
     )
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="crm_contact",
+        verbose_name=_("Linked User Account"),
+    )
     first_name = models.CharField(_("First Name"), max_length=100)
     last_name = models.CharField(_("Last Name"), max_length=100)
     email = models.EmailField(_("Email Address"), db_index=True)
