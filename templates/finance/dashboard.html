@@ -1,0 +1,172 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Finance & General Ledger &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Finance & Ledger</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0.25rem;">Finance & General Ledger Accounting</h1>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-bottom: 0;">
+            GAAP/IFRS Double-Entry General Ledger, Chart of Accounts, Period Controls, and Financial Position.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'finance:journal_entry_create' %}" class="btn btn-primary">+ New Journal Voucher</a>
+        <a href="{% url 'finance:account_list' %}" class="btn btn-secondary">Chart of Accounts</a>
+        <a href="{% url 'finance:fiscal_year_list' %}" class="btn btn-secondary">Fiscal Periods</a>
+    </div>
+</div>
+
+<!-- Financial Balance Sheet & P&L Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Assets</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: #10b981; margin-top: 0.25rem;">
+            ${{ asset_balance|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Debit Normal Balance</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Liabilities</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: #f59e0b; margin-top: 0.25rem;">
+            ${{ liability_balance|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Credit Normal Balance</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Equity</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: #6366f1; margin-top: 0.25rem;">
+            ${{ equity_balance|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Capital & Retained Earnings</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Operating Revenue</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: #0284c7; margin-top: 0.25rem;">
+            ${{ revenue_balance|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Cumulative Sales Income</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Operating Expenses</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: #ef4444; margin-top: 0.25rem;">
+            ${{ expense_balance|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">COGS & Operating Expenses</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Net Income (P&L)</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: {% if net_income >= 0 %}#10b981{% else %}#ef4444{% endif %}; margin-top: 0.25rem;">
+            ${{ net_income|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Revenue &minus; Expenses</div>
+    </div>
+</div>
+
+<!-- Operational Overview -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Recent Journal Entries -->
+    <div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.1rem;">Recent General Journal Vouchers</h3>
+            <a href="{% url 'finance:journal_entry_list' %}" style="font-size: 0.85rem; color: var(--color-primary);">View All Vouchers &rarr;</a>
+        </div>
+        <table class="table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); text-align: left;">
+                    <th style="padding: 0.5rem;">Entry #</th>
+                    <th style="padding: 0.5rem;">Date</th>
+                    <th style="padding: 0.5rem;">Period</th>
+                    <th style="padding: 0.5rem;">Status</th>
+                    <th style="padding: 0.5rem; text-align: right;">Amount</th>
+                    <th style="padding: 0.5rem; text-align: center;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in recent_entries %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.6rem 0.5rem; font-weight: 600;">
+                        <a href="{% url 'finance:journal_entry_detail' entry.pk %}">{{ entry.entry_number }}</a>
+                    </td>
+                    <td style="padding: 0.6rem 0.5rem;">{{ entry.entry_date }}</td>
+                    <td style="padding: 0.6rem 0.5rem;">{{ entry.fiscal_period.name }}</td>
+                    <td style="padding: 0.6rem 0.5rem;">
+                        {% if entry.status == 'posted' %}
+                        <span class="badge" style="background: #10b98122; color: #10b981; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">POSTED</span>
+                        {% elif entry.status == 'draft' %}
+                        <span class="badge" style="background: #f59e0b22; color: #f59e0b; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">DRAFT</span>
+                        {% else %}
+                        <span class="badge" style="background: #ef444422; color: #ef4444; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">REVERSED</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.6rem 0.5rem; text-align: right; font-weight: 600;">${{ entry.total_debit|floatformat:2 }}</td>
+                    <td style="padding: 0.6rem 0.5rem; text-align: center;">
+                        <a href="{% url 'finance:journal_entry_detail' entry.pk %}" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">View</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">
+                        No journal entries posted yet. Click <strong>+ New Journal Voucher</strong> to record your first transaction.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- General Ledger Health & Period Status -->
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+            <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem;">Current Accounting Period</h3>
+            {% if current_period %}
+            <div style="padding: 0.75rem; background: var(--surface-background); border-radius: 0.375rem; margin-bottom: 1rem;">
+                <div style="font-weight: 700; font-size: 1.05rem;">{{ current_period.name }}</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    {{ current_period.start_date }} &mdash; {{ current_period.end_date }}
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    {% if current_period.is_closed %}
+                    <span class="badge" style="background: #ef444422; color: #ef4444; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">PERIOD CLOSED</span>
+                    {% else %}
+                    <span class="badge" style="background: #10b98122; color: #10b981; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">OPEN FOR POSTINGS</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div style="padding: 0.75rem; background: #f59e0b11; border: 1px solid #f59e0b33; border-radius: 0.375rem; margin-bottom: 1rem; font-size: 0.85rem;">
+                No active fiscal period for today. <a href="{% url 'finance:fiscal_year_create' %}" style="color: #f59e0b; font-weight: 600;">Configure Fiscal Calendar &rarr;</a>
+            </div>
+            {% endif %}
+            <a href="{% url 'finance:fiscal_year_list' %}" class="btn btn-secondary" style="width: 100%; text-align: center;">Manage Fiscal Periods</a>
+        </div>
+
+        <div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+            <h3 style="margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem;">GL Posting Pipeline</h3>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                <span style="color: var(--text-muted);">Posted to Ledger:</span>
+                <strong style="color: #10b981;">{{ posted_count }} vouchers</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                <span style="color: var(--text-muted);">Pending Draft Vouchers:</span>
+                <strong style="color: #f59e0b;">{{ draft_count }} draft</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                <span style="color: var(--text-muted);">Reversed Entries:</span>
+                <strong style="color: #ef4444;">{{ reversed_count }} reversed</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; font-size: 0.9rem;">
+                <span style="color: var(--text-muted);">Active GL Accounts:</span>
+                <strong>{{ total_accounts_count }} accounts</strong>
+            </div>
+            <a href="{% url 'finance:account_list' %}" class="btn btn-secondary" style="width: 100%; text-align: center;">View Chart of Accounts</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

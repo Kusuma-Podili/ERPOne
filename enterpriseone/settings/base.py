@@ -38,6 +38,18 @@ ENTERPRISE_APPS = [
     "apps.sales.apps.SalesConfig",
     "apps.inventory.apps.InventoryConfig",
     "apps.procurement.apps.ProcurementConfig",
+    "apps.finance.apps.FinanceConfig",
+    "apps.hr.apps.HrConfig",
+    "apps.payroll.apps.PayrollConfig",
+    "apps.projects.apps.ProjectsConfig",
+    "apps.support.apps.SupportConfig",
+    "apps.analytics.apps.AnalyticsConfig",
+    "apps.ai_engine.apps.AiEngineConfig",
+    "apps.documents.apps.DocumentsConfig",
+    "apps.notifications.apps.NotificationsConfig",
+    "apps.security.apps.SecurityConfig",
+    "apps.monitoring.apps.MonitoringConfig",
+    "apps.integration.apps.IntegrationConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + ENTERPRISE_APPS

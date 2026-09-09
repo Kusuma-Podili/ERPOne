@@ -1,0 +1,166 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ entry.entry_number }} &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'finance:dashboard' %}">Finance</a>
+<span>/</span>
+<a href="{% url 'finance:journal_entry_list' %}">Journal Entries</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ entry.entry_number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <h1 class="page-title" style="margin: 0;">{{ entry.entry_number }}</h1>
+            {% if entry.status == 'posted' %}
+            <span class="badge" style="background: #10b98122; color: #10b981; padding: 0.25rem 0.6rem; border-radius: 4px; font-weight: 700; font-size: 0.85rem;">POSTED TO LEDGER</span>
+            {% elif entry.status == 'draft' %}
+            <span class="badge" style="background: #f59e0b22; color: #f59e0b; padding: 0.25rem 0.6rem; border-radius: 4px; font-weight: 700; font-size: 0.85rem;">DRAFT VOUCHER</span>
+            {% else %}
+            <span class="badge" style="background: #ef444422; color: #ef4444; padding: 0.25rem 0.6rem; border-radius: 4px; font-weight: 700; font-size: 0.85rem;">REVERSED</span>
+            {% endif %}
+        </div>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-top: 0.25rem; margin-bottom: 0;">
+            Source: {{ entry.get_source_document_type_display }} &bull; Period: {{ entry.fiscal_period.name }}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'finance:journal_entry_print' entry.pk %}" target="_blank" class="btn btn-secondary">Print Voucher</a>
+        
+        {% if entry.status == 'draft' %}
+        <form method="post" action="{% url 'finance:journal_entry_post' entry.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary" onclick="return confirm('Are you sure you want to permanently post this entry to the General Ledger? Posted entries cannot be edited.');">
+                Post to General Ledger
+            </button>
+        </form>
+        {% elif entry.status == 'posted' and not entry.reversed_by_entry %}
+        <button type="button" class="btn btn-secondary" style="color: #ef4444; border-color: #ef444433;" onclick="document.getElementById('reversalModal').style.display='block';">
+            Reverse Entry
+        </button>
+        {% endif %}
+        
+        <a href="{% url 'finance:journal_entry_list' %}" class="btn btn-secondary">&larr; Back to Vouchers</a>
+    </div>
+</div>
+
+{% if entry.reversed_by_entry %}
+<div style="padding: 1rem; background: #ef444411; border: 1px solid #ef444444; border-radius: 0.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+    <div>
+        <strong style="color: #ef4444;">This transaction has been reversed.</strong>
+        <span style="color: var(--text-muted); margin-left: 0.5rem;">Offsetting journal entry: <a href="{% url 'finance:journal_entry_detail' entry.reversed_by_entry.pk %}">{{ entry.reversed_by_entry.entry_number }}</a></span>
+    </div>
+    <a href="{% url 'finance:journal_entry_detail' entry.reversed_by_entry.pk %}" class="btn btn-sm btn-secondary">View Reversal Voucher</a>
+</div>
+{% endif %}
+
+<!-- Metadata Grid -->
+<div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; margin-bottom: 1.5rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem;">
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Transaction Date</div>
+            <div style="font-weight: 700; font-size: 1rem; margin-top: 0.2rem;">{{ entry.entry_date }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Posting Date</div>
+            <div style="font-weight: 700; font-size: 1rem; margin-top: 0.2rem;">{{ entry.posting_date|default:"Not Yet Posted" }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Reference Voucher</div>
+            <div style="font-weight: 700; font-size: 1rem; margin-top: 0.2rem;">{{ entry.reference|default:"None" }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Fiscal Period</div>
+            <div style="font-weight: 700; font-size: 1rem; margin-top: 0.2rem;">{{ entry.fiscal_period.name }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Created By</div>
+            <div style="font-weight: 700; font-size: 1rem; margin-top: 0.2rem;">{{ entry.created_by.email|default:"System" }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Posted By</div>
+            <div style="font-weight: 700; font-size: 1rem; margin-top: 0.2rem;">{{ entry.posted_by.email|default:"&mdash;" }}</div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Transaction Narration / Memo</div>
+        <div style="margin-top: 0.25rem; font-size: 0.95rem;">{{ entry.narration }}</div>
+    </div>
+</div>
+
+<!-- Debits & Credits Breakdown -->
+<div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; margin-bottom: 2rem;">
+    <h3 style="margin-top: 0; margin-bottom: 1rem;">Transaction Voucher Legs</h3>
+    <table class="table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+        <thead>
+            <tr style="background: var(--surface-background); border-bottom: 2px solid var(--border-color); text-align: left;">
+                <th style="padding: 0.6rem;">#</th>
+                <th style="padding: 0.6rem;">GL Account</th>
+                <th style="padding: 0.6rem;">Line Memo</th>
+                <th style="padding: 0.6rem;">Partner</th>
+                <th style="padding: 0.6rem;">Cost Center</th>
+                <th style="padding: 0.6rem; text-align: right;">Debit ($)</th>
+                <th style="padding: 0.6rem; text-align: right;">Credit ($)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in entry.lines.all %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 0.6rem; color: var(--text-muted);">{{ line.line_number }}</td>
+                <td style="padding: 0.6rem; font-weight: 600;">
+                    <a href="{% url 'finance:account_detail' line.account.pk %}">{{ line.account.code }} &mdash; {{ line.account.name }}</a>
+                </td>
+                <td style="padding: 0.6rem;">{{ line.narration|default:"-" }}</td>
+                <td style="padding: 0.6rem; font-size: 0.85rem;">{{ line.partner_name|default:"-" }}</td>
+                <td style="padding: 0.6rem; font-size: 0.85rem;">{{ line.cost_center|default:"-" }}</td>
+                <td style="padding: 0.6rem; text-align: right; font-weight: 600;">
+                    {% if line.debit > 0 %}${{ line.debit|floatformat:2 }}{% else %}-{% endif %}
+                </td>
+                <td style="padding: 0.6rem; text-align: right; font-weight: 600;">
+                    {% if line.credit > 0 %}${{ line.credit|floatformat:2 }}{% else %}-{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="background: var(--surface-background); font-weight: 800; border-top: 2px solid var(--border-color); font-size: 1rem;">
+                <td colspan="5" style="padding: 0.75rem; text-align: right;">Total Voucher Amount:</td>
+                <td style="padding: 0.75rem; text-align: right; color: #0284c7;">${{ entry.total_debit|floatformat:2 }}</td>
+                <td style="padding: 0.75rem; text-align: right; color: #6366f1;">${{ entry.total_credit|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<!-- Reversal Modal Dialog -->
+<div id="reversalModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; display: none; align-items: center; justify-content: center;">
+    <div style="background: var(--surface-card); padding: 2rem; border-radius: 0.5rem; max-width: 500px; width: 90%; margin: 10vh auto; border: 1px solid var(--border-color);">
+        <h3 style="margin-top: 0; color: #ef4444;">Reverse Journal Entry {{ entry.entry_number }}</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+            This action generates an automatic counter-balancing entry swapping all debits and credits, nullifying the impact on the General Ledger.
+        </p>
+
+        <form method="post" action="{% url 'finance:journal_entry_reverse' entry.pk %}">
+            {% csrf_token %}
+            <div style="margin-bottom: 1rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">Reversal Posting Date *</label>
+                {{ reversal_form.reversal_date }}
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">Reversal Reason / Audit Memo</label>
+                {{ reversal_form.narration }}
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('reversalModal').style.display='none';">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="background: #ef4444; border-color: #ef4444;">Confirm Reversal</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

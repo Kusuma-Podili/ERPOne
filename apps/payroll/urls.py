@@ -1,0 +1,4 @@
+from django.urls import path
+from . import views
+app_name='payroll'
+urlpatterns=[path('',views.Dashboard.as_view(),name='dashboard'),path('components/',views.Components.as_view(),name='components'),path('components/create/',views.ComponentCreate.as_view(),name='component_create'),path('structures/',views.Structures.as_view(),name='structures'),path('structures/create/',views.StructureCreate.as_view(),name='structure_create'),path('periods/',views.Periods.as_view(),name='periods'),path('periods/create/',views.PeriodCreate.as_view(),name='period_create'),path('periods/<uuid:pk>/',views.PeriodDetail.as_view(),name='period_detail'),path('periods/<uuid:pk>/process/',views.Process.as_view(),name='process'),path('periods/<uuid:pk>/approve/',views.Approve.as_view(),name='approve'),path('payslips/',views.Payslips.as_view(),name='payslips')]

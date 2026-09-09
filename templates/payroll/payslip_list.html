@@ -1,0 +1,1 @@
+{% extends 'payroll/base.html' %}{% block content %}<h2>Payslips</h2><table><tr><th>Number</th><th>Employee</th><th>Period</th><th>Gross</th><th>Net</th></tr>{% for p in payslips %}<tr><td>{{ p.payslip_number }}</td><td>{{ p.employee.full_name }}</td><td>{{ p.period.code }}</td><td>{{ p.gross_pay }}</td><td>{{ p.net_pay }}</td></tr>{% endfor %}</table>{% endblock %}
