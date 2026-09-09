@@ -1,0 +1,1 @@
+{% extends 'payroll/base.html' %}{% block content %}<h2>Payroll Record</h2><form method="post">{% csrf_token %}{{ form.as_p }}<button>Save</button></form>{% endblock %}
