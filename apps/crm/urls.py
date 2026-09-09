@@ -8,8 +8,8 @@ from apps.crm import views
 app_name = "crm"
 
 urlpatterns = [
-    # Default CRM Entrypoint
-    path("", RedirectView.as_view(pattern_name="crm:account_list", permanent=False), name="crm_index"),
+    # Default CRM Dashboard
+    path("", views.CRMDashboardView.as_view(), name="dashboard"),
 
     # Accounts
     path("accounts/", views.AccountListView.as_view(), name="account_list"),
@@ -42,4 +42,11 @@ urlpatterns = [
     path("deals/<uuid:pk>/edit/", views.DealUpdateView.as_view(), name="deal_update"),
     path("deals/<uuid:pk>/delete/", views.DealDeleteView.as_view(), name="deal_delete"),
     path("deals/<uuid:pk>/transition/", views.DealTransitionStageView.as_view(), name="deal_transition_stage"),
+
+    # Activities & Tasks
+    path("activities/", views.ActivityListView.as_view(), name="activity_list"),
+    path("activities/new/", views.ActivityCreateView.as_view(), name="activity_create"),
+    path("activities/<uuid:pk>/edit/", views.ActivityUpdateView.as_view(), name="activity_update"),
+    path("activities/<uuid:pk>/complete/", views.ActivityCompleteView.as_view(), name="activity_complete"),
+    path("activities/<uuid:pk>/delete/", views.ActivityDeleteView.as_view(), name="activity_delete"),
 ]

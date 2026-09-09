@@ -17,6 +17,7 @@ from django.views.generic import (
     TemplateView,
 )
 
+from django.utils import timezone
 from apps.organizations.views import OrganizationAccessMixin
 from apps.crm.models import (
     Account,
@@ -32,6 +33,11 @@ from apps.crm.models import (
     PipelineStage,
     Deal,
     DealStageTransition,
+    ActivityType,
+    ActivityStatus,
+    ActivityPriority,
+    Activity,
+    Note,
 )
 from apps.crm.forms import (
     AccountForm,
@@ -40,6 +46,8 @@ from apps.crm.forms import (
     LeadConvertForm,
     DealForm,
     DealStageTransitionForm,
+    ActivityForm,
+    NoteForm,
 )
 from apps.crm.services import (
     LeadScoringService,
@@ -907,5 +915,227 @@ class DealTransitionStageView(OrganizationAccessMixin, View):
 
         messages.success(request, f"Deal advanced to stage '{to_stage.name}'.")
         return redirect("crm:deal_detail", pk=deal.pk)
+
+
+# =====================================================================
+# CRM EXECUTIVE DASHBOARD
+# =====================================================================
+
+class CRMDashboardView(OrganizationAccessMixin, TemplateView):
+    """
+    Executive CRM Overview Dashboard.
+    Consolidates pipeline forecasts, high-score leads, active deals, and upcoming tasks.
+    """
+    template_name = "crm/dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        org = self.request.organization
+        PipelineService.initialize_default_stages(org)
+
+        # KPIs
+        ctx["forecast"] = PipelineService.calculate_pipeline_forecast(org)
+        ctx["total_accounts_count"] = Account.objects.filter(organization=org).count()
+        ctx["total_contacts_count"] = Contact.objects.filter(organization=org).count()
+        ctx["total_leads_count"] = Lead.objects.filter(organization=org).count()
+        ctx["open_leads_count"] = Lead.objects.filter(organization=org, is_converted=False).count()
+
+        # Lists
+        ctx["hot_leads"] = Lead.objects.filter(
+            organization=org, is_converted=False
+        ).order_by("-lead_score")[:5]
+
+        ctx["recent_deals"] = Deal.objects.filter(
+            organization=org, is_closed=False
+        ).select_related("account", "stage", "owner").order_by("-amount")[:5]
+
+        ctx["upcoming_activities"] = Activity.objects.filter(
+            organization=org,
+            status__in=[ActivityStatus.PLANNED, ActivityStatus.IN_PROGRESS]
+        ).select_related("assigned_to", "account", "deal", "lead").order_by("due_date")[:6]
+
+        ctx["recent_won_deals"] = Deal.objects.filter(
+            organization=org, is_won=True
+        ).select_related("account", "owner").order_by("-actual_close_date")[:5]
+
+        return ctx
+
+
+# =====================================================================
+# ACTIVITIES & TOUCHPOINTS VIEWS
+# =====================================================================
+
+class ActivityListView(OrganizationAccessMixin, ListView):
+    """
+    Interaction history and task schedule.
+    """
+    model = Activity
+    template_name = "crm/activity_list.html"
+    context_object_name = "activities"
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = Activity.objects.filter(
+            organization=self.request.organization
+        ).select_related("account", "contact", "lead", "deal", "assigned_to")
+
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(subject__icontains=q)
+                | Q(description__icontains=q)
+                | Q(account__name__icontains=q)
+                | Q(contact__first_name__icontains=q)
+            )
+
+        act_type = self.request.GET.get("type", "").strip()
+        if act_type:
+            qs = qs.filter(activity_type=act_type)
+
+        status = self.request.GET.get("status", "").strip()
+        if status:
+            qs = qs.filter(status=status)
+
+        priority = self.request.GET.get("priority", "").strip()
+        if priority:
+            qs = qs.filter(priority=priority)
+
+        my_tasks = self.request.GET.get("mine", "").strip()
+        if my_tasks == "1":
+            qs = qs.filter(assigned_to=self.request.user)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        org = self.request.organization
+        ctx["total_activities_count"] = Activity.objects.filter(organization=org).count()
+        ctx["pending_activities_count"] = Activity.objects.filter(
+            organization=org, status__in=[ActivityStatus.PLANNED, ActivityStatus.IN_PROGRESS]
+        ).count()
+        ctx["completed_activities_count"] = Activity.objects.filter(
+            organization=org, status=ActivityStatus.COMPLETED
+        ).count()
+        ctx["activity_types"] = ActivityType.choices
+        ctx["activity_statuses"] = ActivityStatus.choices
+        ctx["activity_priorities"] = ActivityPriority.choices
+        ctx["current_q"] = self.request.GET.get("q", "")
+        ctx["current_type"] = self.request.GET.get("type", "")
+        ctx["current_status"] = self.request.GET.get("status", "")
+        ctx["current_priority"] = self.request.GET.get("priority", "")
+        ctx["current_mine"] = self.request.GET.get("mine", "")
+        return ctx
+
+
+class ActivityCreateView(OrganizationAccessMixin, CreateView):
+    """
+    Schedules an interaction, call, meeting, or task.
+    """
+    model = Activity
+    form_class = ActivityForm
+    template_name = "crm/activity_form.html"
+
+    def get_initial(self):
+        initial = super().get_initial()
+        account_id = self.request.GET.get("account")
+        if account_id:
+            initial["account"] = account_id
+        contact_id = self.request.GET.get("contact")
+        if contact_id:
+            initial["contact"] = contact_id
+        lead_id = self.request.GET.get("lead")
+        if lead_id:
+            initial["lead"] = lead_id
+        deal_id = self.request.GET.get("deal")
+        if deal_id:
+            initial["deal"] = deal_id
+        return initial
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.organization
+        form.instance.created_by = self.request.user
+        if not form.instance.assigned_to:
+            form.instance.assigned_to = self.request.user
+        messages.success(self.request, f"Activity '{form.instance.subject}' scheduled successfully.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("crm:activity_list")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = "Schedule New Activity"
+        ctx["form_action"] = "Schedule Activity"
+        return ctx
+
+
+class ActivityUpdateView(OrganizationAccessMixin, UpdateView):
+    """
+    Edits an existing activity.
+    """
+    model = Activity
+    form_class = ActivityForm
+    template_name = "crm/activity_form.html"
+
+    def get_queryset(self):
+        return Activity.objects.filter(organization=self.request.organization)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def form_valid(self, form):
+        if form.cleaned_data.get("status") == ActivityStatus.COMPLETED and not form.instance.completed_at:
+            form.instance.completed_at = timezone.now()
+        messages.success(self.request, f"Activity '{form.instance.subject}' updated.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("crm:activity_list")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = f"Edit Activity: {self.object.subject}"
+        ctx["form_action"] = "Save Changes"
+        ctx["activity"] = self.object
+        return ctx
+
+
+class ActivityCompleteView(OrganizationAccessMixin, View):
+    """
+    Quick action to mark an activity as completed.
+    """
+    def post(self, request, pk, *args, **kwargs):
+        activity = get_object_or_404(Activity, pk=pk, organization=request.organization)
+        activity.status = ActivityStatus.COMPLETED
+        activity.completed_at = timezone.now()
+        activity.save(update_fields=["status", "completed_at", "updated_at"])
+        messages.success(request, f"Activity '{activity.subject}' marked as completed.")
+        return redirect("crm:activity_list")
+
+
+class ActivityDeleteView(OrganizationAccessMixin, DeleteView):
+    """
+    Removes an activity record.
+    """
+    model = Activity
+    template_name = "crm/activity_confirm_delete.html"
+    success_url = reverse_lazy("crm:activity_list")
+
+    def get_queryset(self):
+        return Activity.objects.filter(organization=self.request.organization)
+
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        name = obj.subject
+        messages.warning(request, f"Activity '{name}' was deleted.")
+        return super().delete(request, *args, **kwargs)
+
 
 

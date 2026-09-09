@@ -6,7 +6,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from apps.accounts.forms import FormStylingMixin
 from apps.accounts.models import User
-from apps.crm.models import Account, Contact, Lead, Deal, PipelineStage
+from apps.crm.models import Account, Contact, Lead, Deal, PipelineStage, Activity, Note
 
 
 class AccountForm(FormStylingMixin, forms.ModelForm):
@@ -277,5 +277,54 @@ class DealStageTransitionForm(FormStylingMixin, forms.Form):
             ).order_by("order")
         if deal:
             self.fields["to_stage"].initial = deal.stage_id
+
+
+class ActivityForm(FormStylingMixin, forms.ModelForm):
+    """
+    Form to schedule, assign, and document customer touchpoints, calls, and tasks.
+    """
+    class Meta:
+        model = Activity
+        fields = [
+            "activity_type",
+            "subject",
+            "due_date",
+            "status",
+            "priority",
+            "account",
+            "contact",
+            "lead",
+            "deal",
+            "assigned_to",
+            "description",
+        ]
+        widgets = {
+            "due_date": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "description": forms.Textarea(attrs={"rows": 4, "placeholder": "Discussion agenda, call outcomes, action items..."}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["account"].queryset = Account.objects.filter(organization=organization).order_by("name")
+            self.fields["contact"].queryset = Contact.objects.filter(organization=organization).order_by("last_name")
+            self.fields["lead"].queryset = Lead.objects.filter(organization=organization, is_converted=False).order_by("last_name")
+            self.fields["deal"].queryset = Deal.objects.filter(organization=organization, is_closed=False).order_by("name")
+            member_user_ids = organization.members.filter(status="ACTIVE").values_list("user_id", flat=True)
+            self.fields["assigned_to"].queryset = User.objects.filter(id__in=member_user_ids)
+            self.fields["assigned_to"].empty_label = _("-- Select Assigned Rep --")
+
+
+class NoteForm(FormStylingMixin, forms.ModelForm):
+    """
+    Form to record an internal note on an account, contact, or deal.
+    """
+    class Meta:
+        model = Note
+        fields = ["title", "content"]
+        widgets = {
+            "content": forms.Textarea(attrs={"rows": 4, "placeholder": "Enter detailed notes, meeting minutes, observations..."}),
+        }
+
 
 
