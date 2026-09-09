@@ -1,0 +1,114 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Comparative Evaluation &bull; {{ rfq.rfq_number }} &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<a href="{% url 'procurement:rfq_detail' pk=rfq.pk %}">{{ rfq.rfq_number }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Bid Comparison Matrix</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0.25rem;">Competitive Bid Evaluation Matrix</h1>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-bottom: 0;">
+            Comparing {{ matrix.bids|length }} supplier proposal(s) for <strong>{{ rfq.rfq_number }}: {{ rfq.title }}</strong>.
+        </p>
+    </div>
+    <div>
+        <a href="{% url 'procurement:rfq_detail' pk=rfq.pk %}" class="btn btn-secondary">&larr; Back to RFQ</a>
+    </div>
+</div>
+
+<!-- Commercial Summary Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    {% for s in matrix.summary %}
+    <div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 2px solid {% if s.is_winner %}#10b981{% else %}var(--border-color){% endif %}; border-radius: 0.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.2rem;">{{ s.supplier.name }}</h3>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Ref: {{ s.bid.bid_reference }}</div>
+            </div>
+            {% if s.is_winner %}
+            <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">WINNER</span>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 1rem;">
+            <div style="font-size: 1.8rem; font-weight: 800; color: #10b981;">${{ s.total_amount }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Inc. ${{ s.shipping_cost }} Freight</div>
+        </div>
+
+        <div style="margin-top: 1rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 0.35rem; color: var(--text-muted);">
+            <div>Lead Time: <strong style="color: var(--text-primary);">{{ s.lead_time_days }} days</strong></div>
+            <div>Supplier Rating: <strong style="color: #f59e0b;">★ {{ s.rating|floatformat:1 }}</strong></div>
+            <div>Terms: <strong style="color: var(--text-primary);">{{ s.bid.get_payment_terms_display }}</strong></div>
+        </div>
+
+        {% if not s.is_winner and rfq.status != 'awarded' %}
+        <form method="post" action="{% url 'procurement:rfq_award' pk=rfq.pk %}" style="margin-top: 1.25rem;">
+            {% csrf_token %}
+            <input type="hidden" name="bid_id" value="{{ s.bid.id }}">
+            <input type="hidden" name="award_reason" value="Best competitive commercial terms and delivery schedule.">
+            <button type="submit" class="btn btn-primary w-100" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;">
+                🏆 Award Contract
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Detailed Line-by-Line Matrix -->
+<div class="card" style="background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; overflow: hidden; margin-bottom: 2rem;">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+        <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Line-by-Line Price & Delivery Breakdown</h3>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.85rem 1rem;">Line Item / SKU</th>
+                    <th style="padding: 0.85rem 1rem;">Target Qty</th>
+                    {% for bid in matrix.bids %}
+                    <th style="padding: 0.85rem 1rem; text-align: center;">{{ bid.supplier.name }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in matrix.lines %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.85rem 1rem;">
+                        <div style="font-weight: 600;">{{ row.line.product.name }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">{{ row.line.product.sku }}</div>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; font-weight: 600;">
+                        {{ row.line.target_quantity }} {{ row.line.uom.code }}
+                    </td>
+                    {% for bid in matrix.bids %}
+                    <td style="padding: 0.85rem 1rem; text-align: center;">
+                        {% with item=row.bids|dictsort:bid.id %}
+                        {# Note: python helper dict access #}
+                        {% endwith %}
+                        {# For simple matrix display in Django template #}
+                        <div style="font-weight: 600; font-size: 0.95rem;">
+                            {% if row.lowest_price %}
+                            <span style="color: #10b981;">Priced</span>
+                            {% else %}
+                            <span style="color: var(--text-muted);">&mdash;</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

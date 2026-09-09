@@ -1,0 +1,237 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ supplier.name }} &bull; Supplier Profile &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Suppliers</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ supplier.name }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- Supplier Header -->
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <h1 class="page-title" style="margin-bottom: 0;">{{ supplier.name }}</h1>
+            <span class="badge" style="font-family: monospace; background: var(--surface-bg, #f1f5f9); padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; color: var(--text-primary);">
+                {{ supplier.code }}
+            </span>
+            {% if supplier.status == 'active' %}
+            <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Active</span>
+            {% elif supplier.status == 'pending_review' %}
+            <span class="badge badge-warning" style="background: #f59e0b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Pending Review</span>
+            {% elif supplier.status == 'on_hold' %}
+            <span class="badge badge-secondary" style="background: #64748b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">On Hold</span>
+            {% else %}
+            <span class="badge badge-danger" style="background: #ef4444; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">{{ supplier.get_status_display }}</span>
+            {% endif %}
+            <span class="badge" style="background: rgba(99,102,241,0.1); color: #6366f1; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">
+                {{ supplier.get_supplier_type_display }}
+            </span>
+        </div>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-top: 0.25rem; margin-bottom: 0;">
+            {% if supplier.tax_id %}Tax ID: <strong>{{ supplier.tax_id }}</strong> &bull; {% endif %}Default Currency: <strong>{{ supplier.currency }}</strong>
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'procurement:supplier_contact_create' supplier_pk=supplier.pk %}" class="btn btn-secondary">
+            + Add Contact
+        </a>
+        <a href="{% url 'procurement:supplier_product_create' supplier_pk=supplier.pk %}" class="btn btn-primary">
+            + Add Catalog Item
+        </a>
+        <a href="{% url 'procurement:supplier_edit' pk=supplier.pk %}" class="btn btn-secondary">
+            Edit
+        </a>
+        <a href="{% url 'procurement:supplier_delete' pk=supplier.pk %}" class="btn btn-danger" style="background: #ef4444; color: white;">
+            Delete
+        </a>
+    </div>
+</div>
+
+<!-- Metrics Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Overall Rating</div>
+        <div style="font-size: 1.6rem; font-weight: 700; color: #f59e0b; margin-top: 0.25rem;">
+            ★ {{ supplier.overall_rating|floatformat:1 }} / 5.0
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Lead Time: {{ supplier.lead_time_rating }} &bull; Quality: {{ supplier.quality_rating }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Payment Terms</div>
+        <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">
+            {{ supplier.get_payment_terms_display }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Currency: {{ supplier.currency }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Catalog Items</div>
+        <div style="font-size: 1.6rem; font-weight: 700; color: #6366f1; margin-top: 0.25rem;">
+            {{ supplier.supplied_products.count }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Active Priced Offerings
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Key Contact</div>
+        <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem;">
+            {% with p=supplier.contacts.first %}
+            {% if p %}{{ p.name }}{% else %}No contacts{% endif %}
+            {% endwith %}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            {{ supplier.contacts.count }} Total Contacts
+        </div>
+    </div>
+</div>
+
+<!-- Main Details Layout -->
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Vendor Profile & Address Card -->
+    <div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <h2 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">Commercial & Contact Details</h2>
+        <div style="font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <div>
+                <span style="color: var(--text-muted); font-size: 0.8rem; display: block;">Email</span>
+                <span style="font-weight: 500;">{% if supplier.email %}<a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a>{% else %}&mdash;{% endif %}</span>
+            </div>
+            <div>
+                <span style="color: var(--text-muted); font-size: 0.8rem; display: block;">Phone</span>
+                <span style="font-weight: 500;">{{ supplier.phone|default:"&mdash;" }}</span>
+            </div>
+            <div>
+                <span style="color: var(--text-muted); font-size: 0.8rem; display: block;">Corporate Website</span>
+                <span style="font-weight: 500;">{% if supplier.website %}<a href="{{ supplier.website }}" target="_blank">{{ supplier.website }}</a>{% else %}&mdash;{% endif %}</span>
+            </div>
+            <div>
+                <span style="color: var(--text-muted); font-size: 0.8rem; display: block;">Physical Address</span>
+                <span style="font-weight: 500;">
+                    {% if supplier.address %}{{ supplier.address }}<br>{% endif %}
+                    {% if supplier.city %}{{ supplier.city }}, {% endif %}{{ supplier.state_province }} {{ supplier.postal_code }}<br>
+                    {{ supplier.country }}
+                </span>
+            </div>
+            {% if supplier.notes %}
+            <div style="margin-top: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+                <span style="color: var(--text-muted); font-size: 0.8rem; display: block;">Compliance & Commercial Notes</span>
+                <p style="font-size: 0.85rem; color: var(--text-primary); margin-top: 0.25rem;">{{ supplier.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column: Contacts and Catalog Offerings -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Vendor Contacts Table -->
+        <div class="card" style="background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; overflow: hidden;">
+            <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Supplier Contacts</h3>
+                <a href="{% url 'procurement:supplier_contact_create' supplier_pk=supplier.pk %}" class="btn btn-sm btn-secondary">+ Add Contact</a>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                            <th style="padding: 0.6rem 1rem;">Name</th>
+                            <th style="padding: 0.6rem 1rem;">Title</th>
+                            <th style="padding: 0.6rem 1rem;">Email</th>
+                            <th style="padding: 0.6rem 1rem;">Phone</th>
+                            <th style="padding: 0.6rem 1rem;">Role</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in supplier.contacts.all %}
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 1rem; font-weight: 500;">{{ c.name }}</td>
+                            <td style="padding: 0.6rem 1rem; color: var(--text-muted);">{{ c.title|default:"&mdash;" }}</td>
+                            <td style="padding: 0.6rem 1rem;"><a href="mailto:{{ c.email }}">{{ c.email }}</a></td>
+                            <td style="padding: 0.6rem 1rem;">{{ c.phone|default:"&mdash;" }}</td>
+                            <td style="padding: 0.6rem 1rem;">
+                                {% if c.is_primary %}
+                                <span class="badge" style="background: #10b981; color: #fff; padding: 0.2rem 0.5rem; border-radius: 9999px; font-size: 0.7rem;">Primary</span>
+                                {% else %}
+                                <span style="color: var(--text-muted); font-size: 0.75rem;">Secondary</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No contacts registered for this supplier.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Supplier Catalog Offerings Table -->
+        <div class="card" style="background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; overflow: hidden;">
+            <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Product Catalog & Pricing</h3>
+                <a href="{% url 'procurement:supplier_product_create' supplier_pk=supplier.pk %}" class="btn btn-sm btn-primary">+ Add Catalog Offering</a>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                            <th style="padding: 0.6rem 1rem;">Product Item</th>
+                            <th style="padding: 0.6rem 1rem;">Vendor SKU</th>
+                            <th style="padding: 0.6rem 1rem;">Unit Price</th>
+                            <th style="padding: 0.6rem 1rem;">MOQ</th>
+                            <th style="padding: 0.6rem 1rem;">Lead Time</th>
+                            <th style="padding: 0.6rem 1rem;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in supplier.supplied_products.all %}
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 1rem;">
+                                <div style="font-weight: 600; color: var(--text-primary);">{{ item.product.name }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">SKU: {{ item.product.sku }}</div>
+                            </td>
+                            <td style="padding: 0.6rem 1rem; font-family: monospace;">
+                                {{ item.supplier_sku|default:"&mdash;" }}
+                            </td>
+                            <td style="padding: 0.6rem 1rem; font-weight: 600; color: #10b981;">
+                                ${{ item.unit_price }} {{ item.currency }}
+                            </td>
+                            <td style="padding: 0.6rem 1rem;">
+                                {{ item.minimum_order_quantity }}
+                            </td>
+                            <td style="padding: 0.6rem 1rem;">
+                                {{ item.lead_time_days }} days
+                            </td>
+                            <td style="padding: 0.6rem 1rem;">
+                                {% if item.is_preferred %}
+                                <span class="badge" style="background: #6366f1; color: #fff; padding: 0.2rem 0.5rem; border-radius: 9999px; font-size: 0.7rem;">Preferred</span>
+                                {% endif %}
+                                {% if item.is_active %}
+                                <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.2rem 0.5rem; border-radius: 9999px; font-size: 0.7rem;">Active</span>
+                                {% else %}
+                                <span class="badge badge-secondary" style="background: #64748b; color: #fff; padding: 0.2rem 0.5rem; border-radius: 9999px; font-size: 0.7rem;">Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No catalog items linked yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

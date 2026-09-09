@@ -1,0 +1,80 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}3-Way Match Audit &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<a href="{% url 'procurement:bill_list' %}">Vendor Bills</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Match Audit</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <h1 class="page-title">Three-Way Matching Reconciliation Record</h1>
+    <p class="page-subtitle" style="color: var(--text-muted);">
+        Comprehensive reconciliation audit linking Purchase Order, Physical Goods Receipts, and Vendor Invoice.
+    </p>
+</div>
+
+<div class="card" style="padding: 2rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Reconciliation Status</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: {% if match.is_within_tolerance or match.status == 'matched' %}#10b981{% else %}#ef4444{% endif %};">
+                {{ match.get_status_display }}
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Audit Date: {{ match.created_at|date:"F d, Y H:i" }}</div>
+            <div style="font-size: 0.85rem; font-weight: 600;">Within Commercial Tolerance: {% if match.is_within_tolerance %}YES{% else %}NO{% endif %}</div>
+        </div>
+    </div>
+
+    <!-- Comparative Table -->
+    <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;">
+        <thead>
+            <tr style="border-bottom: 2px solid var(--border-color); background: rgba(0,0,0,0.02); text-align: left; font-size: 0.8rem; text-transform: uppercase;">
+                <th style="padding: 0.75rem 1rem;">Metric</th>
+                <th style="padding: 0.75rem 1rem;">1. Purchase Order ({{ match.purchase_order.po_number }})</th>
+                <th style="padding: 0.75rem 1rem;">2. Goods Receipts</th>
+                <th style="padding: 0.75rem 1rem;">3. Invoice #{{ match.vendor_bill.bill_number }}</th>
+                <th style="padding: 0.75rem 1rem; text-align: right;">Variance</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 0.75rem 1rem; font-weight: 600;">Total Quantity</td>
+                <td style="padding: 0.75rem 1rem;">{{ match.po_total_ordered }} units</td>
+                <td style="padding: 0.75rem 1rem;">{{ match.warehouse_received }} units</td>
+                <td style="padding: 0.75rem 1rem;">{{ match.invoice_billed }} units</td>
+                <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 700; color: {% if match.quantity_variance == 0 %}#10b981{% else %}#ef4444{% endif %};">
+                    {{ match.quantity_variance }} units
+                </td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 0.75rem 1rem; font-weight: 600;">Total Financial Value</td>
+                <td style="padding: 0.75rem 1rem;">${{ match.po_amount }}</td>
+                <td style="padding: 0.75rem 1rem;">&mdash;</td>
+                <td style="padding: 0.75rem 1rem;">${{ match.billed_amount }}</td>
+                <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 700; color: {% if match.price_variance_amount == 0 %}#10b981{% else %}#ef4444{% endif %};">
+                    ${{ match.price_variance_amount }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    {% if match.resolved_by %}
+    <div style="background: rgba(16,185,129,0.05); border: 1px solid #10b981; border-radius: 6px; padding: 1rem;">
+        <strong style="color: #10b981;">Authorized Dispute Resolution Override:</strong>
+        <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem;">{{ match.resolution_notes }}</p>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
+            Resolved by {{ match.resolved_by.get_full_name }} on {{ match.resolved_at|date:"F d, Y H:i" }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

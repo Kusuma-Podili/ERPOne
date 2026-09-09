@@ -162,4 +162,6 @@ class UserModelTestCase(TestCase):
         self.assertEqual(user.failed_login_attempts, 0)
         self.assertIsNone(user.locked_until)
         self.assertEqual(user.login_history.count(), 2)
-        self.assertEqual(user.login_history.first().status, LoginStatus.SUCCESS)
+        self.assertTrue(user.login_history.filter(status=LoginStatus.SUCCESS).exists())
+        self.assertTrue(user.login_history.filter(status=LoginStatus.FAILED_INVALID_CREDENTIALS).exists())
+

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}RFQ Document &bull; {{ rfq.rfq_number }}{% endblock %}
+
+{% block layout_content %}
+<div style="max-width: 800px; margin: 2rem auto; padding: 2rem; background: #ffffff; color: #1e293b; font-family: system-ui, -apple-system, sans-serif; border: 1px solid #e2e8f0; border-radius: 8px;">
+    <!-- Document Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 1.5rem; margin-bottom: 2rem;">
+        <div>
+            <h1 style="font-size: 1.8rem; font-weight: 800; margin: 0; color: #0f172a;">ENTERPRISEONE</h1>
+            <div style="font-size: 0.9rem; color: #64748b; margin-top: 0.25rem;">Procurement & Strategic Sourcing Division</div>
+            <div style="font-size: 0.85rem; color: #64748b;">{{ rfq.organization.name }}</div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 1.3rem; font-weight: 700; color: #0284c7;">REQUEST FOR QUOTATION</div>
+            <div style="font-family: monospace; font-size: 1.1rem; font-weight: 600; margin-top: 0.25rem;">{{ rfq.rfq_number }}</div>
+            <div style="font-size: 0.85rem; color: #64748b; margin-top: 0.25rem;">Date: {{ rfq.created_at|date:"F d, Y" }}</div>
+        </div>
+    </div>
+
+    <!-- Sourcing Terms Block -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; font-size: 0.9rem;">
+        <div style="background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 0.5rem;">Sourcing Scope</div>
+            <div style="font-weight: 600; margin-bottom: 0.25rem;">{{ rfq.title }}</div>
+            <div style="font-size: 0.85rem; color: #475569;">{{ rfq.notes|default:"Competitive bidding event conducted according to standard enterprise procurement guidelines." }}</div>
+        </div>
+        <div style="background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 0.5rem;">Key Dates & Deadlines</div>
+            <div>Submission Deadline: <strong style="color: #ef4444;">{{ rfq.submission_deadline|date:"F d, Y H:i" }}</strong></div>
+            <div style="margin-top: 0.25rem;">Required Delivery: <strong>{{ rfq.delivery_deadline|default:"To be agreed" }}</strong></div>
+            <div style="margin-top: 0.25rem;">Status: <strong>{{ rfq.get_status_display }}</strong></div>
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 2.5rem; font-size: 0.9rem;">
+        <thead>
+            <tr style="background: #0f172a; color: #ffffff; text-align: left; font-size: 0.8rem; text-transform: uppercase;">
+                <th style="padding: 0.6rem 0.75rem;">#</th>
+                <th style="padding: 0.6rem 0.75rem;">Item Description & Part #</th>
+                <th style="padding: 0.6rem 0.75rem;">Target Qty</th>
+                <th style="padding: 0.6rem 0.75rem;">UOM</th>
+                <th style="padding: 0.6rem 0.75rem;">Required By</th>
+                <th style="padding: 0.6rem 0.75rem;">Specifications</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in rfq.lines.all %}
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 0.6rem 0.75rem; font-weight: 600;">{{ line.line_number }}</td>
+                <td style="padding: 0.6rem 0.75rem;">
+                    <strong>{{ line.product.name }}</strong>
+                    <div style="font-size: 0.75rem; color: #64748b; font-family: monospace;">SKU: {{ line.product.sku }}</div>
+                </td>
+                <td style="padding: 0.6rem 0.75rem; font-weight: 600;">{{ line.target_quantity }}</td>
+                <td style="padding: 0.6rem 0.75rem;">{{ line.uom.code }}</td>
+                <td style="padding: 0.6rem 0.75rem;">{{ line.target_delivery_date|default:"&mdash;" }}</td>
+                <td style="padding: 0.6rem 0.75rem; font-size: 0.8rem; color: #475569;">{{ line.specifications|default:"Standard" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Instructions & Signature Block -->
+    <div style="border-top: 1px solid #e2e8f0; padding-top: 1.5rem; font-size: 0.8rem; color: #64748b; margin-bottom: 3rem;">
+        <strong>Instructions for Bidders:</strong>
+        <ol style="margin-top: 0.5rem; padding-left: 1.25rem;">
+            <li>All quotations must clearly specify unit prices, currency, delivery lead time in calendar days, and freight terms.</li>
+            <li>Proposals submitted after the deadline will be automatically rejected.</li>
+            <li>EnterpriseOne reserves the right to accept or reject any or all proposals in whole or in part.</li>
+        </ol>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; margin-top: 2rem;">
+        <div style="border-top: 1px solid #0f172a; padding-top: 0.5rem; text-align: center; font-size: 0.85rem;">
+            <strong>Authorized Procurement Officer</strong>
+            <div style="color: #64748b; font-size: 0.75rem;">Signature & Date</div>
+        </div>
+        <div style="border-top: 1px solid #0f172a; padding-top: 0.5rem; text-align: center; font-size: 0.85rem;">
+            <strong>Vendor Representative Acknowledgment</strong>
+            <div style="color: #64748b; font-size: 0.75rem;">Signature & Seal</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
