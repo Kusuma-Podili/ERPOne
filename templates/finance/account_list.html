@@ -1,0 +1,115 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Chart of Accounts &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'finance:dashboard' %}">Finance</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Chart of Accounts</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0.25rem;">Chart of Accounts (COA)</h1>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-bottom: 0;">
+            Hierarchical ledger accounts governing financial categorization, control reconciliations, and trial balances.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        {% if not has_accounts %}
+        <form method="post" action="{% url 'finance:account_provision_standard' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Initialize Standard GAAP COA</button>
+        </form>
+        {% endif %}
+        <a href="{% url 'finance:account_create' %}" class="btn btn-primary">+ Add New Account</a>
+    </div>
+</div>
+
+<!-- Search & Category Filter Bar -->
+<div class="card" style="padding: 1rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; margin-bottom: 1.5rem;">
+    <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search by account code or title..." class="form-control" style="flex: 1; min-width: 240px;">
+        <select name="category" class="form-select" style="min-width: 180px;">
+            <option value="">All Categories</option>
+            {% for cat_val, cat_label in categories %}
+            <option value="{{ cat_val }}" {% if selected_category == cat_val %}selected{% endif %}>{{ cat_label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        {% if search_query or selected_category %}
+        <a href="{% url 'finance:account_list' %}" class="btn btn-secondary" style="color: var(--text-muted);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Accounts Table -->
+<div class="card" style="padding: 0; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; overflow: hidden;">
+    <table class="table" style="width: 100%; border-collapse: collapse; margin: 0; font-size: 0.9rem;">
+        <thead>
+            <tr style="background: var(--surface-background); border-bottom: 2px solid var(--border-color); text-align: left;">
+                <th style="padding: 0.75rem 1rem;">Code</th>
+                <th style="padding: 0.75rem 1rem;">Account Name</th>
+                <th style="padding: 0.75rem 1rem;">Category</th>
+                <th style="padding: 0.75rem 1rem;">Subtype</th>
+                <th style="padding: 0.75rem 1rem;">Normal Balance</th>
+                <th style="padding: 0.75rem 1rem; text-align: right;">Current Balance</th>
+                <th style="padding: 0.75rem 1rem; text-align: center;">Direct Post</th>
+                <th style="padding: 0.75rem 1rem; text-align: center;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for acc in accounts %}
+            <tr style="border-bottom: 1px solid var(--border-color); {% if not acc.allow_direct_posting %}background: rgba(0,0,0,0.02); font-weight: 700;{% endif %}">
+                <td style="padding: 0.75rem 1rem; font-family: monospace; font-size: 0.95rem;">
+                    {% if acc.parent %}&nbsp;&nbsp;&bull;&nbsp;{% endif %}{{ acc.code }}
+                </td>
+                <td style="padding: 0.75rem 1rem;">
+                    <a href="{% url 'finance:account_detail' acc.pk %}" style="text-decoration: none; color: inherit; font-weight: inherit;">
+                        {{ acc.name }}
+                    </a>
+                    {% if acc.is_reconciliation %}
+                    <span class="badge" style="background: #6366f122; color: #6366f1; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.7rem; margin-left: 0.5rem;">AR/AP CONTROL</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 0.75rem 1rem;">
+                    <span class="badge" style="padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;
+                        {% if acc.category == 'asset' %}background: #10b98122; color: #10b981;
+                        {% elif acc.category == 'liability' %}background: #f59e0b22; color: #f59e0b;
+                        {% elif acc.category == 'equity' %}background: #6366f122; color: #6366f1;
+                        {% elif acc.category == 'revenue' %}background: #0284c722; color: #0284c7;
+                        {% else %}background: #ef444422; color: #ef4444;{% endif %}">
+                        {{ acc.get_category_display }}
+                    </span>
+                </td>
+                <td style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--text-muted);">{{ acc.get_subtype_display }}</td>
+                <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">{{ acc.get_normal_balance_display }}</td>
+                <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 700;">
+                    ${{ acc.current_balance|floatformat:2 }}
+                </td>
+                <td style="padding: 0.75rem 1rem; text-align: center;">
+                    {% if acc.allow_direct_posting %}
+                    <span style="color: #10b981;">&check;</span>
+                    {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">Folder</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 0.75rem 1rem; text-align: center;">
+                    <a href="{% url 'finance:account_detail' acc.pk %}" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Ledger</a>
+                    <a href="{% url 'finance:account_update' acc.pk %}" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Edit</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="padding: 2.5rem; text-align: center; color: var(--text-muted);">
+                    No accounts found. Click <strong>Initialize Standard GAAP COA</strong> to seed default enterprise accounts.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
