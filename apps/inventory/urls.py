@@ -37,4 +37,18 @@ urlpatterns = [
 
     # Stock Movement Ledger / Audit
     path("ledger/", views.StockLedgerView.as_view(), name="stock_ledger"),
+
+    # Lots & Batch Tracking (Milestone 5.3)
+    path("lots/", views.LotBatchListView.as_view(), name="lot_list"),
+    path("lots/create/", views.LotBatchCreateView.as_view(), name="lot_create"),
+    path("lots/<uuid:pk>/", views.LotBatchDetailView.as_view(), name="lot_detail"),
+    path("lots/<uuid:pk>/qc/", views.LotBatchQCUpdateView.as_view(), name="lot_qc_update"),
+
+    # Serial Number Serialization
+    path("serials/", views.SerialNumberListView.as_view(), name="serial_list"),
+    path("serials/create/", views.SerialNumberBulkCreateView.as_view(), name="serial_bulk_create"),
+    path("serials/<uuid:pk>/", views.SerialNumberDetailView.as_view(), name="serial_detail"),
+
+    # Expiry & FEFO Reporting
+    path("expiring-stock/", views.ExpiringStockReportView.as_view(), name="expiring_stock"),
 ]

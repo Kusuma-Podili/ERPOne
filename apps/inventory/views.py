@@ -5,7 +5,7 @@ Implements views for Warehouse management, Storage Zones, Storage Locations, and
 from decimal import Decimal
 from django.contrib import messages
 from django.db.models import Q, Count, Sum, F
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy, reverse
 from django.views.generic import (
     TemplateView,
@@ -29,6 +29,10 @@ from .models import (
     StockMovementType,
     StockMovementStatus,
     StockMovementLine,
+    QCStatus,
+    SerialStatus,
+    LotBatch,
+    SerialNumber,
 )
 from .forms import (
     WarehouseForm,
@@ -38,11 +42,16 @@ from .forms import (
     StockMovementForm,
     StockMovementLineFormSet,
     StockQuickAdjustmentForm,
+    LotBatchForm,
+    LotBatchQCUpdateForm,
+    SerialNumberForm,
+    SerialNumberBulkCreateForm,
 )
 from .services import (
     WarehouseHierarchyService,
     StockLevelService,
     StockMovementService,
+    LotSerialTrackingService,
 )
 
 
@@ -520,4 +529,210 @@ class StockLedgerView(OrganizationAccessMixin, ListView):
         context["warehouses"] = Warehouse.objects.filter(organization=org, is_active=True).order_by("name") if org else []
         context["selected_product"] = self.request.GET.get("product", "")
         context["selected_warehouse"] = self.request.GET.get("warehouse", "")
+        return context
+
+
+# ==============================================================================
+# LOT / BATCH & SERIAL NUMBER VIEWS (Milestone 5.3)
+# ==============================================================================
+
+class LotBatchListView(OrganizationAccessMixin, ListView):
+    model = LotBatch
+    template_name = "inventory/lot_list.html"
+    context_object_name = "lots"
+    paginate_by = 25
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return LotBatch.objects.none()
+
+        qs = LotBatch.objects.filter(organization=org).select_related("product", "qc_inspected_by")
+
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(batch_number__icontains=q) |
+                Q(supplier_lot_number__icontains=q) |
+                Q(product__name__icontains=q) |
+                Q(product__sku__icontains=q)
+            )
+
+        qc = self.request.GET.get("qc", "").strip()
+        if qc:
+            qs = qs.filter(qc_status=qc)
+
+        prod_id = self.request.GET.get("product", "").strip()
+        if prod_id:
+            qs = qs.filter(product_id=prod_id)
+
+        return qs.order_by("expiration_date", "-created_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        context["qc_statuses"] = QCStatus.choices
+        context["products"] = Product.objects.filter(organization=org, is_active=True).order_by("name") if org else []
+        context["current_q"] = self.request.GET.get("q", "")
+        context["current_qc"] = self.request.GET.get("qc", "")
+        context["current_product"] = self.request.GET.get("product", "")
+        return context
+
+
+class LotBatchDetailView(OrganizationAccessMixin, DetailView):
+    model = LotBatch
+    template_name = "inventory/lot_detail.html"
+    context_object_name = "lot"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return LotBatch.objects.none()
+        return LotBatch.objects.filter(organization=org).select_related("product", "qc_inspected_by").prefetch_related("serials")
+
+
+class LotBatchCreateView(OrganizationAccessMixin, CreateView):
+    model = LotBatch
+    form_class = LotBatchForm
+    template_name = "inventory/lot_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.organization
+        form.instance.current_quantity = form.cleaned_data.get("initial_quantity", Decimal("0.00"))
+        messages.success(self.request, f"Lot/Batch '{form.instance.batch_number}' registered successfully.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("inventory:lot_detail", kwargs={"pk": self.object.pk})
+
+
+class LotBatchQCUpdateView(OrganizationAccessMixin, UpdateView):
+    model = LotBatch
+    form_class = LotBatchQCUpdateForm
+    template_name = "inventory/lot_qc_form.html"
+
+    def get_queryset(self):
+        org = self.request.organization
+        return LotBatch.objects.filter(organization=org)
+
+    def form_valid(self, form):
+        lot = form.instance
+        LotSerialTrackingService.update_qc_status(
+            lot=lot,
+            new_status=form.cleaned_data["qc_status"],
+            inspected_by=self.request.user,
+            qc_notes=form.cleaned_data.get("qc_notes", ""),
+        )
+        messages.success(self.request, f"QC Status for Lot '{lot.batch_number}' updated to '{lot.get_qc_status_display()}'.")
+        return redirect("inventory:lot_detail", pk=lot.pk)
+
+
+class SerialNumberListView(OrganizationAccessMixin, ListView):
+    model = SerialNumber
+    template_name = "inventory/serial_list.html"
+    context_object_name = "serials"
+    paginate_by = 30
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return SerialNumber.objects.none()
+
+        qs = SerialNumber.objects.filter(organization=org).select_related(
+            "product", "lot", "warehouse", "location"
+        )
+
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(serial_number__icontains=q) |
+                Q(product__sku__icontains=q) |
+                Q(product__name__icontains=q) |
+                Q(lot__batch_number__icontains=q)
+            )
+
+        status = self.request.GET.get("status", "").strip()
+        if status:
+            qs = qs.filter(status=status)
+
+        wh_id = self.request.GET.get("warehouse", "").strip()
+        if wh_id:
+            qs = qs.filter(warehouse_id=wh_id)
+
+        return qs.order_by("product__name", "serial_number")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        context["serial_statuses"] = SerialStatus.choices
+        context["warehouses"] = Warehouse.objects.filter(organization=org, is_active=True) if org else []
+        context["current_q"] = self.request.GET.get("q", "")
+        context["current_status"] = self.request.GET.get("status", "")
+        context["current_warehouse"] = self.request.GET.get("warehouse", "")
+        return context
+
+
+class SerialNumberDetailView(OrganizationAccessMixin, DetailView):
+    model = SerialNumber
+    template_name = "inventory/serial_detail.html"
+    context_object_name = "serial"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return SerialNumber.objects.none()
+        return SerialNumber.objects.filter(organization=org).select_related(
+            "product", "lot", "warehouse", "location"
+        )
+
+
+class SerialNumberBulkCreateView(OrganizationAccessMixin, View):
+    template_name = "inventory/serial_bulk_form.html"
+
+    def get(self, request, *args, **kwargs):
+        form = SerialNumberBulkCreateForm(organization=request.organization)
+        return render(request, self.template_name, {"form": form})
+
+    def post(self, request, *args, **kwargs):
+        form = SerialNumberBulkCreateForm(request.POST, organization=request.organization)
+        if form.is_valid():
+            lines = form.cleaned_data["serial_numbers_text"].splitlines()
+            created_serials = LotSerialTrackingService.bulk_register_serials(
+                organization=request.organization,
+                product=form.cleaned_data["product"],
+                serial_numbers_list=lines,
+                lot=form.cleaned_data.get("lot"),
+                warehouse=form.cleaned_data.get("warehouse"),
+                location=form.cleaned_data.get("location"),
+                warranty_start_date=form.cleaned_data.get("warranty_start_date"),
+                warranty_end_date=form.cleaned_data.get("warranty_end_date"),
+            )
+            messages.success(request, f"Successfully registered {len(created_serials)} serial numbers.")
+            return redirect("inventory:serial_list")
+        return render(request, self.template_name, {"form": form})
+
+
+class ExpiringStockReportView(OrganizationAccessMixin, TemplateView):
+    template_name = "inventory/expiring_stock.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        days = int(self.request.GET.get("days", 30))
+        prod_id = self.request.GET.get("product", "")
+        product = Product.objects.filter(id=prod_id, organization=org).first() if prod_id else None
+
+        context["days"] = days
+        context["expiring_lots"] = LotSerialTrackingService.get_expiring_batches(
+            organization=org,
+            days_threshold=days,
+            product=product,
+        ) if org else []
+        context["products"] = Product.objects.filter(organization=org, is_active=True).order_by("name") if org else []
+        context["selected_product"] = prod_id
         return context

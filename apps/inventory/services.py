@@ -21,6 +21,10 @@ from .models import (
     StockMovementType,
     StockMovementStatus,
     StockMovementLine,
+    QCStatus,
+    SerialStatus,
+    LotBatch,
+    SerialNumber,
 )
 
 
@@ -543,3 +547,245 @@ class StockMovementService:
             )
 
         return qs
+
+
+class LotSerialTrackingService:
+    """
+    Quality control, batch expiry tracking, FEFO (First-Expired, First-Out) picking allocation,
+    and individual asset serialization service.
+    """
+
+    @classmethod
+    def register_lot(
+        cls,
+        organization: Organization,
+        product: Product,
+        batch_number: str,
+        manufacturing_date=None,
+        expiration_date=None,
+        supplier_lot_number: str = "",
+        initial_quantity: Decimal = Decimal("0.00"),
+        qc_status: str = QCStatus.APPROVED,
+        qc_notes: str = "",
+        certificate_of_analysis: str = "",
+    ) -> LotBatch:
+        """
+        Registers a production batch or supplier lot.
+        """
+        lot = LotBatch(
+            organization=organization,
+            product=product,
+            batch_number=batch_number.strip().upper(),
+            manufacturing_date=manufacturing_date,
+            expiration_date=expiration_date,
+            supplier_lot_number=supplier_lot_number.strip(),
+            initial_quantity=initial_quantity,
+            current_quantity=initial_quantity,
+            qc_status=qc_status,
+            qc_notes=qc_notes,
+            certificate_of_analysis=certificate_of_analysis,
+        )
+        lot.full_clean()
+        lot.save()
+        return lot
+
+    @classmethod
+    def update_qc_status(
+        cls,
+        lot: LotBatch,
+        new_status: str,
+        inspected_by=None,
+        qc_notes: str = "",
+    ) -> LotBatch:
+        """
+        Transitions a lot through QC quarantine, approval, rejection, or expiration.
+        """
+        if new_status not in QCStatus.values:
+            raise ValidationError(f"Invalid QC status: '{new_status}'.")
+
+        lot.qc_status = new_status
+        lot.qc_inspected_by = inspected_by
+        lot.qc_inspected_at = timezone.now()
+        if qc_notes:
+            lot.qc_notes = (lot.qc_notes + f"\n[{timezone.now().strftime('%Y-%m-%d %H:%M')}] {qc_notes}").strip()
+        lot.save(update_fields=["qc_status", "qc_inspected_by", "qc_inspected_at", "qc_notes", "updated_at"])
+        return lot
+
+    @classmethod
+    def adjust_lot_quantity(cls, lot: LotBatch, delta_quantity: Decimal) -> LotBatch:
+        """
+        Updates running physical on-hand quantity for a tracked lot.
+        """
+        new_qty = lot.current_quantity + delta_quantity
+        if new_qty < Decimal("0.00"):
+            raise ValidationError(
+                f"Lot quantity adjustment cannot reduce current quantity below zero (Current: {lot.current_quantity}, Delta: {delta_quantity})."
+            )
+        lot.current_quantity = new_qty
+        lot.save(update_fields=["current_quantity", "updated_at"])
+        return lot
+
+    @classmethod
+    def register_serial(
+        cls,
+        organization: Organization,
+        product: Product,
+        serial_number: str,
+        lot: Optional[LotBatch] = None,
+        warehouse: Optional[Warehouse] = None,
+        location: Optional[StorageLocation] = None,
+        warranty_start_date=None,
+        warranty_end_date=None,
+        notes: str = "",
+    ) -> SerialNumber:
+        """
+        Enrolls an individually tracked serialized unit into the inventory system.
+        """
+        serial = SerialNumber(
+            organization=organization,
+            product=product,
+            serial_number=serial_number.strip().upper(),
+            lot=lot,
+            warehouse=warehouse,
+            location=location,
+            status=SerialStatus.IN_STOCK,
+            warranty_start_date=warranty_start_date,
+            warranty_end_date=warranty_end_date,
+            notes=notes,
+        )
+        serial.full_clean()
+        serial.save()
+        return serial
+
+    @classmethod
+    @transaction.atomic
+    def bulk_register_serials(
+        cls,
+        organization: Organization,
+        product: Product,
+        serial_numbers_list: List[str],
+        lot: Optional[LotBatch] = None,
+        warehouse: Optional[Warehouse] = None,
+        location: Optional[StorageLocation] = None,
+        warranty_start_date=None,
+        warranty_end_date=None,
+    ) -> List[SerialNumber]:
+        """
+        High-performance bulk registration of serialized goods.
+        """
+        created_objects = []
+        for raw_sn in serial_numbers_list:
+            sn_cleaned = raw_sn.strip().upper()
+            if not sn_cleaned:
+                continue
+            serial = SerialNumber(
+                organization=organization,
+                product=product,
+                serial_number=sn_cleaned,
+                lot=lot,
+                warehouse=warehouse,
+                location=location,
+                status=SerialStatus.IN_STOCK,
+                warranty_start_date=warranty_start_date,
+                warranty_end_date=warranty_end_date,
+            )
+            serial.full_clean()
+            serial.save()
+            created_objects.append(serial)
+        return created_objects
+
+    @classmethod
+    def update_serial_status(
+        cls,
+        serial: SerialNumber,
+        new_status: str,
+        warehouse: Optional[Warehouse] = None,
+        location: Optional[StorageLocation] = None,
+        notes: str = "",
+    ) -> SerialNumber:
+        """
+        Updates unit status and relocation metadata.
+        """
+        if new_status not in SerialStatus.values:
+            raise ValidationError(f"Invalid serial status: '{new_status}'.")
+
+        serial.status = new_status
+        if warehouse is not None:
+            serial.warehouse = warehouse
+        if location is not None:
+            serial.location = location
+        if notes:
+            serial.notes = (serial.notes + f"\n[{timezone.now().strftime('%Y-%m-%d')}] {notes}").strip()
+        serial.save()
+        return serial
+
+    @classmethod
+    def get_expiring_batches(
+        cls,
+        organization: Organization,
+        days_threshold: int = 30,
+        product: Optional[Product] = None,
+    ):
+        """
+        Returns batches expiring within specified threshold or already expired.
+        Sorted by expiration date ascending for urgent intervention.
+        """
+        from datetime import timedelta
+        cutoff_date = timezone.now().date() + timedelta(days=days_threshold)
+        qs = LotBatch.objects.filter(
+            organization=organization,
+            is_active=True,
+            expiration_date__isnull=False,
+            expiration_date__lte=cutoff_date,
+        ).select_related("product")
+
+        if product:
+            qs = qs.filter(product=product)
+
+        return qs.order_by("expiration_date")
+
+    @classmethod
+    def get_fefo_allocation(
+        cls,
+        organization: Organization,
+        product: Product,
+        requested_quantity: Decimal,
+    ) -> Dict:
+        """
+        First-Expired, First-Out (FEFO) recommendation algorithm.
+        Identifies active, approved lots with the closest expiry date to allocate for picking.
+        """
+        if requested_quantity <= Decimal("0.00"):
+            raise ValidationError("Requested allocation quantity must be greater than zero.")
+
+        usable_lots = LotBatch.objects.filter(
+            organization=organization,
+            product=product,
+            is_active=True,
+            qc_status=QCStatus.APPROVED,
+            current_quantity__gt=Decimal("0.00"),
+        ).order_by("expiration_date", "created_at")
+
+        allocations = []
+        remaining_needed = requested_quantity
+
+        for lot in usable_lots:
+            if remaining_needed <= Decimal("0.00"):
+                break
+            alloc_qty = min(lot.current_quantity, remaining_needed)
+            allocations.append({
+                "lot": lot,
+                "batch_number": lot.batch_number,
+                "expiration_date": lot.expiration_date,
+                "allocated_quantity": alloc_qty,
+                "lot_available_before": lot.current_quantity,
+            })
+            remaining_needed -= alloc_qty
+
+        return {
+            "requested_quantity": requested_quantity,
+            "allocated_quantity": requested_quantity - remaining_needed,
+            "unallocated_quantity": remaining_needed,
+            "is_fully_allocated": remaining_needed == Decimal("0.00"),
+            "allocations": allocations,
+        }

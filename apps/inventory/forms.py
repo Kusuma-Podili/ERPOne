@@ -17,6 +17,10 @@ from .models import (
     StockMovementLine,
     StockMovementType,
     StockMovementStatus,
+    QCStatus,
+    SerialStatus,
+    LotBatch,
+    SerialNumber,
 )
 
 
@@ -314,3 +318,139 @@ class StockQuickAdjustmentForm(forms.Form):
             self.fields["warehouse"].queryset = Warehouse.objects.filter(organization=organization, is_active=True)
             self.fields["location"].queryset = StorageLocation.objects.filter(organization=organization, is_active=True)
             self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+
+
+# ==============================================================================
+# LOT / BATCH & SERIAL NUMBER FORMS (Milestone 5.3)
+# ==============================================================================
+
+class LotBatchForm(forms.ModelForm):
+    class Meta:
+        model = LotBatch
+        fields = [
+            "product",
+            "batch_number",
+            "supplier_lot_number",
+            "manufacturing_date",
+            "expiration_date",
+            "initial_quantity",
+            "qc_status",
+            "qc_notes",
+            "certificate_of_analysis",
+            "is_active",
+        ]
+        widgets = {
+            "product": forms.Select(attrs={"class": "form-select"}),
+            "batch_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. LOT-2026-0819"}),
+            "supplier_lot_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "Supplier reference"}),
+            "manufacturing_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "expiration_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "initial_quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "qc_status": forms.Select(attrs={"class": "form-select"}),
+            "qc_notes": forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "QC findings..."}),
+            "certificate_of_analysis": forms.TextInput(attrs={"class": "form-control", "placeholder": "CoA Ref or URL"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+
+
+class LotBatchQCUpdateForm(forms.ModelForm):
+    class Meta:
+        model = LotBatch
+        fields = ["qc_status", "qc_notes"]
+        widgets = {
+            "qc_status": forms.Select(attrs={"class": "form-select"}),
+            "qc_notes": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Enter inspection notes and test results..."}),
+        }
+
+
+class SerialNumberForm(forms.ModelForm):
+    class Meta:
+        model = SerialNumber
+        fields = [
+            "product",
+            "serial_number",
+            "lot",
+            "warehouse",
+            "location",
+            "status",
+            "warranty_start_date",
+            "warranty_end_date",
+            "notes",
+        ]
+        widgets = {
+            "product": forms.Select(attrs={"class": "form-select"}),
+            "serial_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. SN-A94012"}),
+            "lot": forms.Select(attrs={"class": "form-select"}),
+            "warehouse": forms.Select(attrs={"class": "form-select"}),
+            "location": forms.Select(attrs={"class": "form-select"}),
+            "status": forms.Select(attrs={"class": "form-select"}),
+            "warranty_start_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "warranty_end_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+            self.fields["lot"].queryset = LotBatch.objects.filter(organization=organization, is_active=True)
+            self.fields["warehouse"].queryset = Warehouse.objects.filter(organization=organization, is_active=True)
+            self.fields["location"].queryset = StorageLocation.objects.filter(organization=organization, is_active=True)
+
+
+class SerialNumberBulkCreateForm(forms.Form):
+    product = forms.ModelChoiceField(
+        queryset=Product.objects.none(),
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Product",
+    )
+    lot = forms.ModelChoiceField(
+        queryset=LotBatch.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Associated Lot / Batch",
+    )
+    warehouse = forms.ModelChoiceField(
+        queryset=Warehouse.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Warehouse Facility",
+    )
+    location = forms.ModelChoiceField(
+        queryset=StorageLocation.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        label="Storage Location",
+    )
+    serial_numbers_text = forms.CharField(
+        widget=forms.Textarea(attrs={
+            "class": "form-control font-monospace",
+            "rows": 6,
+            "placeholder": "Enter serial numbers, one per line:\nSN-10001\nSN-10002\nSN-10003",
+        }),
+        label="Serial Numbers (One per line)",
+        help_text="Paste a list of unique serial numbers. Empty lines are ignored.",
+    )
+    warranty_start_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+        label="Warranty Start Date",
+    )
+    warranty_end_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+        label="Warranty Expiration Date",
+    )
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+            self.fields["lot"].queryset = LotBatch.objects.filter(organization=organization, is_active=True)
+            self.fields["warehouse"].queryset = Warehouse.objects.filter(organization=organization, is_active=True)
+            self.fields["location"].queryset = StorageLocation.objects.filter(organization=organization, is_active=True)

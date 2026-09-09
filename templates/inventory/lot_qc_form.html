@@ -1,0 +1,46 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}QC Inspection: {{ lot.batch_number }} &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:warehouse_list' %}">Inventory</a>
+<span>/</span>
+<a href="{% url 'inventory:lot_list' %}">Lots & Batches</a>
+<span>/</span>
+<a href="{% url 'inventory:lot_detail' lot.pk %}">{{ lot.batch_number }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">QC Audit</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Quality Control Inspection Audit</h1>
+        <p class="page-subtitle">Batch: <strong>{{ lot.batch_number }}</strong> &bull; Product: {{ lot.product.name }} ({{ lot.product.sku }})</p>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4" style="max-width: 600px;">
+    <div class="card-body p-4">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label fw-bold">Quality Control Disposition <span class="text-danger">*</span></label>
+                {{ form.qc_status }}
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Inspection Findings & Lab Results</label>
+                {{ form.qc_notes }}
+                <div class="form-text">These notes will be appended with an audit timestamp and inspector name.</div>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a href="{% url 'inventory:lot_detail' lot.pk %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Update QC Status</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}\n

@@ -1,0 +1,130 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}Expiry & FEFO Analytics &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:warehouse_list' %}">Inventory</a>
+<span>/</span>
+<a href="{% url 'inventory:lot_list' %}">Lots & Batches</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Expiry & FEFO Alerts</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Shelf Life & Expiry Analytics (FEFO)</h1>
+        <p class="page-subtitle">Proactive alerts for batches nearing expiration to prevent write-off losses.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'inventory:lot_list' %}" class="btn btn-secondary">Lots Master</a>
+    </div>
+</div>
+
+<!-- Threshold Selector -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-12 col-md-4">
+                <select name="days" class="form-select" onchange="this.form.submit()">
+                    <option value="15" {% if days == 15 %}selected{% endif %}>Expiring within 15 Days (Urgent)</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>Expiring within 30 Days (Standard)</option>
+                    <option value="60" {% if days == 60 %}selected{% endif %}>Expiring within 60 Days</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>Expiring within 90 Days</option>
+                    <option value="180" {% if days == 180 %}selected{% endif %}>Expiring within 180 Days (Half Year)</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-6">
+                <select name="product" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Products</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" {% if selected_product == p.id|stringformat:"s" %}selected{% endif %}>{{ p.sku }} &mdash; {{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <button type="submit" class="btn btn-outline-primary w-100">Refresh</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Expiring Batches Table -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="card-title mb-0">At-Risk Batches ({{ expiring_lots|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Batch Code</th>
+                        <th>Product & SKU</th>
+                        <th>QC Status</th>
+                        <th>Expiration Date</th>
+                        <th>Days Remaining</th>
+                        <th class="text-end">Current Quantity</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lot in expiring_lots %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'inventory:lot_detail' lot.pk %}" class="fw-bold text-decoration-none">
+                                {{ lot.batch_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <strong>{{ lot.product.name }}</strong>
+                            <small class="text-muted d-block">{{ lot.product.sku }}</small>
+                        </td>
+                        <td>
+                            {% if lot.qc_status == 'approved' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Approved</span>
+                            {% elif lot.qc_status == 'quarantined' %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Quarantine</span>
+                            {% else %}
+                            <span class="badge bg-secondary text-white">{{ lot.get_qc_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if lot.is_expired %}
+                            <span class="text-danger fw-bold">{{ lot.expiration_date|date:"M d, Y" }}</span>
+                            {% else %}
+                            <span>{{ lot.expiration_date|date:"M d, Y" }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if lot.is_expired %}
+                            <span class="badge bg-danger text-white">EXPIRED</span>
+                            {% elif lot.days_until_expiration <= 15 %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ lot.days_until_expiration }} days</span>
+                            {% else %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{{ lot.days_until_expiration }} days</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold">{{ lot.current_quantity }}</td>
+                        <td class="text-end">
+                            <a href="{% url 'inventory:lot_detail' lot.pk %}" class="btn btn-sm btn-outline-secondary">View Lot</a>
+                            <a href="{% url 'inventory:movement_create' %}" class="btn btn-sm btn-outline-warning">FEFO Relocate</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <h5>No expiring stock detected</h5>
+                            <p>No batches are expiring within the next {{ days }} days.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}\n
