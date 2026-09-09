@@ -1,0 +1,3 @@
+"""
+EnterpriseOne Automated Test Suite.
+"""
