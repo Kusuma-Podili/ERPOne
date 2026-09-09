@@ -26,6 +26,8 @@ urlpatterns = [
     path("documents/", include("apps.documents.urls", namespace="documents")),
     path("notifications/", include("apps.notifications.urls", namespace="notifications")),
     path("security/", include("apps.security.urls", namespace="security")),
+    path("monitoring/", include("apps.monitoring.urls", namespace="monitoring")),
+    path("integration/", include("apps.integration.urls", namespace="integration")),
     path("api/", include("enterpriseone.urls.api")),
     path("", RedirectView.as_view(pattern_name="accounts:dashboard", permanent=False), name="home"),
 ]

@@ -1,0 +1,1 @@
+<!doctype html><html><body><h1>Release Management</h1><a href="{% url 'integration:release_create' %}">Create release</a><ul>{% for release in releases %}<li>{{ release.version }} — {{ release.status }} — <a href="{% url 'integration:release_evaluate' release.pk %}">Evaluate gate</a></li>{% empty %}<li>No releases.</li>{% endfor %}</ul></body></html>

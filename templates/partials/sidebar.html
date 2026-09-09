@@ -276,13 +276,14 @@
             <span>HR & Payroll</span>
             <span class="badge badge-secondary" style="margin-left: auto; font-size: 0.65rem;">Select Org</span>
         </div>
+        {% endif %}
         <div class="nav-section-title">Projects & Delivery</div>
         {% if active_organization %}
         <a href="{% url 'projects:dashboard' %}" class="nav-item {% if request.resolver_match.app_name == 'projects' and request.resolver_match.url_name in 'dashboard,index' %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <span>Projects Hub</span>
         </a>
-        <a href="{% url 'projects:project_list' %}" class="nav-item {% if request.resolver_match.app_name == 'projects' and 'project' in request.resolver_match.url_name %}active{% endif %}">
+        <a href="{% url 'projects:list' %}" class="nav-item {% if request.resolver_match.app_name == 'projects' and 'list' in request.resolver_match.url_name %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/></svg>
             <span>All Projects</span>
         </a>
@@ -294,11 +295,11 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <span>Support Overview</span>
         </a>
-        <a href="{% url 'support:ticket_list' %}" class="nav-item {% if request.resolver_match.app_name == 'support' and 'ticket' in request.resolver_match.url_name %}active{% endif %}">
+        <a href="{% url 'support:tickets' %}" class="nav-item {% if request.resolver_match.app_name == 'support' and 'ticket' in request.resolver_match.url_name %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <span>Tickets</span>
         </a>
-        <a href="{% url 'support:knowledge_list' %}" class="nav-item {% if request.resolver_match.app_name == 'support' and 'knowledge' in request.resolver_match.url_name %}active{% endif %}">
+        <a href="{% url 'support:knowledge' %}" class="nav-item {% if request.resolver_match.app_name == 'support' and 'knowledge' in request.resolver_match.url_name %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
             <span>Knowledge Base</span>
         </a>
@@ -314,7 +315,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             <span>Reports & Metrics</span>
         </a>
-        <a href="{% url 'ai_engine:model_list' %}" class="nav-item {% if request.resolver_match.app_name == 'ai_engine' %}active{% endif %}">
+        <a href="{% url 'ai_engine:list' %}" class="nav-item {% if request.resolver_match.app_name == 'ai_engine' %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 2a10 10 0 0 1 10 10h-10V2z"/><circle cx="12" cy="12" r="4"/></svg>
             <span>AI & Machine Learning</span>
         </a>
@@ -348,6 +349,41 @@
         <a href="{% url 'security:sessions' %}" class="nav-item {% if request.resolver_match.app_name == 'security' and request.resolver_match.url_name == 'sessions' %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="12" x="3" y="4" rx="2"/><line x1="2" x2="22" y1="20" y2="20"/></svg>
             <span>Active Sessions</span>
+        </a>
+        {% endif %}
+        <div class="nav-section-title">Monitoring & Observability</div>
+        {% if active_organization %}
+        <a href="{% url 'monitoring:dashboard' %}" class="nav-item {% if request.resolver_match.app_name == 'monitoring' and request.resolver_match.url_name in 'dashboard,index' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><activity><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></activity></svg>
+            <span>Telemetry & Health</span>
+        </a>
+        <a href="{% url 'monitoring:alerts' %}" class="nav-item {% if request.resolver_match.app_name == 'monitoring' and request.resolver_match.url_name == 'alerts' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>Alerts</span>
+        </a>
+        <a href="{% url 'monitoring:incidents' %}" class="nav-item {% if request.resolver_match.app_name == 'monitoring' and request.resolver_match.url_name == 'incidents' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Incidents & SRE</span>
+        </a>
+        <a href="{% url 'monitoring:slo_list' %}" class="nav-item {% if request.resolver_match.app_name == 'monitoring' and request.resolver_match.url_name == 'slo_list' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+            <span>SLOs & Budgets</span>
+        </a>
+        {% endif %}
+
+        <div class="nav-section-title">Integration Hub</div>
+        {% if active_organization %}
+        <a href="{% url 'integration:dashboard' %}" class="nav-item {% if request.resolver_match.app_name == 'integration' and request.resolver_match.url_name in 'dashboard,index' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <span>Integrations Hub</span>
+        </a>
+        <a href="{% url 'integration:releases' %}" class="nav-item {% if request.resolver_match.app_name == 'integration' and request.resolver_match.url_name == 'releases' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/></svg>
+            <span>Release Gates</span>
+        </a>
+        <a href="{% url 'integration:dead_letters' %}" class="nav-item {% if request.resolver_match.app_name == 'integration' and request.resolver_match.url_name == 'dead_letters' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <span>Dead Letter Queue</span>
         </a>
         {% endif %}
     </nav>

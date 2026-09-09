@@ -1,0 +1,1 @@
+"""EnterpriseOne phase expansion catalog."""

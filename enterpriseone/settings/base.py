@@ -48,6 +48,8 @@ ENTERPRISE_APPS = [
     "apps.documents.apps.DocumentsConfig",
     "apps.notifications.apps.NotificationsConfig",
     "apps.security.apps.SecurityConfig",
+    "apps.monitoring.apps.MonitoringConfig",
+    "apps.integration.apps.IntegrationConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + ENTERPRISE_APPS

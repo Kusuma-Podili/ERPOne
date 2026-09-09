@@ -1,0 +1,6 @@
+<!doctype html><html><head><title>EnterpriseOne Integration</title></head><body>
+<h1>Integration & Finalization</h1><p>Release, synchronization and system-readiness control center.</p>
+<ul>{% for key,value in report.items %}<li><strong>{{ key }}</strong>: {{ value }}</li>{% endfor %}</ul>
+<p><a href="{% url 'integration:connection_create' %}">New connection</a> | <a href="{% url 'integration:job_create' %}">New job</a> | <a href="{% url 'integration:releases' %}">Releases</a> | <a href="{% url 'integration:dead_letters' %}">Dead letters</a></p>
+<h2>Recent events</h2><ul>{% for e in recent_events %}<li>{{ e.event_code }} — {{ e.status }} — {{ e.occurred_at }}</li>{% empty %}<li>No events.</li>{% endfor %}</ul>
+</body></html>
