@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<div class="container"><h1>{{ kpi.name }}</h1><p>Target: {{ kpi.target }}</p><table><tr><th>Captured</th><th>Value</th></tr>{% for item in history %}<tr><td>{{ item.captured_for }}</td><td>{{ item.value }}</td></tr>{% empty %}<tr><td colspan="2">No snapshots.</td></tr>{% endfor %}</table></div>{% endblock %}
