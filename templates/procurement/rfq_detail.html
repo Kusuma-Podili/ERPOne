@@ -1,0 +1,241 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ rfq.rfq_number }} &bull; RFQ Detail &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<a href="{% url 'procurement:rfq_list' %}">RFQs</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ rfq.rfq_number }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- RFQ Header -->
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <h1 class="page-title" style="margin-bottom: 0;">{{ rfq.rfq_number }}</h1>
+            {% if rfq.status == 'draft' %}
+            <span class="badge" style="background: #64748b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Draft</span>
+            {% elif rfq.status == 'published' %}
+            <span class="badge" style="background: #0284c7; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Open for Bids</span>
+            {% elif rfq.status == 'awarded' %}
+            <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Contract Awarded</span>
+            {% elif rfq.status == 'closed' %}
+            <span class="badge" style="background: #475569; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Closed</span>
+            {% endif %}
+            {% if rfq.is_expired and rfq.status == 'published' %}
+            <span class="badge" style="background: #ef4444; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Bidding Expired</span>
+            {% endif %}
+        </div>
+        <p class="page-subtitle" style="font-size: 1.1rem; font-weight: 500; color: var(--text-primary); margin-top: 0.25rem; margin-bottom: 0;">
+            {{ rfq.title }}
+        </p>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Submission Deadline: <strong>{{ rfq.submission_deadline|date:"M d, Y H:i" }}</strong>
+            {% if rfq.delivery_deadline %} &bull; Target Delivery: <strong>{{ rfq.delivery_deadline|date:"M d, Y" }}</strong>{% endif %}
+        </div>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        {% if rfq.status == 'draft' %}
+        <form method="post" action="{% url 'procurement:rfq_publish' pk=rfq.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">🚀 Publish & Open Bids</button>
+        </form>
+        <a href="{% url 'procurement:rfq_edit' pk=rfq.pk %}" class="btn btn-secondary">Edit RFQ</a>
+        {% endif %}
+
+        {% if rfq.status == 'published' and not rfq.is_expired %}
+        <a href="{% url 'procurement:vendor_bid_create' rfq_pk=rfq.pk %}" class="btn btn-primary">
+            + Log Vendor Bid
+        </a>
+        {% endif %}
+
+        {% if rfq.bids.exists %}
+        <a href="{% url 'procurement:rfq_comparison' pk=rfq.pk %}" class="btn btn-secondary" style="color: #6366f1; border-color: rgba(99,102,241,0.4);">
+            📊 Compare Bids ({{ rfq.bids.count }})
+        </a>
+        {% endif %}
+
+        <a href="{% url 'procurement:rfq_print' pk=rfq.pk %}" target="_blank" class="btn btn-secondary">
+            🖨 Print / PDF
+        </a>
+    </div>
+</div>
+
+<!-- Highlight Metrics -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Requested Items</div>
+        <div style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">
+            {{ rfq.lines.count }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Discrete Line SKUs</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Invited Vendors</div>
+        <div style="font-size: 1.6rem; font-weight: 700; color: #0284c7; margin-top: 0.25rem;">
+            {{ rfq.invitations.count }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Sourcing Dispatches</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Proposals Received</div>
+        <div style="font-size: 1.6rem; font-weight: 700; color: #10b981; margin-top: 0.25rem;">
+            {{ rfq.bids.count }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Logged Vendor Quotes</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Winning Proposal</div>
+        <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem;">
+            {% if rfq.winning_bid %}
+            {{ rfq.winning_bid.supplier.name }}
+            <div style="font-size: 0.85rem; color: #10b981;">${{ rfq.winning_bid.total_amount }}</div>
+            {% else %}
+            <span style="color: var(--text-muted);">Pending Evaluation</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Section 1: Line Items Table -->
+<div class="card" style="background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; overflow: hidden; margin-bottom: 1.5rem;">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Procurement Line Items & Specifications</h3>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.75rem 1rem; width: 60px;">#</th>
+                    <th style="padding: 0.75rem 1rem;">Product Item & SKU</th>
+                    <th style="padding: 0.75rem 1rem;">Target Quantity</th>
+                    <th style="padding: 0.75rem 1rem;">UOM</th>
+                    <th style="padding: 0.75rem 1rem;">Delivery By</th>
+                    <th style="padding: 0.75rem 1rem;">Specifications & Tolerances</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in rfq.lines.all %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.75rem 1rem; font-weight: 600;">{{ line.line_number }}</td>
+                    <td style="padding: 0.75rem 1rem;">
+                        <div style="font-weight: 600;">{{ line.product.name }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">{{ line.product.sku }}</div>
+                    </td>
+                    <td style="padding: 0.75rem 1rem; font-weight: 600;">{{ line.target_quantity }}</td>
+                    <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">{{ line.uom.name }} ({{ line.uom.code }})</td>
+                    <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">{{ line.target_delivery_date|default:"As scheduled" }}</td>
+                    <td style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--text-muted);">
+                        {{ line.specifications|default:"Standard commercial grade specifications apply." }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No line items defined.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Section 2: Submitted Proposals & Bid Evaluation -->
+<div class="card" style="background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; overflow: hidden; margin-bottom: 1.5rem;">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Submitted Vendor Proposals</h3>
+        {% if rfq.bids.exists %}
+        <a href="{% url 'procurement:rfq_comparison' pk=rfq.pk %}" class="btn btn-sm btn-primary">Compare Bids Matrix</a>
+        {% endif %}
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.75rem 1rem;">Supplier</th>
+                    <th style="padding: 0.75rem 1rem;">Quote Reference</th>
+                    <th style="padding: 0.75rem 1rem;">Validity</th>
+                    <th style="padding: 0.75rem 1rem;">Terms</th>
+                    <th style="padding: 0.75rem 1rem;">Lead Time</th>
+                    <th style="padding: 0.75rem 1rem;">Freight</th>
+                    <th style="padding: 0.75rem 1rem;">Total Amount</th>
+                    <th style="padding: 0.75rem 1rem;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bid in rfq.bids.all %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.75rem 1rem;">
+                        <a href="{% url 'procurement:supplier_detail' pk=bid.supplier.pk %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none;">
+                            {{ bid.supplier.name }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">★ {{ bid.supplier.overall_rating|floatformat:1 }} rating</div>
+                    </td>
+                    <td style="padding: 0.75rem 1rem; font-family: monospace;">{{ bid.bid_reference }}</td>
+                    <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">{{ bid.valid_until|date:"M d, Y" }}</td>
+                    <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">{{ bid.get_payment_terms_display }}</td>
+                    <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">{{ bid.lead_time_days }} days</td>
+                    <td style="padding: 0.75rem 1rem; font-size: 0.85rem;">${{ bid.shipping_cost }}</td>
+                    <td style="padding: 0.75rem 1rem; font-size: 1.1rem; font-weight: 700; color: #10b981;">
+                        ${{ bid.total_amount }} {{ bid.currency }}
+                    </td>
+                    <td style="padding: 0.75rem 1rem;">
+                        {% if bid.is_winning_bid %}
+                        <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">WINNING CONTRACT</span>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.8rem;">Evaluated</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                        No vendor bids recorded yet.
+                        {% if rfq.can_submit_bids %}
+                        <div style="margin-top: 0.5rem;">
+                            <a href="{% url 'procurement:vendor_bid_create' rfq_pk=rfq.pk %}" class="btn btn-sm btn-primary">Log First Vendor Bid</a>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Section 3: Vendor Invitations & Dispatches -->
+<div class="card" style="background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 2rem;">
+    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Invited Suppliers & Sourcing Dispatches</h3>
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem;">
+        {% for inv in rfq.invitations.all %}
+        <div style="background: rgba(0,0,0,0.03); border: 1px solid var(--border-color); border-radius: 0.375rem; padding: 0.5rem 0.75rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem;">
+            <strong>{{ inv.supplier.name }}</strong>
+            {% if inv.responded_at %}
+            <span class="badge" style="background: #10b981; color: #fff; font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px;">Responded</span>
+            {% else %}
+            <span class="badge" style="background: #64748b; color: #fff; font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px;">Awaiting Quote</span>
+            {% endif %}
+        </div>
+        {% empty %}
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0;">No suppliers invited yet.</p>
+        {% endfor %}
+    </div>
+
+    <!-- Quick Invite Form -->
+    {% if rfq.status == 'published' and not rfq.is_expired %}
+    <form method="post" action="{% url 'procurement:rfq_invite' pk=rfq.pk %}" style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+        {% csrf_token %}
+        <label style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; display: block;">Invite Additional Registered Suppliers:</label>
+        <div style="max-height: 150px; overflow-y: auto; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 0.375rem; margin-bottom: 0.75rem; background: var(--surface-bg);">
+            {{ invite_form.suppliers }}
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm">Send Bidding Invitations</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

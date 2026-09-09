@@ -1,0 +1,132 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Requests for Quotation &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">RFQs</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0.25rem;">Requests for Quotation (RFQ)</h1>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-bottom: 0;">
+            Manage competitive sourcing events, invite supplier bidding, compare commercial terms, and award supply contracts.
+        </p>
+    </div>
+    <div>
+        <a href="{% url 'procurement:rfq_create' %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create New RFQ
+        </a>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem; background: var(--surface-card); border-radius: 0.5rem; border: 1px solid var(--border-color);">
+    <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+        <div style="flex: 3; min-width: 200px;">
+            <input type="text" name="q" value="{{ current_q }}" class="form-control" placeholder="Search by RFQ number, title, or scope...">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                {% for val, label in rfq_statuses %}
+                <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            {% if current_q or current_status %}
+            <a href="{% url 'procurement:rfq_list' %}" class="btn btn-secondary">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- RFQ Table -->
+<div class="card" style="background: var(--surface-card); border-radius: 0.5rem; border: 1px solid var(--border-color); overflow: hidden;">
+    <div style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); text-align: left; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.85rem 1rem;">RFQ Number & Scope</th>
+                    <th style="padding: 0.85rem 1rem;">Status</th>
+                    <th style="padding: 0.85rem 1rem;">Submission Deadline</th>
+                    <th style="padding: 0.85rem 1rem;">Lines</th>
+                    <th style="padding: 0.85rem 1rem;">Bids</th>
+                    <th style="padding: 0.85rem 1rem;">Winning Bid</th>
+                    <th style="padding: 0.85rem 1rem; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rfqs %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.85rem 1rem;">
+                        <a href="{% url 'procurement:rfq_detail' pk=r.pk %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none;">
+                            {{ r.rfq_number }}
+                        </a>
+                        <div style="font-size: 0.85rem; color: var(--text-primary);">{{ r.title }}</div>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        {% if r.status == 'draft' %}
+                        <span class="badge" style="background: #64748b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Draft</span>
+                        {% elif r.status == 'published' %}
+                        <span class="badge badge-primary" style="background: #0284c7; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Open for Bids</span>
+                        {% elif r.status == 'awarded' %}
+                        <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Awarded</span>
+                        {% elif r.status == 'closed' %}
+                        <span class="badge" style="background: #475569; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Closed</span>
+                        {% else %}
+                        <span class="badge badge-danger" style="background: #ef4444; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">{{ r.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem; font-size: 0.85rem;">
+                        <div>{{ r.submission_deadline|date:"M d, Y H:i" }}</div>
+                        {% if r.is_expired and r.status == 'published' %}
+                        <span style="color: #ef4444; font-size: 0.75rem; font-weight: 600;">Expired</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <span class="badge" style="background: rgba(99,102,241,0.1); color: #6366f1; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
+                            {{ r.total_lines_count }} items
+                        </span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <span class="badge" style="background: rgba(16,185,129,0.1); color: #10b981; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
+                            {{ r.total_bids_count }} proposals
+                        </span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; font-size: 0.85rem;">
+                        {% if r.winning_bid %}
+                        <div style="font-weight: 600; color: #10b981;">{{ r.winning_bid.supplier.name }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">${{ r.winning_bid.total_amount }}</div>
+                        {% else %}
+                        <span style="color: var(--text-muted);">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem; text-align: right;">
+                        <a href="{% url 'procurement:rfq_detail' pk=r.pk %}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">View</a>
+                        {% if r.total_bids_count > 0 %}
+                        <a href="{% url 'procurement:rfq_comparison' pk=r.pk %}" class="btn btn-sm btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Compare</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted);">
+                        <p style="margin-bottom: 0.5rem;">No Requests for Quotation logged yet.</p>
+                        <a href="{% url 'procurement:rfq_create' %}" class="btn btn-primary btn-sm">Create First RFQ</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -191,3 +191,291 @@ class SupplierProductCreateView(OrganizationAccessMixin, CreateView):
 
     def get_success_url(self):
         return reverse("procurement:supplier_detail", kwargs={"pk": self.supplier.pk})
+
+
+from .models import (
+    RFQStatus,
+    RequestForQuotation,
+    RFQLine,
+    RFQVendorInvitation,
+    VendorBid,
+    VendorBidLine,
+)
+from .forms import (
+    RFQForm,
+    RFQLineFormSet,
+    RFQInviteVendorForm,
+    VendorBidForm,
+    VendorBidLineFormSet,
+    AwardBidForm,
+)
+from .services import RFQService
+
+
+class RFQListView(OrganizationAccessMixin, ListView):
+    model = RequestForQuotation
+    template_name = "procurement/rfq_list.html"
+    context_object_name = "rfqs"
+    paginate_by = 25
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return RequestForQuotation.objects.none()
+
+        qs = RequestForQuotation.objects.filter(organization=org).select_related("created_by")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(rfq_number__icontains=q) |
+                Q(title__icontains=q) |
+                Q(notes__icontains=q)
+            )
+
+        status = self.request.GET.get("status", "").strip()
+        if status:
+            qs = qs.filter(status=status)
+
+        return qs.order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["rfq_statuses"] = RFQStatus.choices
+        context["current_q"] = self.request.GET.get("q", "")
+        context["current_status"] = self.request.GET.get("status", "")
+        return context
+
+
+class RFQDetailView(OrganizationAccessMixin, DetailView):
+    model = RequestForQuotation
+    template_name = "procurement/rfq_detail.html"
+    context_object_name = "rfq"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return RequestForQuotation.objects.none()
+        return RequestForQuotation.objects.filter(organization=org).prefetch_related(
+            "lines__product",
+            "lines__uom",
+            "invitations__supplier",
+            "bids__supplier",
+            "bids__lines__rfq_line",
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["invite_form"] = RFQInviteVendorForm(organization=self.request.organization, rfq=self.object)
+        context["award_form"] = AwardBidForm()
+        return context
+
+
+class RFQCreateView(OrganizationAccessMixin, View):
+    def get(self, request, *args, **kwargs):
+        form = RFQForm()
+        formset = RFQLineFormSet(form_kwargs={"organization": request.organization})
+        return render(request, "procurement/rfq_form.html", {
+            "form": form,
+            "formset": formset,
+            "title": "Create Request for Quotation (RFQ)",
+        })
+
+    def post(self, request, *args, **kwargs):
+        form = RFQForm(request.POST)
+        formset = RFQLineFormSet(request.POST, form_kwargs={"organization": request.organization})
+
+        if form.is_valid() and formset.is_valid():
+            rfq = form.save(commit=False)
+            rfq.organization = request.organization
+            rfq.rfq_number = RequestForQuotation.generate_rfq_number(request.organization)
+            rfq.created_by = request.user
+            rfq.save()
+
+            lines = formset.save(commit=False)
+            for idx, line in enumerate(lines, start=1):
+                line.rfq = rfq
+                line.line_number = idx
+                line.save()
+
+            messages.success(request, f"RFQ '{rfq.rfq_number}' drafted successfully.")
+            return redirect("procurement:rfq_detail", pk=rfq.pk)
+
+        return render(request, "procurement/rfq_form.html", {
+            "form": form,
+            "formset": formset,
+            "title": "Create Request for Quotation (RFQ)",
+        })
+
+
+class RFQUpdateView(OrganizationAccessMixin, View):
+    def dispatch(self, request, *args, **kwargs):
+        self.rfq = get_object_or_404(RequestForQuotation, pk=kwargs["pk"], organization=request.organization)
+        if self.rfq.status != RFQStatus.DRAFT:
+            messages.error(request, "Only draft RFQs can be edited.")
+            return redirect("procurement:rfq_detail", pk=self.rfq.pk)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        form = RFQForm(instance=self.rfq)
+        formset = RFQLineFormSet(instance=self.rfq, form_kwargs={"organization": request.organization})
+        return render(request, "procurement/rfq_form.html", {
+            "form": form,
+            "formset": formset,
+            "rfq": self.rfq,
+            "title": f"Edit {self.rfq.rfq_number}",
+        })
+
+    def post(self, request, *args, **kwargs):
+        form = RFQForm(request.POST, instance=self.rfq)
+        formset = RFQLineFormSet(request.POST, instance=self.rfq, form_kwargs={"organization": request.organization})
+
+        if form.is_valid() and formset.is_valid():
+            rfq = form.save()
+            lines = formset.save(commit=False)
+            for idx, line in enumerate(lines, start=1):
+                line.rfq = rfq
+                line.line_number = idx
+                line.save()
+            for obj in formset.deleted_objects:
+                obj.delete()
+
+            messages.success(request, f"RFQ '{rfq.rfq_number}' updated.")
+            return redirect("procurement:rfq_detail", pk=rfq.pk)
+
+        return render(request, "procurement/rfq_form.html", {
+            "form": form,
+            "formset": formset,
+            "rfq": self.rfq,
+            "title": f"Edit {self.rfq.rfq_number}",
+        })
+
+
+class RFQPublishView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        rfq = get_object_or_404(RequestForQuotation, pk=kwargs["pk"], organization=request.organization)
+        try:
+            RFQService.publish_rfq(rfq)
+            messages.success(request, f"RFQ '{rfq.rfq_number}' published and open for bids.")
+        except ValidationError as e:
+            messages.error(request, f"Cannot publish RFQ: {e.message if hasattr(e, 'message') else e}")
+        return redirect("procurement:rfq_detail", pk=rfq.pk)
+
+
+class RFQInviteView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        rfq = get_object_or_404(RequestForQuotation, pk=kwargs["pk"], organization=request.organization)
+        form = RFQInviteVendorForm(request.POST, organization=request.organization, rfq=rfq)
+        if form.is_valid():
+            suppliers = form.cleaned_data["suppliers"]
+            invitations = RFQService.invite_vendors(rfq, suppliers, invited_by=request.user)
+            messages.success(request, f"Sent bidding invitations to {len(invitations)} suppliers.")
+        else:
+            messages.error(request, "No suppliers selected or invalid selection.")
+        return redirect("procurement:rfq_detail", pk=rfq.pk)
+
+
+class VendorBidCreateView(OrganizationAccessMixin, View):
+    def dispatch(self, request, *args, **kwargs):
+        self.rfq = get_object_or_404(RequestForQuotation, pk=kwargs["rfq_pk"], organization=request.organization)
+        if not self.rfq.can_submit_bids:
+            messages.error(request, "This RFQ is not currently accepting bids.")
+            return redirect("procurement:rfq_detail", pk=self.rfq.pk)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        form = VendorBidForm(organization=request.organization, rfq=self.rfq)
+        lines = self.rfq.lines.all().order_by("line_number")
+        return render(request, "procurement/vendor_bid_form.html", {
+            "rfq": self.rfq,
+            "form": form,
+            "rfq_lines": lines,
+        })
+
+    def post(self, request, *args, **kwargs):
+        form = VendorBidForm(request.POST, organization=request.organization, rfq=self.rfq)
+        lines = self.rfq.lines.all().order_by("line_number")
+
+        if form.is_valid():
+            # Process lines
+            lines_data = []
+            for line in lines:
+                price_key = f"price_{line.id}"
+                qty_key = f"qty_{line.id}"
+                lead_key = f"lead_{line.id}"
+                notes_key = f"notes_{line.id}"
+
+                price_val = request.POST.get(price_key)
+                if price_val:
+                    lines_data.append({
+                        "rfq_line": line,
+                        "offered_unit_price": Decimal(price_val),
+                        "offered_quantity": Decimal(request.POST.get(qty_key, line.target_quantity)),
+                        "lead_time_days": int(request.POST.get(lead_key, form.cleaned_data["lead_time_days"])),
+                        "notes": request.POST.get(notes_key, ""),
+                    })
+
+            try:
+                bid = RFQService.submit_vendor_bid(
+                    rfq=self.rfq,
+                    supplier=form.cleaned_data["supplier"],
+                    bid_reference=form.cleaned_data["bid_reference"],
+                    valid_until=form.cleaned_data["valid_until"],
+                    payment_terms=form.cleaned_data["payment_terms"],
+                    lead_time_days=form.cleaned_data["lead_time_days"],
+                    shipping_cost=form.cleaned_data["shipping_cost"],
+                    currency=form.cleaned_data["currency"],
+                    notes=form.cleaned_data["notes"],
+                    lines_data=lines_data,
+                )
+                messages.success(request, f"Vendor proposal from '{bid.supplier.name}' logged successfully.")
+                return redirect("procurement:rfq_detail", pk=self.rfq.pk)
+            except ValidationError as e:
+                messages.error(request, f"Error saving bid: {e.message if hasattr(e, 'message') else e}")
+
+        return render(request, "procurement/vendor_bid_form.html", {
+            "rfq": self.rfq,
+            "form": form,
+            "rfq_lines": lines,
+        })
+
+
+class RFQBidComparisonView(OrganizationAccessMixin, DetailView):
+    model = RequestForQuotation
+    template_name = "procurement/rfq_comparison.html"
+    context_object_name = "rfq"
+
+    def get_queryset(self):
+        org = self.request.organization
+        return RequestForQuotation.objects.filter(organization=org)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["matrix"] = RFQService.compare_bids(self.object)
+        context["award_form"] = AwardBidForm()
+        return context
+
+
+class RFQAwardBidView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        rfq = get_object_or_404(RequestForQuotation, pk=kwargs["pk"], organization=request.organization)
+        form = AwardBidForm(request.POST)
+        if form.is_valid():
+            bid = get_object_or_404(VendorBid, pk=form.cleaned_data["bid_id"], rfq=rfq)
+            RFQService.award_bid(rfq, bid, form.cleaned_data["award_reason"], user=request.user)
+            messages.success(request, f"Contract awarded to '{bid.supplier.name}'! RFQ is now marked as AWARDED.")
+        else:
+            messages.error(request, "Invalid award form submission.")
+        return redirect("procurement:rfq_detail", pk=rfq.pk)
+
+
+class RFQPrintView(OrganizationAccessMixin, DetailView):
+    model = RequestForQuotation
+    template_name = "procurement/rfq_print.html"
+    context_object_name = "rfq"
+
+    def get_queryset(self):
+        org = self.request.organization
+        return RequestForQuotation.objects.filter(organization=org).prefetch_related(
+            "lines__product",
+            "lines__uom",
+        )
