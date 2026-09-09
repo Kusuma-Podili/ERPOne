@@ -12,6 +12,6 @@
 | Phase 3 | 3.3 Pipelines & Deals | Sales Pipeline Stages, Deals, Stage Transitions Audit, Kanban Board | 13 | 0 | 11,713 | 13,342 | 70e2ef7 | PR #11 | Completed |
 | Phase 3 | 3.4 Activities, Dashboard & QA | Touchpoints, CRM Executive Dashboard, 18 Automated Unit & Integration Tests | 14 | 18 | 13,342 | 14,224 | 2095596 | PR #12 | Completed |
 | Phase 4 | 4.1 Product Catalog & Price Books | Product, Category, UOM, PriceBook, TieredDiscount, PricingEngineService, 6 Tests | 17 | 6 | 14,224 | 16,585 | a2021aa | PR #13 | Completed |
-| Phase 4 | 4.2 Quotes & Approval Workflows | TaxRule, TaxRate, Quote, QuoteLineItem, QuoteApproval, QuoteApprovalService, 8 Tests | 12 | 8 | 16,585 | 18,920 | - | PR #14 | Completed |
+| Phase 4 | 4.2 Quotes & Approval Workflows | TaxRule, TaxRate, Quote, QuoteLineItem, QuoteApproval, QuoteApprovalService, 8 Tests | 12 | 8 | 16,585 | 18,920 | 93d5b4b | PR #14 | Completed |
 
 
