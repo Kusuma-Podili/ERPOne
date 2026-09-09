@@ -1,0 +1,109 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Price Books &bull; Sales &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Price Books</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Price Books</h1>
+        <p class="page-subtitle">Configure specialized pricing schedules, contract price books, wholesale tiers, and partner rates.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'sales:product_list' %}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            Products
+        </a>
+        <a href="{% url 'sales:pricebook_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Price Book
+        </a>
+    </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Price Book Name</th>
+                    <th>Code</th>
+                    <th>Currency</th>
+                    <th style="text-align: right;">Listed Products</th>
+                    <th>Default Schedule</th>
+                    <th>Validity Period</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pb in price_books %}
+                <tr>
+                    <td>
+                        <a href="{% url 'sales:pricebook_detail' pb.pk %}" style="font-weight: 600; color: var(--primary); text-decoration: none;">
+                            {{ pb.name }}
+                        </a>
+                        {% if pb.description %}
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">{{ pb.description|truncatechars:60 }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <code style="background: var(--bg-tertiary); padding: 0.15rem 0.35rem; border-radius: 4px;">{{ pb.code }}</code>
+                    </td>
+                    <td>{{ pb.currency }}</td>
+                    <td style="text-align: right; font-weight: 600; font-family: monospace;">
+                        {{ pb.entry_count }} items
+                    </td>
+                    <td>
+                        {% if pb.is_default %}
+                        <span class="badge badge-primary">Default Schedule</span>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">
+                            {% if pb.valid_from or pb.valid_to %}
+                            {{ pb.valid_from|default:"Immediate" }} &rarr; {{ pb.valid_to|default:"Ongoing" }}
+                            {% else %}
+                            Always Effective
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if pb.is_active %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 0.5rem;">
+                            <a href="{% url 'sales:pricebook_edit' pb.pk %}" class="btn btn-sm btn-secondary">Edit</a>
+                            <a href="{% url 'sales:pricebook_detail' pb.pk %}" class="btn btn-sm btn-secondary">Manage Prices</a>
+                            {% if not pb.is_default %}
+                            <a href="{% url 'sales:pricebook_delete' pb.pk %}" class="btn btn-sm btn-secondary" style="color: var(--danger);">Delete</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 3rem 1rem;">
+                        <div style="color: var(--text-muted); margin-bottom: 1rem;">No price books configured.</div>
+                        <a href="{% url 'sales:pricebook_create' %}" class="btn btn-primary">Create Price Book</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

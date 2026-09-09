@@ -20,6 +20,7 @@ This document tracks all formal Pull Requests prepared, reviewed, and merged thr
 | #10 | `feature/phase3-crm-leads-scoring-conversion` | CRM Leads, Multi-Factor Scoring Engine & Atomic Lead Conversion | Phase 3 | Merged | 2026-09-09 |
 | #11 | `feature/phase3-crm-pipelines-deals-kanban` | CRM Pipeline Stages, Deal Tracking & Interactive Kanban Board | Phase 3 | Merged | 2026-09-09 |
 | #12 | `feature/phase3-crm-activities-dashboard-tests` | CRM Activities, Notes, Executive Revenue Dashboard & 18 Tests | Phase 3 | Merged | 2026-09-09 |
+| #13 | `feature/phase4-products-pricebooks` | Product Catalog, UOMs, Multi-Tier Price Books & Pricing Engine | Phase 4 | Merged & Closed | 2026-09-09 |
 
 ---
 
@@ -101,6 +102,14 @@ This document tracks all formal Pull Requests prepared, reviewed, and merged thr
 ---
 
 ## PR #12 — CRM Activities, Notes, Executive Revenue Dashboard & 18 Tests
-- **Branch**: `feature/phase3-crm-activities-dashboard-tests` -> `development` | **Status**: Merged
+- **Branch**: `feature/phase3-crm-activities-dashboard-tests` -> `development` | **Status**: Merged & Closed
 - **Phase**: Phase 3 — Customer Relationship Management (CRM)
 - **Purpose**: Complete CRM subsystem with `Activity` (calls, meetings, tasks, demos, emails) and `Note` models, `CRMDashboardView` delivering executive revenue and pipeline KPIs, activity management views, 18 automated unit and integration tests (bringing total passing tests to 73 at 100%), and ledger updates.
+
+---
+
+## PR #13 — Product Catalog, UOMs, Multi-Tier Price Books & Pricing Engine
+- **Branch**: `feature/phase4-products-pricebooks` -> `development` | **Status**: Merged & Closed
+- **Phase**: Phase 4 — Sales & Order Management
+- **Purpose**: Establish Product Catalog domain models (`ProductCategory` hierarchical tree, `UnitOfMeasure` standards with conversion ratios, `Product` with profit margin computation), `PriceBook` management with default constraints, `PriceBookEntry`, `TieredDiscount` volume breaks, `PricingEngineService` calculating dynamic unit prices and tiered brackets, complete CRUD template views, admin tabular inlines, sidebar navigation integration, and 6 automated unit tests (79 total tests passing at 100%).
+

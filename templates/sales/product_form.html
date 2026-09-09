@@ -1,0 +1,110 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{% if object %}Edit {{ object.name }}{% else %}New Product{% endif %} &bull; Sales &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Products</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{% if object %}Edit Product{% else %}Add Product{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{% if object %}Edit {{ object.name }}{% else %}Add New Product{% endif %}</h1>
+        <p class="page-subtitle">Configure SKU, pricing, categorization, and tracking rules.</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 900px;">
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Product Name *</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.name.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">SKU (Stock Keeping Unit) *</label>
+                {{ form.sku }}
+                {% if form.sku.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.sku.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Product Type</label>
+                {{ form.product_type }}
+                {% if form.product_type.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.product_type.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Category</label>
+                {{ form.category }}
+                {% if form.category.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.category.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Unit of Measure (UOM) *</label>
+                {{ form.uom }}
+                {% if form.uom.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.uom.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Cost Price ($) *</label>
+                {{ form.cost_price }}
+                {% if form.cost_price.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.cost_price.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">List Selling Price ($) *</label>
+                {{ form.list_price }}
+                {% if form.list_price.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.list_price.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Barcode / UPC</label>
+                {{ form.barcode }}
+                {% if form.barcode.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.barcode.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label class="form-label" style="font-weight: 600;">Product Description</label>
+            {{ form.description }}
+            {% if form.description.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.description.errors }}</div>{% endif %}
+        </div>
+
+        <div style="display: flex; gap: 2rem; margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 6px;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                {{ form.is_active }}
+                <span>Active Status</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                {{ form.taxable }}
+                <span>Taxable Item</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                {{ form.track_inventory }}
+                <span>Track Stock Inventory</span>
+            </label>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <a href="{% url 'sales:product_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                {% if object %}Save Changes{% else %}Create Product{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
