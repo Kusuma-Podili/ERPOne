@@ -19,6 +19,8 @@ urlpatterns = [
     path("finance/", include("apps.finance.urls", namespace="finance")),
     path("hr/", include("apps.hr.urls", namespace="hr")),
     path("payroll/", include("apps.payroll.urls", namespace="payroll")),
+    path("projects/", include("apps.projects.urls", namespace="projects")),
+    path("support/", include("apps.support.urls", namespace="support")),
     path("api/", include("enterpriseone.urls.api")),
     path("", RedirectView.as_view(pattern_name="accounts:dashboard", permanent=False), name="home"),
 ]

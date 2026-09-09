@@ -1,0 +1,15 @@
+from django.contrib import admin
+from .models import *
+@admin.register(SupportCategory)
+class SupportCategoryAdmin(admin.ModelAdmin): list_display=('name','code','organization','default_priority','is_active'); list_filter=('is_active','default_priority'); search_fields=('name','code')
+@admin.register(SupportTeam)
+class SupportTeamAdmin(admin.ModelAdmin): list_display=('name','code','organization','manager','is_active'); list_filter=('is_active',); search_fields=('name','code')
+@admin.register(SlaPolicy)
+class SlaPolicyAdmin(admin.ModelAdmin): list_display=('name','priority','first_response_minutes','resolution_minutes','is_active'); list_filter=('priority','is_active')
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin): list_display=('number','subject','status','priority','team','assignee','created_at','due_at'); list_filter=('status','priority','source','ticket_type'); search_fields=('number','subject','description'); readonly_fields=('created_at','updated_at','first_response_at','resolved_at','closed_at')
+@admin.register(TicketMessage)
+class TicketMessageAdmin(admin.ModelAdmin): list_display=('ticket','author','is_internal','channel','created_at'); list_filter=('is_internal','channel')
+@admin.register(KnowledgeArticle)
+class KnowledgeArticleAdmin(admin.ModelAdmin): list_display=('title','category','is_published','view_count','helpful_ratio','updated_at'); list_filter=('is_published','category'); prepopulated_fields={'slug':('title',)}; search_fields=('title','summary','content')
+admin.site.register([SupportTeamMember,TicketAttachment,TicketAssignmentHistory,TicketStatusHistory,TicketSlaEvent,TicketSatisfaction,KnowledgeBaseCategory,CannedResponse,SupportEscalationRule,SupportBusinessHour])
