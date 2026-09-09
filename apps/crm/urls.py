@@ -24,4 +24,13 @@ urlpatterns = [
     path("contacts/<uuid:pk>/", views.ContactDetailView.as_view(), name="contact_detail"),
     path("contacts/<uuid:pk>/edit/", views.ContactUpdateView.as_view(), name="contact_update"),
     path("contacts/<uuid:pk>/delete/", views.ContactDeleteView.as_view(), name="contact_delete"),
+
+    # Leads
+    path("leads/", views.LeadListView.as_view(), name="lead_list"),
+    path("leads/new/", views.LeadCreateView.as_view(), name="lead_create"),
+    path("leads/<uuid:pk>/", views.LeadDetailView.as_view(), name="lead_detail"),
+    path("leads/<uuid:pk>/edit/", views.LeadUpdateView.as_view(), name="lead_update"),
+    path("leads/<uuid:pk>/delete/", views.LeadDeleteView.as_view(), name="lead_delete"),
+    path("leads/<uuid:pk>/convert/", views.LeadConvertView.as_view(), name="lead_convert"),
+    path("leads/<uuid:pk>/recalculate-score/", views.LeadRecalculateScoreView.as_view(), name="lead_recalculate_score"),
 ]

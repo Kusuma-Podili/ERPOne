@@ -3,7 +3,7 @@ Enterprise CRM Django Admin Registration.
 Provides administrative inspection and management for Accounts and Contacts.
 """
 from django.contrib import admin
-from apps.crm.models import Account, Contact
+from apps.crm.models import Account, Contact, Lead
 
 
 class ContactInline(admin.TabularInline):
@@ -111,3 +111,35 @@ class ContactAdmin(admin.ModelAdmin):
         "account__name",
     )
     readonly_fields = ("id", "created_at", "updated_at")
+
+
+@admin.register(Lead)
+class LeadAdmin(admin.ModelAdmin):
+    list_display = (
+        "full_name",
+        "company_name",
+        "email",
+        "lead_score",
+        "status",
+        "priority",
+        "lead_source",
+        "is_converted",
+        "owner",
+        "created_at",
+    )
+    list_filter = (
+        "status",
+        "priority",
+        "lead_source",
+        "is_converted",
+        "organization",
+    )
+    search_fields = (
+        "first_name",
+        "last_name",
+        "company_name",
+        "email",
+        "phone",
+    )
+    readonly_fields = ("id", "lead_score", "score_breakdown", "is_converted", "converted_at", "created_at", "updated_at")
+

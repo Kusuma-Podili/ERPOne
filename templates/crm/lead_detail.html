@@ -1,0 +1,281 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ lead.full_name }} &bull; Lead Dossier &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:lead_list' %}">Leads</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ lead.full_name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <h1 class="page-title" style="margin-bottom: 0;">{{ lead.full_name }}</h1>
+            {% if lead.is_converted %}
+            <span class="badge badge-success">Converted to Customer</span>
+            {% elif lead.status == 'QUALIFIED' %}
+            <span class="badge badge-primary">Sales Qualified</span>
+            {% elif lead.status == 'CONTACTED' %}
+            <span class="badge badge-info">Contacted</span>
+            {% else %}
+            <span class="badge badge-outline">{{ lead.get_status_display }}</span>
+            {% endif %}
+            <span class="badge badge-secondary">{{ lead.get_priority_display }} Priority</span>
+        </div>
+        <p class="page-subtitle" style="margin-top: 0.25rem;">
+            {{ lead.job_title|default:"Prospective Decision Maker" }} at <strong>{{ lead.company_name }}</strong>
+            &bull; Sourced via {{ lead.get_lead_source_display }}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        {% if not lead.is_converted %}
+        <a href="{% url 'crm:lead_convert' pk=lead.pk %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Convert Lead
+        </a>
+        <form method="post" action="{% url 'crm:lead_recalculate_score' pk=lead.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary" title="Re-run scoring algorithm">
+                Recalculate Score
+            </button>
+        </form>
+        {% endif %}
+        <a href="{% url 'crm:lead_update' pk=lead.pk %}" class="btn btn-secondary">
+            Edit Lead
+        </a>
+        <a href="{% url 'crm:lead_delete' pk=lead.pk %}" class="btn btn-outline-danger" style="color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">
+            Delete
+        </a>
+    </div>
+</div>
+
+<!-- Algorithmic Lead Scoring Panel -->
+<div class="card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(16, 185, 129, 0.04) 100%);">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #2563eb;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <h3 class="card-title">Algorithmic Lead Scoring Assessment</h3>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+            Automated Composite Scoring Engine
+        </div>
+    </div>
+    <div style="padding: 1.5rem; display: grid; grid-template-columns: 220px 1fr; gap: 2rem; align-items: center;">
+        <!-- Gauge Number -->
+        <div style="text-align: center; border-right: 1px solid var(--border-color); padding-right: 1.5rem;">
+            <div style="font-size: 3.5rem; font-weight: 800; line-height: 1; {% if lead.lead_score >= 75 %}color: #ef4444;{% elif lead.lead_score >= 50 %}color: #2563eb;{% elif lead.lead_score >= 25 %}color: #d97706;{% else %}color: #64748b;{% endif %}">
+                {{ lead.lead_score }}
+            </div>
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-top: 0.5rem;">
+                Out of 100 Points
+            </div>
+            <div style="margin-top: 0.75rem;">
+                {% if lead.lead_score >= 75 %}
+                <span class="badge badge-danger">Hot Opportunity</span>
+                {% elif lead.lead_score >= 50 %}
+                <span class="badge badge-primary">Warm Prospect</span>
+                {% elif lead.lead_score >= 25 %}
+                <span class="badge badge-warning">Moderate Fit</span>
+                {% else %}
+                <span class="badge badge-secondary">Early Stage</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Breakdown Factor Bars -->
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                    <span>Demographic Scale & Company Size</span>
+                    <strong>{{ lead.score_breakdown.demographic.points|default:0 }} / 20 pts</strong>
+                </div>
+                <div style="background: rgba(0,0,0,0.06); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: #2563eb; height: 100%; width: {{ lead.score_breakdown.demographic.points|default:0|floatformat:0 }}0%;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                    <span>Contact Completeness & Title Authority</span>
+                    <strong>{{ lead.score_breakdown.completeness.points|default:0 }} / 25 pts</strong>
+                </div>
+                <div style="background: rgba(0,0,0,0.06); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: #10b981; height: 100%; width: {{ lead.score_breakdown.completeness.points|default:0|floatformat:0 }}0%;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                    <span>Acquisition Channel Quality</span>
+                    <strong>{{ lead.score_breakdown.source.points|default:0 }} / 20 pts</strong>
+                </div>
+                <div style="background: rgba(0,0,0,0.06); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: #f59e0b; height: 100%; width: {{ lead.score_breakdown.source.points|default:0|floatformat:0 }}0%;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                    <span>Priority & Pipeline Velocity</span>
+                    <strong>{{ lead.score_breakdown.priority_status.points|default:0 }} / 15 pts</strong>
+                </div>
+                <div style="background: rgba(0,0,0,0.06); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: #8b5cf6; height: 100%; width: {{ lead.score_breakdown.priority_status.points|default:0|floatformat:0 }}0%;"></div>
+                </div>
+            </div>
+
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                    <span>Corporate Domain & Web Presence</span>
+                    <strong>{{ lead.score_breakdown.domain_reputation.points|default:0 }} / 20 pts</strong>
+                </div>
+                <div style="background: rgba(0,0,0,0.06); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: #06b6d4; height: 100%; width: {{ lead.score_breakdown.domain_reputation.points|default:0|floatformat:0 }}0%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <!-- Left Column: Dossier -->
+    <div>
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">Prospect Demographics</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                <table style="width: 100%; font-size: 0.875rem;">
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted); width: 35%;">Company Name</td>
+                            <td style="padding: 0.6rem 0; font-weight: 600;">{{ lead.company_name }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Corporate Website</td>
+                            <td style="padding: 0.6rem 0;">
+                                {% if lead.website %}
+                                <a href="{{ lead.website }}" target="_blank" rel="noopener noreferrer" style="color: #2563eb;">{{ lead.website }}</a>
+                                {% else %}&mdash;{% endif %}
+                            </td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Industry</td>
+                            <td style="padding: 0.6rem 0;">{{ lead.get_industry_display }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Employee Scale</td>
+                            <td style="padding: 0.6rem 0;">{{ lead.employee_count|default:"Unspecified" }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Estimated Deal Value</td>
+                            <td style="padding: 0.6rem 0; font-weight: 600; color: #10b981;">
+                                {% if lead.estimated_value %}${{ lead.estimated_value|floatformat:2 }}{% else %}&mdash;{% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Lead Owner</td>
+                            <td style="padding: 0.6rem 0;">{{ lead.owner.get_full_name|default:lead.owner.email|default:"Unassigned" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Direct Contact Information</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                <table style="width: 100%; font-size: 0.875rem;">
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted); width: 35%;">Email Address</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">
+                                <a href="mailto:{{ lead.email }}" style="color: #2563eb;">{{ lead.email }}</a>
+                            </td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Phone Number</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ lead.phone|default:"&mdash;" }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Location / Region</td>
+                            <td style="padding: 0.6rem 0;">
+                                {% if lead.city or lead.country %}
+                                {{ lead.city }}{% if lead.state %}, {{ lead.state }}{% endif %}{% if lead.country %} ({{ lead.country }}){% endif %}
+                                {% else %}&mdash;{% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Conversion & Notes -->
+    <div>
+        {% if lead.is_converted %}
+        <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #10b981;">
+            <div class="card-header">
+                <h3 class="card-title" style="color: #10b981;">Customer Conversion Dossier</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    This lead was successfully converted on <strong>{{ lead.converted_at|date:"M d, Y H:i" }}</strong>.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% if lead.converted_account %}
+                    <a href="{% url 'crm:account_detail' pk=lead.converted_account.pk %}" class="btn btn-secondary" style="justify-content: space-between;">
+                        <span>Corporate Account: <strong>{{ lead.converted_account.name }}</strong></span>
+                        <span>&rarr;</span>
+                    </a>
+                    {% endif %}
+                    {% if lead.converted_contact %}
+                    <a href="{% url 'crm:contact_detail' pk=lead.converted_contact.pk %}" class="btn btn-secondary" style="justify-content: space-between;">
+                        <span>Primary Contact: <strong>{{ lead.converted_contact.full_name }}</strong></span>
+                        <span>&rarr;</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">Opportunity Conversion</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    Ready to promote this lead to a customer? Convert this dossier into an active corporate account, key contact, and pipeline opportunity.
+                </p>
+                <a href="{% url 'crm:lead_convert' pk=lead.pk %}" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                    Convert to Customer &rarr;
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Discussion & Discovery Notes</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                {% if lead.notes %}
+                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; white-space: pre-line; margin: 0;">
+                    {{ lead.notes }}
+                </p>
+                {% else %}
+                <p style="font-size: 0.875rem; color: var(--text-muted); margin: 0;">No discovery notes recorded yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

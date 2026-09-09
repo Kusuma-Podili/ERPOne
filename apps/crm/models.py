@@ -278,3 +278,153 @@ class Contact(models.Model):
                 is_primary_contact=True
             ).exclude(pk=self.pk).update(is_primary_contact=False)
         super().save(*args, **kwargs)
+
+
+class LeadSource(models.TextChoices):
+    WEBSITE = "WEBSITE", _("Website Form / Inbound")
+    REFERRAL = "REFERRAL", _("Client / Partner Referral")
+    COLD_CALL = "COLD_CALL", _("Outbound Cold Call / Outreach")
+    ADVERTISING = "ADVERTISING", _("Online Advertising / SEM")
+    EVENT = "EVENT", _("Trade Show / Conference")
+    PARTNER = "PARTNER", _("Channel Partner")
+    SOCIAL_MEDIA = "SOCIAL_MEDIA", _("Social Media / LinkedIn")
+    OTHER = "OTHER", _("Other Source")
+
+
+class LeadStatus(models.TextChoices):
+    NEW = "NEW", _("New / Uncontacted")
+    CONTACTED = "CONTACTED", _("Contacted / In Discussion")
+    QUALIFIED = "QUALIFIED", _("Sales Qualified")
+    UNQUALIFIED = "UNQUALIFIED", _("Unqualified / Disqualified")
+    CONVERTED = "CONVERTED", _("Converted to Customer")
+
+
+class LeadPriority(models.TextChoices):
+    LOW = "LOW", _("Low")
+    MEDIUM = "MEDIUM", _("Medium")
+    HIGH = "HIGH", _("High")
+    URGENT = "URGENT", _("Urgent")
+
+
+class Lead(models.Model):
+    """
+    Prospective customer or inbound business inquiry entity.
+    Includes multi-factor algorithmic lead scoring and conversion tracking.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="crm_leads",
+        verbose_name=_("Organization"),
+    )
+    first_name = models.CharField(_("First Name"), max_length=100)
+    last_name = models.CharField(_("Last Name"), max_length=100)
+    company_name = models.CharField(_("Company Name"), max_length=255)
+    job_title = models.CharField(_("Job Title"), max_length=128, blank=True)
+    email = models.EmailField(_("Email Address"), db_index=True)
+    phone = models.CharField(_("Phone"), max_length=32, blank=True)
+    website = models.URLField(_("Company Website"), blank=True)
+    lead_source = models.CharField(
+        _("Lead Source"),
+        max_length=32,
+        choices=LeadSource.choices,
+        default=LeadSource.WEBSITE,
+        db_index=True,
+    )
+    status = models.CharField(
+        _("Lead Status"),
+        max_length=32,
+        choices=LeadStatus.choices,
+        default=LeadStatus.NEW,
+        db_index=True,
+    )
+    priority = models.CharField(
+        _("Priority"),
+        max_length=16,
+        choices=LeadPriority.choices,
+        default=LeadPriority.MEDIUM,
+        db_index=True,
+    )
+    estimated_value = models.DecimalField(
+        _("Estimated Deal Value"),
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    lead_score = models.PositiveIntegerField(_("Algorithmic Lead Score (0-100)"), default=0, db_index=True)
+    score_breakdown = models.JSONField(_("Score Calculation Breakdown"), default=dict, blank=True)
+    industry = models.CharField(
+        _("Industry"),
+        max_length=32,
+        choices=IndustryChoice.choices,
+        default=IndustryChoice.TECHNOLOGY,
+    )
+    employee_count = models.PositiveIntegerField(_("Employee Count"), null=True, blank=True)
+    annual_revenue = models.DecimalField(_("Annual Revenue"), max_digits=18, decimal_places=2, null=True, blank=True)
+
+    # Address
+    address_line1 = models.CharField(_("Address Line 1"), max_length=255, blank=True)
+    city = models.CharField(_("City"), max_length=100, blank=True)
+    state = models.CharField(_("State / Province"), max_length=100, blank=True)
+    postal_code = models.CharField(_("Postal Code"), max_length=32, blank=True)
+    country = models.CharField(_("Country"), max_length=100, blank=True)
+
+    # Ownership & Conversion
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="owned_crm_leads",
+        verbose_name=_("Lead Owner"),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_crm_leads",
+        verbose_name=_("Created By"),
+    )
+    is_converted = models.BooleanField(_("Converted Flag"), default=False, db_index=True)
+    converted_at = models.DateTimeField(_("Conversion Timestamp"), null=True, blank=True)
+    converted_account = models.ForeignKey(
+        Account,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="originating_leads",
+        verbose_name=_("Converted Account"),
+    )
+    converted_contact = models.ForeignKey(
+        Contact,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="originating_leads",
+        verbose_name=_("Converted Contact"),
+    )
+    notes = models.TextField(_("Internal Notes"), blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Lead")
+        verbose_name_plural = _("Leads")
+        ordering = ["-lead_score", "-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "status"]),
+            models.Index(fields=["organization", "lead_score"]),
+            models.Index(fields=["organization", "email"]),
+            models.Index(fields=["organization", "is_converted"]),
+        ]
+
+    def __str__(self):
+        return f"{self.full_name} ({self.company_name})"
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+

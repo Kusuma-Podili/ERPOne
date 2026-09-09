@@ -1,0 +1,182 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ form_title }} &bull; EnterpriseOne CRM{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:lead_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:lead_list' %}">Leads</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ form_title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ form_title }}</h1>
+        <p class="page-subtitle">Input lead demographics, company metrics, and acquisition source for automated scoring.</p>
+    </div>
+</div>
+
+<form method="post" class="enterprise-form">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+        {% for err in form.non_field_errors %}
+        <p style="margin: 0;">{{ err }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+        <div>
+            <!-- Personal & Company Information -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Prospect Identification</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">First Name *</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.first_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Last Name *</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.last_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Company / Organization *</label>
+                        {{ form.company_name }}
+                        {% if form.company_name.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.company_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Job Title</label>
+                        {{ form.job_title }}
+                        {% if form.job_title.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.job_title.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Email Address *</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.email.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Phone Number</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.phone.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="form-label" style="font-weight: 600;">Corporate Website</label>
+                        {{ form.website }}
+                        {% if form.website.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.website.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Qualification Demographics -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Commercial & Demographic Scale</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Industry</label>
+                        {{ form.industry }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Estimated Deal Value ($)</label>
+                        {{ form.estimated_value }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Employee Count</label>
+                        {{ form.employee_count }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Annual Revenue ($)</label>
+                        {{ form.annual_revenue }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Regional Location</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div style="grid-column: span 2;">
+                        <label class="form-label" style="font-size: 0.85rem;">Address</label>
+                        {{ form.address_line1 }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">City</label>
+                        {{ form.city }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">State / Province</label>
+                        {{ form.state }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">Postal Code</label>
+                        {{ form.postal_code }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">Country</label>
+                        {{ form.country }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discussion Notes -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Discovery Notes</h3>
+                </div>
+                <div style="padding: 1.5rem;">
+                    {{ form.notes }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar / Right Controls -->
+        <div>
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Pipeline Governance</h3>
+                </div>
+                <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Acquisition Source</label>
+                        {{ form.lead_source }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Pipeline Status</label>
+                        {{ form.status }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Priority Level</label>
+                        {{ form.priority }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Lead Owner</label>
+                        {{ form.owner }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                    {{ form_action }}
+                </button>
+                <a href="{% url 'crm:lead_list' %}" class="btn btn-secondary" style="width: 100%; justify-content: center;">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

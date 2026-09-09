@@ -1,0 +1,129 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Convert Lead &bull; {{ lead.full_name }} &bull; EnterpriseOne CRM{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:lead_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:lead_detail' pk=lead.pk %}">{{ lead.full_name }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Convert</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Convert Lead to Customer</h1>
+        <p class="page-subtitle">Transform prospect dossier for <strong>{{ lead.full_name }}</strong> ({{ lead.company_name }}) into enterprise customer records.</p>
+    </div>
+</div>
+
+<div style="max-width: 800px; margin: 0 auto;">
+    <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #2563eb;">
+        <div style="padding: 1.25rem; display: flex; gap: 1rem; align-items: center;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #2563eb;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+            </div>
+            <div>
+                <h4 style="margin: 0 0 0.25rem; font-size: 1rem; color: var(--text-primary);">Atomic Pipeline Promotion</h4>
+                <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
+                    Converting this lead will automatically populate an active corporate Account, register {{ lead.full_name }} as the primary contact, and optionally initiate an active Deal pipeline record.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" class="enterprise-form">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+            {% for err in form.non_field_errors %}
+            <p style="margin: 0;">{{ err }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Account Section -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">1. Corporate Account Destination</h3>
+            </div>
+            <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    {{ form.create_account }}
+                    <label for="{{ form.create_account.id_for_label }}" style="font-weight: 600; margin-bottom: 0;">
+                        Create New Corporate Account
+                    </label>
+                </div>
+                <div style="margin-left: 1.75rem;">
+                    <label class="form-label" style="font-size: 0.85rem;">New Account Name</label>
+                    {{ form.account_name }}
+                </div>
+                <div style="margin-left: 1.75rem; border-top: 1px dashed var(--border-color); padding-top: 0.75rem;">
+                    <label class="form-label" style="font-size: 0.85rem;">Or Link into Existing Account</label>
+                    {{ form.existing_account }}
+                    <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+                        If selected, the contact will be attached to this existing company instead of creating a new duplicate account.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Section -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">2. Primary Decision Maker Contact</h3>
+            </div>
+            <div style="padding: 1.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                    {{ form.create_contact }}
+                    <label for="{{ form.create_contact.id_for_label }}" style="font-weight: 600; margin-bottom: 0;">
+                        Create Contact for {{ lead.full_name }}
+                    </label>
+                </div>
+                <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); margin-left: 1.75rem;">
+                    Email: <strong>{{ lead.email }}</strong> &bull; Phone: {{ lead.phone|default:"None listed" }} &bull; Title: {{ lead.job_title|default:"Unspecified" }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Deal Section -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">3. Sales Pipeline Opportunity (Optional)</h3>
+            </div>
+            <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    {{ form.create_deal }}
+                    <label for="{{ form.create_deal.id_for_label }}" style="font-weight: 600; margin-bottom: 0;">
+                        Open Starting Deal in Sales Pipeline
+                    </label>
+                </div>
+                <div style="margin-left: 1.75rem; display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">Deal Name</label>
+                        {{ form.deal_name }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">Estimated Value ($)</label>
+                        {{ form.deal_amount }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+            <a href="{% url 'crm:lead_detail' pk=lead.pk %}" class="btn btn-secondary">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.5rem;">
+                Execute Conversion
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
