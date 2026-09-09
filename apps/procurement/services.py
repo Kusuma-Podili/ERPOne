@@ -614,3 +614,204 @@ class PurchaseOrderService:
         po.issued_at = timezone.now()
         po.save(update_fields=["status", "issued_at", "updated_at"])
         return po
+
+
+from .models import (
+    BillStatus,
+    MatchStatus,
+    VendorBill,
+    VendorBillLine,
+    ThreeWayMatch,
+)
+
+
+class ThreeWayMatchService:
+    """
+    Automated Three-Way Matching engine reconciling Purchase Orders, Warehouse Goods Receipts,
+    and Vendor Invoices to ensure commercial integrity before disbursements.
+    """
+
+    @classmethod
+    @transaction.atomic
+    def create_vendor_bill(
+        cls,
+        organization: Organization,
+        supplier: Supplier,
+        bill_number: str,
+        bill_date,
+        due_date,
+        purchase_order: Optional[PurchaseOrder] = None,
+        currency: str = "USD",
+        notes: str = "",
+        lines_data: Optional[List[Dict]] = None,
+        created_by=None,
+    ) -> VendorBill:
+        """
+        Creates a vendor bill with priced lines.
+        """
+        bill = VendorBill.objects.create(
+            organization=organization,
+            supplier=supplier,
+            purchase_order=purchase_order,
+            bill_number=bill_number.strip(),
+            status=BillStatus.PENDING_MATCH if purchase_order else BillStatus.DRAFT,
+            bill_date=bill_date,
+            due_date=due_date,
+            currency=currency,
+            notes=notes.strip(),
+            created_by=created_by,
+        )
+
+        if lines_data:
+            for item in lines_data:
+                VendorBillLine.objects.create(
+                    bill=bill,
+                    po_line=item.get("po_line"),
+                    product=item["product"],
+                    billed_quantity=item["billed_quantity"],
+                    unit_price=item["unit_price"],
+                    tax_rate=item.get("tax_rate", Decimal("0.00")),
+                    notes=item.get("notes", "").strip(),
+                )
+
+        bill.recalculate_totals()
+        return bill
+
+    @classmethod
+    @transaction.atomic
+    def execute_three_way_match(
+        cls,
+        purchase_order: PurchaseOrder,
+        vendor_bill: VendorBill,
+        tolerance_amount: Decimal = Decimal("50.00"),
+    ) -> ThreeWayMatch:
+        """
+        Performs 3-Way Match evaluation across PO lines, Goods Receipts, and Invoiced quantities.
+        """
+        po_total_qty = sum((line.ordered_quantity for line in purchase_order.lines.all()), Decimal("0.00"))
+        # In a real warehouse flow, received_quantity is updated via goods receipts; fallback to ordered if already issued/received
+        warehouse_received_qty = sum((line.received_quantity for line in purchase_order.lines.all()), Decimal("0.00"))
+        if warehouse_received_qty == Decimal("0.00") and purchase_order.status in (POStatus.ISSUED, POStatus.COMPLETED):
+            warehouse_received_qty = po_total_qty
+
+        invoice_billed_qty = sum((line.billed_quantity for line in vendor_bill.lines.all()), Decimal("0.00"))
+        qty_variance = invoice_billed_qty - warehouse_received_qty
+
+        po_amount = purchase_order.total_amount
+        billed_amount = vendor_bill.total_amount
+        price_var_amount = billed_amount - po_amount
+
+        # Evaluate match status
+        is_exact = (qty_variance == Decimal("0.00") and price_var_amount == Decimal("0.00"))
+        within_tolerance = abs(price_var_amount) <= tolerance_amount and qty_variance <= Decimal("0.00")
+
+        if is_exact:
+            match_outcome = MatchStatus.MATCHED
+            bill_status = BillStatus.MATCHED
+        elif within_tolerance:
+            match_outcome = MatchStatus.TOLERANCE_ACCEPTED
+            bill_status = BillStatus.MATCHED
+        elif qty_variance != Decimal("0.00"):
+            match_outcome = MatchStatus.QUANTITY_VARIANCE
+            bill_status = BillStatus.DISPUTED
+        else:
+            match_outcome = MatchStatus.PRICE_VARIANCE
+            bill_status = BillStatus.DISPUTED
+
+        match_record = ThreeWayMatch.objects.create(
+            organization=purchase_order.organization,
+            purchase_order=purchase_order,
+            vendor_bill=vendor_bill,
+            status=match_outcome,
+            po_total_ordered=po_total_qty,
+            warehouse_received=warehouse_received_qty,
+            invoice_billed=invoice_billed_qty,
+            quantity_variance=qty_variance,
+            po_amount=po_amount,
+            billed_amount=billed_amount,
+            price_variance_amount=price_var_amount,
+            is_within_tolerance=within_tolerance,
+            dispute_reason="" if is_exact or within_tolerance else f"Variance detected: Qty variance {qty_variance}, Financial variance ${price_var_amount}",
+        )
+
+        vendor_bill.match_status = match_outcome
+        vendor_bill.status = bill_status
+        vendor_bill.save(update_fields=["match_status", "status", "updated_at"])
+
+        return match_record
+
+    @classmethod
+    @transaction.atomic
+    def resolve_match_dispute(
+        cls,
+        match_record: ThreeWayMatch,
+        user,
+        resolution_notes: str,
+    ) -> ThreeWayMatch:
+        """
+        Authorizes variance override or applies dispute settlement.
+        """
+        match_record.status = MatchStatus.RESOLVED
+        match_record.resolution_notes = resolution_notes.strip()
+        match_record.resolved_by = user
+        match_record.resolved_at = timezone.now()
+        match_record.save()
+
+        match_record.vendor_bill.match_status = MatchStatus.RESOLVED
+        match_record.vendor_bill.status = BillStatus.MATCHED
+        match_record.vendor_bill.save(update_fields=["match_status", "status", "updated_at"])
+
+        return match_record
+
+    @classmethod
+    def get_procurement_dashboard_metrics(cls, organization: Organization) -> Dict:
+        """
+        Computes executive procurement KPIs and sourcing performance analytics.
+        """
+        from django.db.models import Sum, Count
+
+        total_suppliers = Supplier.objects.filter(organization=organization, is_active=True).count()
+        open_rfqs = RequestForQuotation.objects.filter(organization=organization, status=RFQStatus.PUBLISHED).count()
+
+        active_pos_qs = PurchaseOrder.objects.filter(
+            organization=organization,
+            status__in=[POStatus.APPROVED, POStatus.ISSUED, POStatus.PARTIALLY_RECEIVED],
+        )
+        total_active_pos = active_pos_qs.count()
+        total_committed_spend = active_pos_qs.aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
+
+        bills_qs = VendorBill.objects.filter(organization=organization)
+        total_bills = bills_qs.count()
+        matched_bills = bills_qs.filter(match_status__in=[MatchStatus.MATCHED, MatchStatus.TOLERANCE_ACCEPTED, MatchStatus.RESOLVED]).count()
+        disputed_bills = bills_qs.filter(status=BillStatus.DISPUTED).count()
+
+        if total_bills > 0:
+            match_accuracy = round((matched_bills / total_bills) * 100, 1)
+        else:
+            match_accuracy = 100.0
+
+        recent_rfqs = RequestForQuotation.objects.filter(organization=organization).order_by("-created_at")[:5]
+        recent_pos = PurchaseOrder.objects.filter(organization=organization).select_related("supplier").order_by("-created_at")[:5]
+        recent_bills = VendorBill.objects.filter(organization=organization).select_related("supplier", "purchase_order").order_by("-created_at")[:5]
+
+        top_suppliers = (
+            Supplier.objects.filter(organization=organization, is_active=True)
+            .annotate(total_spend=Sum("purchase_orders__total_amount"))
+            .filter(total_spend__gt=Decimal("0.00"))
+            .order_by("-total_spend")[:5]
+        )
+
+        return {
+            "total_suppliers": total_suppliers,
+            "open_rfqs": open_rfqs,
+            "total_active_pos": total_active_pos,
+            "total_committed_spend": total_committed_spend,
+            "total_bills": total_bills,
+            "matched_bills": matched_bills,
+            "disputed_bills": disputed_bills,
+            "match_accuracy": match_accuracy,
+            "recent_rfqs": recent_rfqs,
+            "recent_pos": recent_pos,
+            "recent_bills": recent_bills,
+            "top_suppliers": top_suppliers,
+        }

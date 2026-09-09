@@ -710,3 +710,183 @@ class POPrintView(OrganizationAccessMixin, DetailView):
             "lines__product",
             "lines__uom",
         )
+
+
+from .models import (
+    BillStatus,
+    MatchStatus,
+    VendorBill,
+    VendorBillLine,
+    ThreeWayMatch,
+)
+from .forms import (
+    VendorBillForm,
+    VendorBillLineForm,
+    VendorBillLineFormSet,
+    ThreeWayMatchResolutionForm,
+)
+from .services import ThreeWayMatchService
+
+
+class ProcurementDashboardView(OrganizationAccessMixin, TemplateView):
+    template_name = "procurement/dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        if org:
+            metrics = ThreeWayMatchService.get_procurement_dashboard_metrics(org)
+            context.update(metrics)
+        return context
+
+
+class VendorBillListView(OrganizationAccessMixin, ListView):
+    model = VendorBill
+    template_name = "procurement/bill_list.html"
+    context_object_name = "bills"
+    paginate_by = 25
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return VendorBill.objects.none()
+
+        qs = VendorBill.objects.filter(organization=org).select_related("supplier", "purchase_order")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(bill_number__icontains=q) |
+                Q(supplier__name__icontains=q) |
+                Q(purchase_order__po_number__icontains=q)
+            )
+
+        status = self.request.GET.get("status", "").strip()
+        if status:
+            qs = qs.filter(status=status)
+
+        match_status = self.request.GET.get("match_status", "").strip()
+        if match_status:
+            qs = qs.filter(match_status=match_status)
+
+        return qs.order_by("-bill_date")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["bill_statuses"] = BillStatus.choices
+        context["match_statuses"] = MatchStatus.choices
+        context["current_q"] = self.request.GET.get("q", "")
+        context["current_status"] = self.request.GET.get("status", "")
+        context["current_match_status"] = self.request.GET.get("match_status", "")
+        return context
+
+
+class VendorBillDetailView(OrganizationAccessMixin, DetailView):
+    model = VendorBill
+    template_name = "procurement/bill_detail.html"
+    context_object_name = "bill"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return VendorBill.objects.none()
+        return VendorBill.objects.filter(organization=org).select_related(
+            "supplier", "purchase_order", "created_by"
+        ).prefetch_related(
+            "lines__product",
+            "lines__po_line",
+            "three_way_matches",
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["latest_match"] = self.object.three_way_matches.order_by("-created_at").first()
+        context["resolve_form"] = ThreeWayMatchResolutionForm()
+        return context
+
+
+class VendorBillCreateView(OrganizationAccessMixin, View):
+    def get(self, request, *args, **kwargs):
+        form = VendorBillForm(organization=request.organization)
+        formset = VendorBillLineFormSet(form_kwargs={"organization": request.organization})
+        return render(request, "procurement/bill_form.html", {
+            "form": form,
+            "formset": formset,
+            "title": "Register Vendor Invoice / Bill",
+        })
+
+    def post(self, request, *args, **kwargs):
+        form = VendorBillForm(request.POST, organization=request.organization)
+        formset = VendorBillLineFormSet(request.POST, form_kwargs={"organization": request.organization})
+
+        if form.is_valid() and formset.is_valid():
+            bill = form.save(commit=False)
+            bill.organization = request.organization
+            bill.created_by = request.user
+            bill.save()
+
+            lines = formset.save(commit=False)
+            for line in lines:
+                line.bill = bill
+                line.save()
+
+            bill.recalculate_totals()
+            messages.success(request, f"Vendor Bill '{bill.bill_number}' registered.")
+
+            # Automatically run 3-way match if linked to a purchase order
+            if bill.purchase_order:
+                ThreeWayMatchService.execute_three_way_match(bill.purchase_order, bill)
+                messages.info(request, "Automated 3-Way Match executed against linked Purchase Order.")
+
+            return redirect("procurement:bill_detail", pk=bill.pk)
+
+        return render(request, "procurement/bill_form.html", {
+            "form": form,
+            "formset": formset,
+            "title": "Register Vendor Invoice / Bill",
+        })
+
+
+class ThreeWayMatchExecuteView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        bill = get_object_or_404(VendorBill, pk=kwargs["bill_pk"], organization=request.organization)
+        if not bill.purchase_order:
+            messages.error(request, "Cannot run 3-Way Match without an associated Purchase Order.")
+            return redirect("procurement:bill_detail", pk=bill.pk)
+
+        match_record = ThreeWayMatchService.execute_three_way_match(bill.purchase_order, bill)
+        if match_record.status == MatchStatus.MATCHED:
+            messages.success(request, "3-Way Match verified! Perfect alignment across PO, Receipts, and Bill.")
+        elif match_record.status == MatchStatus.TOLERANCE_ACCEPTED:
+            messages.info(request, "3-Way Match verified within acceptable commercial price tolerance.")
+        else:
+            messages.warning(request, f"Variance detected during 3-Way Match: {match_record.dispute_reason}")
+
+        return redirect("procurement:bill_detail", pk=bill.pk)
+
+
+class ThreeWayMatchDetailView(OrganizationAccessMixin, DetailView):
+    model = ThreeWayMatch
+    template_name = "procurement/three_way_match_detail.html"
+    context_object_name = "match"
+
+    def get_queryset(self):
+        org = self.request.organization
+        return ThreeWayMatch.objects.filter(organization=org).select_related(
+            "purchase_order__supplier", "vendor_bill__supplier", "resolved_by"
+        )
+
+
+class ThreeWayMatchResolveView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        match_record = get_object_or_404(ThreeWayMatch, pk=kwargs["pk"], organization=request.organization)
+        form = ThreeWayMatchResolutionForm(request.POST)
+        if form.is_valid():
+            ThreeWayMatchService.resolve_match_dispute(
+                match_record,
+                user=request.user,
+                resolution_notes=form.cleaned_data["resolution_notes"],
+            )
+            messages.success(request, "Dispute resolved and invoice authorized for payment.")
+        else:
+            messages.error(request, "Resolution justification is required.")
+        return redirect("procurement:bill_detail", pk=match_record.vendor_bill.pk)

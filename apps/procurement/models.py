@@ -724,3 +724,211 @@ class PurchaseOrderApproval(models.Model):
 
     def __str__(self):
         return f"{self.purchase_order.po_number} - Tier {self.tier}: {self.status}"
+
+
+class BillStatus(models.TextChoices):
+    DRAFT = "draft", _("Draft")
+    PENDING_MATCH = "pending_match", _("Pending 3-Way Match")
+    MATCHED = "matched", _("Matched & Approved for Payment")
+    DISPUTED = "disputed", _("Disputed / Variance Flagged")
+    PAID = "paid", _("Paid")
+    CANCELLED = "cancelled", _("Cancelled")
+
+
+class MatchStatus(models.TextChoices):
+    MATCHED = "matched", _("Perfect 3-Way Match")
+    TOLERANCE_ACCEPTED = "tolerance_accepted", _("Within Commercial Tolerance")
+    PRICE_VARIANCE = "price_variance", _("Price Variance Flagged")
+    QUANTITY_VARIANCE = "quantity_variance", _("Quantity Variance Flagged")
+    DISPUTED = "disputed", _("Disputed")
+    RESOLVED = "resolved", _("Resolved / Authorized Override")
+
+
+class VendorBill(models.Model):
+    """
+    Vendor invoice/bill record submitted for commercial payment against received goods.
+    Subject to automated 3-Way Matching against Purchase Order commitments and Goods Receipts.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="vendor_bills",
+    )
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="bills",
+    )
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bills",
+    )
+    bill_number = models.CharField(_("Vendor Invoice / Bill #"), max_length=100, db_index=True)
+    status = models.CharField(
+        _("Status"),
+        max_length=30,
+        choices=BillStatus.choices,
+        default=BillStatus.DRAFT,
+        db_index=True,
+    )
+    match_status = models.CharField(
+        _("3-Way Match Status"),
+        max_length=30,
+        choices=MatchStatus.choices,
+        default=MatchStatus.MATCHED,
+        db_index=True,
+    )
+    bill_date = models.DateField(_("Invoice Date"), default=timezone.now)
+    due_date = models.DateField(_("Due Date"))
+    subtotal = models.DecimalField(
+        _("Subtotal"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    tax_amount = models.DecimalField(
+        _("Tax Amount"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    total_amount = models.DecimalField(
+        _("Total Invoiced Amount"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    currency = models.CharField(_("Currency"), max_length=3, default="USD")
+    notes = models.TextField(_("Invoice Notes"), blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_bills",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Vendor Bill")
+        verbose_name_plural = _("Vendor Bills")
+        ordering = ["-bill_date"]
+        unique_together = ("organization", "supplier", "bill_number")
+
+    def __str__(self):
+        return f"{self.supplier.code}: Bill #{self.bill_number} (${self.total_amount})"
+
+    def recalculate_totals(self):
+        sub = sum((l.line_subtotal for l in self.lines.all()), Decimal("0.00"))
+        tax = sum((l.line_tax for l in self.lines.all()), Decimal("0.00"))
+        self.subtotal = sub
+        self.tax_amount = tax
+        self.total_amount = sub + tax
+        self.save(update_fields=["subtotal", "tax_amount", "total_amount", "updated_at"])
+
+
+class VendorBillLine(models.Model):
+    """
+    Priced line item on a vendor invoice referencing a PO line item.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    bill = models.ForeignKey(
+        VendorBill,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    po_line = models.ForeignKey(
+        PurchaseOrderLine,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bill_lines",
+    )
+    product = models.ForeignKey(
+        "sales.Product",
+        on_delete=models.PROTECT,
+        related_name="vendor_bill_lines",
+    )
+    billed_quantity = models.DecimalField(_("Billed Quantity"), max_digits=12, decimal_places=2)
+    unit_price = models.DecimalField(_("Billed Unit Price"), max_digits=14, decimal_places=2)
+    tax_rate = models.DecimalField(_("Tax Rate (%)"), max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    line_subtotal = models.DecimalField(_("Subtotal"), max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    line_tax = models.DecimalField(_("Tax"), max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    line_total = models.DecimalField(_("Line Total"), max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    notes = models.CharField(_("Line Notes"), max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = _("Vendor Bill Line")
+        verbose_name_plural = _("Vendor Bill Lines")
+
+    def __str__(self):
+        return f"{self.bill.bill_number}: {self.product.name} ({self.billed_quantity} @ ${self.unit_price})"
+
+    def save(self, *args, **kwargs):
+        self.line_subtotal = self.billed_quantity * self.unit_price
+        self.line_tax = self.line_subtotal * (self.tax_rate / Decimal("100.00"))
+        self.line_total = self.line_subtotal + self.line_tax
+        super().save(*args, **kwargs)
+
+
+class ThreeWayMatch(models.Model):
+    """
+    Verification record reconciling:
+    1. Purchase Order (Commercial Agreement)
+    2. Warehouse Goods Receipt (Physical Verification)
+    3. Vendor Invoice / Bill (Financial Claim)
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="three_way_matches",
+    )
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="three_way_matches",
+    )
+    vendor_bill = models.ForeignKey(
+        VendorBill,
+        on_delete=models.CASCADE,
+        related_name="three_way_matches",
+    )
+    status = models.CharField(
+        _("Match Outcome"),
+        max_length=30,
+        choices=MatchStatus.choices,
+        default=MatchStatus.MATCHED,
+    )
+    po_total_ordered = models.DecimalField(_("PO Total Quantity"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    warehouse_received = models.DecimalField(_("Warehouse Received Quantity"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    invoice_billed = models.DecimalField(_("Invoice Billed Quantity"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    quantity_variance = models.DecimalField(_("Quantity Variance"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    po_amount = models.DecimalField(_("PO Amount"), max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    billed_amount = models.DecimalField(_("Billed Amount"), max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    price_variance_amount = models.DecimalField(_("Price Variance ($)"), max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    is_within_tolerance = models.BooleanField(_("Within Commercial Tolerance"), default=True)
+    dispute_reason = models.TextField(_("Dispute / Variance Details"), blank=True)
+    resolution_notes = models.TextField(_("Resolution Justification"), blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_matches",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Three-Way Match")
+        verbose_name_plural = _("Three-Way Matches")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Match for {self.purchase_order.po_number} vs Bill #{self.vendor_bill.bill_number}: {self.status}"

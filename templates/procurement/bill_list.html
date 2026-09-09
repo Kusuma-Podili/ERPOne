@@ -1,0 +1,134 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Vendor Invoices & Three-Way Matching &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Vendor Bills</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0.25rem;">Vendor Bills & Invoices</h1>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-bottom: 0;">
+            Audit vendor invoices against Purchase Orders and warehouse physical goods receipts via automated 3-Way Matching.
+        </p>
+    </div>
+    <div>
+        <a href="{% url 'procurement:bill_create' %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Register Vendor Bill
+        </a>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem; background: var(--surface-card); border-radius: 0.5rem; border: 1px solid var(--border-color);">
+    <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+        <div style="flex: 2; min-width: 200px;">
+            <input type="text" name="q" value="{{ current_q }}" class="form-control" placeholder="Search by invoice #, vendor, or PO number...">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <select name="status" class="form-select">
+                <option value="">All Bill Statuses</option>
+                {% for val, label in bill_statuses %}
+                <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <select name="match_status" class="form-select">
+                <option value="">All Match Outcomes</option>
+                {% for val, label in match_statuses %}
+                <option value="{{ val }}" {% if current_match_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            {% if current_q or current_status or current_match_status %}
+            <a href="{% url 'procurement:bill_list' %}" class="btn btn-secondary">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Bills Table -->
+<div class="card" style="background: var(--surface-card); border-radius: 0.5rem; border: 1px solid var(--border-color); overflow: hidden;">
+    <div style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.85rem 1rem;">Invoice Number</th>
+                    <th style="padding: 0.85rem 1rem;">Vendor</th>
+                    <th style="padding: 0.85rem 1rem;">Purchase Order</th>
+                    <th style="padding: 0.85rem 1rem;">Invoice Date</th>
+                    <th style="padding: 0.85rem 1rem;">Due Date</th>
+                    <th style="padding: 0.85rem 1rem;">Total Invoiced</th>
+                    <th style="padding: 0.85rem 1rem;">3-Way Match</th>
+                    <th style="padding: 0.85rem 1rem;">Status</th>
+                    <th style="padding: 0.85rem 1rem; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bill in bills %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.85rem 1rem; font-family: monospace;">
+                        <a href="{% url 'procurement:bill_detail' pk=bill.pk %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none;">
+                            {{ bill.bill_number }}
+                        </a>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">{{ bill.supplier.name }}</td>
+                    <td style="padding: 0.85rem 1rem; font-family: monospace;">
+                        {% if bill.purchase_order %}
+                        <a href="{% url 'procurement:po_detail' pk=bill.purchase_order.pk %}" style="color: var(--color-primary);">
+                            {{ bill.purchase_order.po_number }}
+                        </a>
+                        {% else %}
+                        <span style="color: var(--text-muted);">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem; font-size: 0.85rem;">{{ bill.bill_date|date:"M d, Y" }}</td>
+                    <td style="padding: 0.85rem 1rem; font-size: 0.85rem;">{{ bill.due_date|date:"M d, Y" }}</td>
+                    <td style="padding: 0.85rem 1rem; font-weight: 700; color: #10b981;">
+                        ${{ bill.total_amount }} {{ bill.currency }}
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        {% if bill.match_status == 'matched' %}
+                        <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Matched</span>
+                        {% elif bill.match_status == 'tolerance_accepted' %}
+                        <span class="badge badge-success" style="background: #059669; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Tolerance OK</span>
+                        {% elif bill.match_status == 'resolved' %}
+                        <span class="badge badge-primary" style="background: #0284c7; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Override OK</span>
+                        {% elif bill.match_status == 'price_variance' or bill.match_status == 'quantity_variance' or bill.match_status == 'disputed' %}
+                        <span class="badge badge-danger" style="background: #ef4444; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Variance</span>
+                        {% else %}
+                        <span class="badge" style="background: #f59e0b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <span class="badge" style="background: rgba(0,0,0,0.06); color: var(--text-primary); font-size: 0.75rem; padding: 0.25rem 0.6rem; border-radius: 9999px;">
+                            {{ bill.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; text-align: right;">
+                        <a href="{% url 'procurement:bill_detail' pk=bill.pk %}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">View</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted);">
+                        <p style="margin-bottom: 0.5rem;">No vendor invoices recorded yet.</p>
+                        <a href="{% url 'procurement:bill_create' %}" class="btn btn-primary btn-sm">Register Vendor Bill</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -14,6 +14,9 @@ from .models import (
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderApproval,
+    VendorBill,
+    VendorBillLine,
+    ThreeWayMatch,
 )
 
 
@@ -104,5 +107,28 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     list_filter = ("status", "order_date", "currency")
     search_fields = ("po_number", "supplier__name", "notes")
     inlines = [PurchaseOrderLineInline, PurchaseOrderApprovalInline]
+
+
+class VendorBillLineInline(admin.TabularInline):
+    model = VendorBillLine
+    extra = 0
+    fields = ("product", "po_line", "billed_quantity", "unit_price", "tax_rate", "line_total")
+    readonly_fields = ("line_total",)
+
+
+@admin.register(VendorBill)
+class VendorBillAdmin(admin.ModelAdmin):
+    list_display = ("bill_number", "organization", "supplier", "purchase_order", "status", "match_status", "bill_date", "due_date", "total_amount")
+    list_filter = ("status", "match_status", "bill_date")
+    search_fields = ("bill_number", "supplier__name", "purchase_order__po_number")
+    inlines = [VendorBillLineInline]
+
+
+@admin.register(ThreeWayMatch)
+class ThreeWayMatchAdmin(admin.ModelAdmin):
+    list_display = ("purchase_order", "vendor_bill", "status", "po_total_ordered", "warehouse_received", "invoice_billed", "price_variance_amount", "is_within_tolerance", "created_at")
+    list_filter = ("status", "is_within_tolerance", "created_at")
+    search_fields = ("purchase_order__po_number", "vendor_bill__bill_number")
+
 
 
