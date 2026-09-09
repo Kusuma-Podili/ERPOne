@@ -4,6 +4,7 @@ Provides warehouse spatial hierarchy automation, location coordinate resolution,
 and real-time stock allocation/reservation logic.
 """
 from decimal import Decimal
+from datetime import timedelta
 from typing import Optional, List, Dict
 from django.db import transaction, models
 from django.core.exceptions import ValidationError
@@ -25,6 +26,11 @@ from .models import (
     SerialStatus,
     LotBatch,
     SerialNumber,
+    ReorderRule,
+    RequisitionStatus,
+    RequisitionPriority,
+    PurchaseRequisition,
+    PurchaseRequisitionLine,
 )
 
 
@@ -788,4 +794,211 @@ class LotSerialTrackingService:
             "unallocated_quantity": remaining_needed,
             "is_fully_allocated": remaining_needed == Decimal("0.00"),
             "allocations": allocations,
+        }
+
+
+class ReplenishmentService:
+    """
+    Automated inventory replenishment engine scanning reorder thresholds and provisioning
+    purchase demand requisitions.
+    """
+
+    @classmethod
+    @transaction.atomic
+    def evaluate_reorder_triggers(
+        cls,
+        organization: Organization,
+        warehouse: Optional[Warehouse] = None,
+        requested_by=None,
+    ) -> List[PurchaseRequisition]:
+        """
+        Scans current inventory balances against established ReorderRule and safety stock thresholds.
+        Aggregates items requiring replenishment into draft Purchase Requisitions grouped by warehouse.
+        """
+        stock_qs = StockItem.objects.filter(organization=organization).select_related("product", "warehouse")
+        if warehouse:
+            stock_qs = stock_qs.filter(warehouse=warehouse)
+
+        # Map rules by (warehouse_id, product_id)
+        rules_qs = ReorderRule.objects.filter(organization=organization, is_active=True)
+        if warehouse:
+            rules_qs = rules_qs.filter(warehouse=warehouse)
+        rules_map = {(r.warehouse_id, r.product_id): r for r in rules_qs}
+
+        warehouse_deficits: Dict[Warehouse, List[Dict]] = {}
+
+        for item in stock_qs:
+            rule = rules_map.get((item.warehouse_id, item.product_id))
+            min_thresh = rule.min_quantity if rule else item.reorder_point
+            reorder_qty = rule.reorder_quantity if rule else item.reorder_quantity
+
+            # Check if threshold is breached
+            if item.quantity_on_hand <= min_thresh:
+                wh = item.warehouse
+                if wh not in warehouse_deficits:
+                    warehouse_deficits[wh] = []
+
+                warehouse_deficits[wh].append({
+                    "product": item.product,
+                    "quantity_requested": reorder_qty,
+                    "estimated_unit_cost": item.product.cost_price,
+                    "notes": f"Automated replenishment trigger: On-Hand {item.quantity_on_hand} <= Min {min_thresh}",
+                })
+
+        created_requisitions = []
+        for wh, lines in warehouse_deficits.items():
+            if not lines:
+                continue
+            req = cls.create_requisition(
+                organization=organization,
+                warehouse=wh,
+                priority=RequisitionPriority.MEDIUM,
+                lines_data=lines,
+                requested_by=requested_by,
+                justification=f"System automated stock replenishment evaluation for {wh.name}.",
+            )
+            created_requisitions.append(req)
+
+        return created_requisitions
+
+    @classmethod
+    @transaction.atomic
+    def create_requisition(
+        cls,
+        organization: Organization,
+        warehouse: Warehouse,
+        priority: str = RequisitionPriority.MEDIUM,
+        lines_data: Optional[List[Dict]] = None,
+        requested_by=None,
+        justification: str = "",
+        required_by_date=None,
+    ) -> PurchaseRequisition:
+        """
+        Instantiates a purchase requisition document and records SKU line demands.
+        """
+        req = PurchaseRequisition(
+            organization=organization,
+            warehouse=warehouse,
+            priority=priority,
+            requested_by=requested_by,
+            justification=justification,
+            required_by_date=required_by_date,
+            status=RequisitionStatus.DRAFT,
+        )
+        req.full_clean()
+        req.save()
+
+        if lines_data:
+            for line_data in lines_data:
+                line = PurchaseRequisitionLine(
+                    requisition=req,
+                    product=line_data["product"],
+                    quantity_requested=line_data["quantity_requested"],
+                    estimated_unit_cost=line_data.get("estimated_unit_cost", line_data["product"].cost_price),
+                    notes=line_data.get("notes", ""),
+                )
+                line.full_clean()
+                line.save()
+
+        return req
+
+    @classmethod
+    def approve_requisition(cls, requisition: PurchaseRequisition, approved_by) -> PurchaseRequisition:
+        """
+        Transitions requisition from Draft/Pending to Approved.
+        """
+        if not requisition.can_approve:
+            raise ValidationError(
+                f"Requisition '{requisition.requisition_number}' is {requisition.get_status_display()} and cannot be approved."
+            )
+        requisition.status = RequisitionStatus.APPROVED
+        requisition.approved_by = approved_by
+        requisition.approved_at = timezone.now()
+        requisition.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+        return requisition
+
+    @classmethod
+    def cancel_requisition(cls, requisition: PurchaseRequisition, cancelled_by=None, reason: str = "") -> PurchaseRequisition:
+        """
+        Cancels an open purchase requisition.
+        """
+        if not requisition.can_cancel:
+            raise ValidationError(
+                f"Requisition '{requisition.requisition_number}' is already {requisition.get_status_display()} and cannot be cancelled."
+            )
+        requisition.status = RequisitionStatus.CANCELLED
+        if reason:
+            requisition.justification = (requisition.justification + f"\n[Cancelled: {reason}]").strip()
+        requisition.save(update_fields=["status", "justification", "updated_at"])
+        return requisition
+
+
+class InventoryAnalyticsService:
+    """
+    Real-time inventory intelligence computing executive KPIs, total valuation,
+    stockout risks, and facility space utilization.
+    """
+
+    @classmethod
+    def get_inventory_kpis(cls, organization: Organization) -> Dict:
+        """
+        Aggregates operational logistics and inventory metrics across all active facilities.
+        """
+        from django.db.models import Sum, F
+
+        items_qs = StockItem.objects.filter(organization=organization).select_related("product", "warehouse")
+        total_valuation = Decimal("0.00")
+        stockout_count = 0
+        low_stock_count = 0
+        product_ids = set()
+
+        for item in items_qs:
+            product_ids.add(item.product_id)
+            total_valuation += item.quantity_on_hand * item.product.cost_price
+            if item.quantity_on_hand <= Decimal("0.00"):
+                stockout_count += 1
+            if item.needs_reorder:
+                low_stock_count += 1
+
+        warehouses_qs = Warehouse.objects.filter(organization=organization, is_active=True)
+        total_warehouses = warehouses_qs.count()
+        total_capacity_cbm = warehouses_qs.aggregate(tot=Sum("total_capacity_cbm"))["tot"] or Decimal("0.00")
+
+        pending_requisitions = PurchaseRequisition.objects.filter(
+            organization=organization,
+            status__in=[RequisitionStatus.DRAFT, RequisitionStatus.PENDING],
+        ).count()
+
+        cutoff_date = timezone.now().date() + timedelta(days=30)
+        expiring_lots_count = LotBatch.objects.filter(
+            organization=organization,
+            is_active=True,
+            expiration_date__lte=cutoff_date,
+        ).count()
+
+        # Top 5 highest valued inventory holdings
+        top_items = sorted(items_qs, key=lambda x: x.quantity_on_hand * x.product.cost_price, reverse=True)[:5]
+        top_valued_holdings = [
+            {
+                "product_name": item.product.name,
+                "sku": item.product.sku,
+                "warehouse_code": item.warehouse.code,
+                "on_hand": item.quantity_on_hand,
+                "unit_cost": item.product.cost_price,
+                "total_value": item.quantity_on_hand * item.product.cost_price,
+            }
+            for item in top_items
+        ]
+
+        return {
+            "total_valuation": total_valuation,
+            "total_distinct_products": len(product_ids),
+            "total_stock_items_count": len(items_qs),
+            "stockout_count": stockout_count,
+            "low_stock_count": low_stock_count,
+            "total_warehouses": total_warehouses,
+            "total_capacity_cbm": total_capacity_cbm,
+            "pending_requisitions": pending_requisitions,
+            "expiring_lots_count": expiring_lots_count,
+            "top_valued_holdings": top_valued_holdings,
         }

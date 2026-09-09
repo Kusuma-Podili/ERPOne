@@ -1,0 +1,137 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}{{ requisition.requisition_number }} &bull; Requisitions &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:dashboard' %}">Inventory</a>
+<span>/</span>
+<a href="{% url 'inventory:requisition_list' %}">Purchase Requisitions</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ requisition.requisition_number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h1 class="page-title mb-0">{{ requisition.requisition_number }}</h1>
+            {% if requisition.status == 'approved' %}
+            <span class="badge bg-success text-white px-2 py-1">Approved for Procurement</span>
+            {% elif requisition.status == 'draft' %}
+            <span class="badge bg-secondary text-white px-2 py-1">Draft Requisition</span>
+            {% elif requisition.status == 'cancelled' %}
+            <span class="badge bg-dark text-white px-2 py-1">Cancelled</span>
+            {% endif %}
+            <span class="badge bg-light text-dark border">{{ requisition.get_priority_display }}</span>
+        </div>
+        <p class="page-subtitle">Fulfillment Node: <strong>{{ requisition.warehouse.name }} ({{ requisition.warehouse.code }})</strong></p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        {% if requisition.can_approve %}
+        <form method="post" action="{% url 'inventory:requisition_approve' requisition.pk %}" onsubmit="return confirm('Authorize and approve this requisition for procurement?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Approve Requisition
+            </button>
+        </form>
+        {% endif %}
+        {% if requisition.can_cancel %}
+        <form method="post" action="{% url 'inventory:requisition_cancel' requisition.pk %}" onsubmit="return confirm('Cancel this requisition?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger">Cancel</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Destination Facility</h6>
+                <h5 class="mb-1">{{ requisition.warehouse.name }}</h5>
+                <p class="text-muted mb-0 small">Code: {{ requisition.warehouse.code }} &bull; {{ requisition.warehouse.city }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Procurement Schedule</h6>
+                <p class="mb-1 small">Required By: <strong>{{ requisition.required_by_date|date:"F d, Y"|default:"Standard Delivery" }}</strong></p>
+                <p class="mb-0 small">Created At: <strong>{{ requisition.created_at|date:"M d, Y H:i" }}</strong></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Authorization Audit</h6>
+                <p class="mb-1 small">Requested By: <strong>{{ requisition.requested_by.get_full_name|default:requisition.requested_by.email }}</strong></p>
+                {% if requisition.approved_by %}
+                <p class="mb-0 small text-success">Approved By: <strong>{{ requisition.approved_by.get_full_name|default:requisition.approved_by.email }}</strong> on {{ requisition.approved_at|date:"M d, Y" }}</p>
+                {% else %}
+                <p class="mb-0 small text-muted">Awaiting supervisor approval</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if requisition.justification %}
+<div class="alert alert-light border shadow-sm mb-4">
+    <strong>Justification:</strong> {{ requisition.justification }}
+</div>
+{% endif %}
+
+<!-- Requested Items Table -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="card-title mb-0">Requisition Item Demands ({{ requisition.total_items_count }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product & SKU</th>
+                        <th class="text-end">Requested Quantity</th>
+                        <th class="text-end">Estimated Unit Cost</th>
+                        <th class="text-end">Extended Valuation</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in requisition.lines.all %}
+                    <tr>
+                        <td>
+                            <strong>{{ line.product.name }}</strong>
+                            <small class="text-muted d-block">{{ line.product.sku }} &bull; {{ line.product.uom.name }}</small>
+                        </td>
+                        <td class="text-end fw-bold">{{ line.quantity_requested }}</td>
+                        <td class="text-end">${{ line.estimated_unit_cost|floatformat:2 }}</td>
+                        <td class="text-end fw-bold">${{ line.estimated_extended_cost|floatformat:2 }}</td>
+                        <td class="text-muted small">{{ line.notes|default:"&mdash;" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">No items attached to this purchase demand.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="3" class="text-end">Estimated Total Commitment:</th>
+                        <th class="text-end fw-bold text-primary">${{ requisition.total_estimated_cost|floatformat:2 }}</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}\n

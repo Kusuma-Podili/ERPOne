@@ -11,6 +11,9 @@ from .models import (
     StockMovementLine,
     LotBatch,
     SerialNumber,
+    ReorderRule,
+    PurchaseRequisition,
+    PurchaseRequisitionLine,
 )
 
 
@@ -82,5 +85,27 @@ class SerialNumberAdmin(admin.ModelAdmin):
     list_display = ("serial_number", "product", "lot", "warehouse", "location", "status", "warranty_end_date")
     list_filter = ("status", "warehouse")
     search_fields = ("serial_number", "product__name", "product__sku", "lot__batch_number")
+
+
+@admin.register(ReorderRule)
+class ReorderRuleAdmin(admin.ModelAdmin):
+    list_display = ("product", "warehouse", "min_quantity", "max_quantity", "reorder_quantity", "lead_time_days", "auto_reorder_enabled", "is_active")
+    list_filter = ("warehouse", "auto_reorder_enabled", "is_active")
+    search_fields = ("product__name", "product__sku", "warehouse__code", "preferred_vendor_name")
+
+
+class PurchaseRequisitionLineInline(admin.TabularInline):
+    model = PurchaseRequisitionLine
+    extra = 0
+    fields = ("product", "quantity_requested", "estimated_unit_cost", "notes")
+
+
+@admin.register(PurchaseRequisition)
+class PurchaseRequisitionAdmin(admin.ModelAdmin):
+    list_display = ("requisition_number", "warehouse", "status", "priority", "required_by_date", "requested_by", "approved_by", "approved_at")
+    list_filter = ("status", "priority", "warehouse")
+    search_fields = ("requisition_number", "justification")
+    inlines = [PurchaseRequisitionLineInline]
+
 
 

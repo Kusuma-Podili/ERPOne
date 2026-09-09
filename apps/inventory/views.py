@@ -33,6 +33,11 @@ from .models import (
     SerialStatus,
     LotBatch,
     SerialNumber,
+    ReorderRule,
+    RequisitionStatus,
+    RequisitionPriority,
+    PurchaseRequisition,
+    PurchaseRequisitionLine,
 )
 from .forms import (
     WarehouseForm,
@@ -46,12 +51,17 @@ from .forms import (
     LotBatchQCUpdateForm,
     SerialNumberForm,
     SerialNumberBulkCreateForm,
+    ReorderRuleForm,
+    PurchaseRequisitionForm,
+    PurchaseRequisitionLineFormSet,
 )
 from .services import (
     WarehouseHierarchyService,
     StockLevelService,
     StockMovementService,
     LotSerialTrackingService,
+    ReplenishmentService,
+    InventoryAnalyticsService,
 )
 
 
@@ -736,3 +746,213 @@ class ExpiringStockReportView(OrganizationAccessMixin, TemplateView):
         context["products"] = Product.objects.filter(organization=org, is_active=True).order_by("name") if org else []
         context["selected_product"] = prod_id
         return context
+
+
+# ==============================================================================
+# INVENTORY DASHBOARD, REORDER RULES & REQUISITIONS (Milestone 5.4)
+# ==============================================================================
+
+class InventoryDashboardView(OrganizationAccessMixin, TemplateView):
+    template_name = "inventory/dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        if not org:
+            return context
+
+        context["kpis"] = InventoryAnalyticsService.get_inventory_kpis(org)
+        context["recent_movements"] = StockMovement.objects.filter(
+            organization=org
+        ).select_related("source_warehouse", "destination_warehouse")[:6]
+        context["low_stock_items"] = StockLevelService.get_reorder_alerts(org)[:6]
+        context["expiring_lots"] = LotSerialTrackingService.get_expiring_batches(org, days_threshold=30)[:5]
+        context["warehouses"] = Warehouse.objects.filter(organization=org, is_active=True)
+        return context
+
+
+class ReplenishmentScanTriggerView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        org = request.organization
+        warehouse_id = request.POST.get("warehouse_id")
+        warehouse = Warehouse.objects.filter(id=warehouse_id, organization=org).first() if warehouse_id else None
+
+        created_reqs = ReplenishmentService.evaluate_reorder_triggers(
+            organization=org,
+            warehouse=warehouse,
+            requested_by=request.user,
+        )
+        if created_reqs:
+            messages.success(
+                request,
+                f"Automated scan completed: Generated {len(created_reqs)} purchase replenishment requisition(s)."
+            )
+        else:
+            messages.info(request, "Replenishment scan completed: All stock levels are currently above minimum safety thresholds.")
+
+        return redirect("inventory:requisition_list")
+
+
+class ReorderRuleListView(OrganizationAccessMixin, ListView):
+    model = ReorderRule
+    template_name = "inventory/reorder_rule_list.html"
+    context_object_name = "rules"
+    paginate_by = 25
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return ReorderRule.objects.none()
+        return ReorderRule.objects.filter(organization=org).select_related("warehouse", "product")
+
+
+class ReorderRuleCreateView(OrganizationAccessMixin, CreateView):
+    model = ReorderRule
+    form_class = ReorderRuleForm
+    template_name = "inventory/reorder_rule_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.organization
+        messages.success(self.request, f"Reorder policy for '{form.instance.product.name}' saved.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("inventory:reorder_rule_list")
+
+
+class ReorderRuleUpdateView(OrganizationAccessMixin, UpdateView):
+    model = ReorderRule
+    form_class = ReorderRuleForm
+    template_name = "inventory/reorder_rule_form.html"
+
+    def get_queryset(self):
+        org = self.request.organization
+        return ReorderRule.objects.filter(organization=org)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Reorder policy for '{form.instance.product.name}' updated.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("inventory:reorder_rule_list")
+
+
+class PurchaseRequisitionListView(OrganizationAccessMixin, ListView):
+    model = PurchaseRequisition
+    template_name = "inventory/requisition_list.html"
+    context_object_name = "requisitions"
+    paginate_by = 20
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return PurchaseRequisition.objects.none()
+
+        qs = PurchaseRequisition.objects.filter(organization=org).select_related(
+            "warehouse", "requested_by", "approved_by"
+        )
+        status = self.request.GET.get("status", "").strip()
+        if status:
+            qs = qs.filter(status=status)
+        priority = self.request.GET.get("priority", "").strip()
+        if priority:
+            qs = qs.filter(priority=priority)
+        wh = self.request.GET.get("warehouse", "").strip()
+        if wh:
+            qs = qs.filter(warehouse_id=wh)
+        return qs.order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        context["statuses"] = RequisitionStatus.choices
+        context["priorities"] = RequisitionPriority.choices
+        context["warehouses"] = Warehouse.objects.filter(organization=org, is_active=True) if org else []
+        context["current_status"] = self.request.GET.get("status", "")
+        context["current_priority"] = self.request.GET.get("priority", "")
+        context["current_warehouse"] = self.request.GET.get("warehouse", "")
+        return context
+
+
+class PurchaseRequisitionDetailView(OrganizationAccessMixin, DetailView):
+    model = PurchaseRequisition
+    template_name = "inventory/requisition_detail.html"
+    context_object_name = "requisition"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return PurchaseRequisition.objects.none()
+        return PurchaseRequisition.objects.filter(organization=org).select_related(
+            "warehouse", "requested_by", "approved_by"
+        ).prefetch_related("lines__product")
+
+
+class PurchaseRequisitionCreateView(OrganizationAccessMixin, CreateView):
+    model = PurchaseRequisition
+    form_class = PurchaseRequisitionForm
+    template_name = "inventory/requisition_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        if self.request.POST:
+            context["formset"] = PurchaseRequisitionLineFormSet(self.request.POST)
+        else:
+            context["formset"] = PurchaseRequisitionLineFormSet()
+            for form in context["formset"].forms:
+                form.fields["product"].queryset = Product.objects.filter(organization=org, is_active=True)
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        formset = context["formset"]
+        if formset.is_valid():
+            form.instance.organization = self.request.organization
+            form.instance.requested_by = self.request.user
+            self.object = form.save()
+            formset.instance = self.object
+            formset.save()
+            messages.success(self.request, f"Requisition '{self.object.requisition_number}' created.")
+            return redirect("inventory:requisition_detail", pk=self.object.pk)
+        return self.form_invalid(form)
+
+
+class PurchaseRequisitionApproveView(OrganizationAccessMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        org = request.organization
+        req = get_object_or_404(PurchaseRequisition, pk=pk, organization=org)
+        try:
+            ReplenishmentService.approve_requisition(req, approved_by=request.user)
+            messages.success(request, f"Purchase requisition '{req.requisition_number}' approved.")
+        except ValidationError as e:
+            messages.error(request, f"Cannot approve requisition: {e.message if hasattr(e, 'message') else e}")
+        return redirect("inventory:requisition_detail", pk=req.pk)
+
+
+class PurchaseRequisitionCancelView(OrganizationAccessMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        org = request.organization
+        req = get_object_or_404(PurchaseRequisition, pk=pk, organization=org)
+        reason = request.POST.get("reason", "Cancelled by user.")
+        try:
+            ReplenishmentService.cancel_requisition(req, cancelled_by=request.user, reason=reason)
+            messages.info(request, f"Requisition '{req.requisition_number}' cancelled.")
+        except ValidationError as e:
+            messages.error(request, f"Cannot cancel requisition: {e.message if hasattr(e, 'message') else e}")
+        return redirect("inventory:requisition_detail", pk=req.pk)
