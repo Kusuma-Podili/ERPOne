@@ -1,0 +1,82 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ stock_item.product.name }} — Stock Level{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 900px;">
+    <div class="page-header d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="page-title mb-1">{{ stock_item.product.name }}</h1>
+            <p class="text-muted mb-0">SKU: <code>{{ stock_item.product.sku }}</code> &bull; Warehouse: {{ stock_item.warehouse.name }} ({{ stock_item.warehouse.code }})</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'inventory:stock_edit' stock_item.pk %}" class="btn btn-secondary">Edit Parameters</a>
+            <a href="{% url 'inventory:stock_list' %}" class="btn btn-outline-secondary">Back to Stock List</a>
+        </div>
+    </div>
+
+    <!-- Balance Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center">
+                    <span class="text-muted small text-uppercase fw-semibold">Physical On-Hand</span>
+                    <h2 class="fw-bold mb-0 mt-2">{{ stock_item.quantity_on_hand }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center">
+                    <span class="text-muted small text-uppercase fw-semibold">Reserved / Allocated</span>
+                    <h2 class="fw-bold text-warning mb-0 mt-2">{{ stock_item.quantity_reserved }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center">
+                    <span class="text-muted small text-uppercase fw-semibold">Free Available</span>
+                    <h2 class="fw-bold text-success mb-0 mt-2">{{ stock_item.quantity_available }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3">Storage & Replenishment Parameters</h5>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="text-muted small text-uppercase">Storage Coordinate</label>
+                    <div class="fw-semibold">{% if stock_item.location %}{{ stock_item.location.code }}{% else %}Unassigned{% endif %}</div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="text-muted small text-uppercase">Inventory Status</label>
+                    <div>
+                        {% if stock_item.is_below_safety %}
+                        <span class="badge bg-danger">Critical Safety Depletion</span>
+                        {% elif stock_item.needs_reorder %}
+                        <span class="badge bg-warning text-dark">Below Reorder Point</span>
+                        {% else %}
+                        <span class="badge bg-success">Adequate Stock</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="text-muted small text-uppercase">Safety Stock Buffer</label>
+                    <div class="fw-semibold">{{ stock_item.safety_stock }}</div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="text-muted small text-uppercase">Reorder Point</label>
+                    <div class="fw-semibold">{{ stock_item.reorder_point }}</div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="text-muted small text-uppercase">Reorder Batch Quantity</label>
+                    <div class="fw-semibold">{{ stock_item.reorder_quantity }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

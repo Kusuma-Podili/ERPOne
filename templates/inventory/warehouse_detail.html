@@ -1,0 +1,269 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}{{ warehouse.name }} — Warehouse Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h1 class="page-title mb-0">{{ warehouse.name }}</h1>
+                <code>{{ warehouse.code }}</code>
+                {% if warehouse.is_primary %}
+                <span class="badge bg-primary">PRIMARY HUB</span>
+                {% endif %}
+                {% if warehouse.is_active %}
+                <span class="badge bg-success">ACTIVE</span>
+                {% else %}
+                <span class="badge bg-danger">INACTIVE</span>
+                {% endif %}
+            </div>
+            <p class="text-muted mb-0">{{ warehouse.get_warehouse_type_display }} &bull; {% if warehouse.city %}{{ warehouse.city }}, {{ warehouse.state_province }} {{ warehouse.country }}{% else %}Address not specified{% endif %}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'inventory:warehouse_edit' warehouse.pk %}" class="btn btn-secondary">Edit Details</a>
+            <a href="{% url 'inventory:warehouse_delete' warehouse.pk %}" class="btn btn-outline-danger">Delete</a>
+        </div>
+    </div>
+
+    <!-- Metric Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <span class="text-muted small text-uppercase fw-semibold">Operational Zones</span>
+                    <h3 class="fw-bold mb-0 mt-1">{{ warehouse.total_zones_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <span class="text-muted small text-uppercase fw-semibold">Storage Bins / Locations</span>
+                    <h3 class="fw-bold mb-0 mt-1">{{ warehouse.total_locations_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <span class="text-muted small text-uppercase fw-semibold">Unique SKUs Stocked</span>
+                    <h3 class="fw-bold mb-0 mt-1">{{ total_stock_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <span class="text-muted small text-uppercase fw-semibold">Total Storage Volume</span>
+                    <h3 class="fw-bold mb-0 mt-1">{{ warehouse.total_capacity_cbm }} m³</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zones Section -->
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3 px-4">
+                    <h5 class="card-title mb-0 fw-bold">Operational Zones</h5>
+                </div>
+                <div class="card-body px-4">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Zone Name</th>
+                                    <th>Code</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Locations</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for z in zones %}
+                                <tr>
+                                    <td class="fw-semibold">{{ z.name }}</td>
+                                    <td><code>{{ z.code }}</code></td>
+                                    <td><span class="badge bg-light text-dark border">{{ z.get_zone_type_display }}</span></td>
+                                    <td class="text-end">{{ z.loc_count }}</td>
+                                    <td class="text-end">
+                                        <form method="post" action="{% url 'inventory:zone_delete' z.pk %}" style="display:inline;" onsubmit="return confirm('Remove zone {{ z.code }}?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-0">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center text-muted py-3">No zones configured.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Quick Add Zone -->
+                    <div class="mt-4 pt-3 border-top">
+                        <h6 class="fw-bold small text-uppercase text-muted mb-2">Add Storage Zone</h6>
+                        <form method="post" action="{% url 'inventory:zone_create' %}" class="row g-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="warehouse" value="{{ warehouse.pk }}">
+                            <div class="col-12 col-sm-6">
+                                <input type="text" name="name" class="form-control form-control-sm" placeholder="Zone Name (e.g. Bulk A)" required>
+                            </div>
+                            <div class="col-12 col-sm-3">
+                                <input type="text" name="code" class="form-control form-control-sm" placeholder="Code (Z-BLK)" required>
+                            </div>
+                            <div class="col-12 col-sm-3">
+                                <select name="zone_type" class="form-select form-select-sm">
+                                    <option value="general">General</option>
+                                    <option value="cold_storage">Cold</option>
+                                    <option value="hazardous">HazMat</option>
+                                    <option value="bulk_storage">Bulk</option>
+                                    <option value="picking">Picking</option>
+                                    <option value="receiving">Receiving</option>
+                                    <option value="shipping">Shipping</option>
+                                    <option value="quarantine">Quarantine</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-sm btn-outline-primary w-100">+ Add Zone</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Locations / Bins Section -->
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3 px-4">
+                    <h5 class="card-title mb-0 fw-bold">Storage Bins & Locations</h5>
+                    <span class="small text-muted">Showing first 25 locations</span>
+                </div>
+                <div class="card-body px-4">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Location Code</th>
+                                    <th>Zone</th>
+                                    <th>Aisle/Rack/Shelf/Bin</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for loc in locations %}
+                                <tr>
+                                    <td><strong class="font-monospace text-primary">{{ loc.code }}</strong></td>
+                                    <td><span class="badge bg-secondary-subtle text-secondary">{{ loc.zone.code }}</span></td>
+                                    <td>A{{ loc.aisle }}-R{{ loc.rack }}-S{{ loc.shelf }}-B{{ loc.bin }}</td>
+                                    <td>
+                                        {% if loc.is_locked %}
+                                        <span class="badge bg-warning text-dark">Locked: {{ loc.lock_reason }}</span>
+                                        {% else %}
+                                        <span class="badge bg-success-subtle text-success">Available</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <form method="post" action="{% url 'inventory:location_delete' loc.pk %}" style="display:inline;" onsubmit="return confirm('Remove location {{ loc.code }}?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-0">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center text-muted py-3">No locations created yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Quick Add Location Form -->
+                    <div class="mt-4 pt-3 border-top">
+                        <h6 class="fw-bold small text-uppercase text-muted mb-2">Create Storage Coordinate</h6>
+                        <form method="post" action="{% url 'inventory:location_create' %}" class="row g-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="warehouse" value="{{ warehouse.pk }}">
+                            <div class="col-12 col-sm-4">
+                                <select name="zone" class="form-select form-select-sm" required>
+                                    <option value="">Select Zone...</option>
+                                    {% for z in zones %}
+                                    <option value="{{ z.pk }}">{{ z.name }} ({{ z.code }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-3 col-sm-2">
+                                <input type="text" name="aisle" class="form-control form-control-sm" placeholder="Aisle" value="01" required>
+                            </div>
+                            <div class="col-3 col-sm-2">
+                                <input type="text" name="rack" class="form-control form-control-sm" placeholder="Rack" value="01" required>
+                            </div>
+                            <div class="col-3 col-sm-2">
+                                <input type="text" name="shelf" class="form-control form-control-sm" placeholder="Shelf" value="01" required>
+                            </div>
+                            <div class="col-3 col-sm-2">
+                                <input type="text" name="bin" class="form-control form-control-sm" placeholder="Bin" value="01" required>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-sm btn-outline-primary w-100">+ Add Location</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Levels at this Warehouse -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3 px-4">
+            <h5 class="card-title mb-0 fw-bold">Stock Levels in Facility</h5>
+            <a href="{% url 'inventory:stock_list' %}?warehouse={{ warehouse.pk }}" class="btn btn-sm btn-outline-primary">View All Warehouse Stock &rarr;</a>
+        </div>
+        <div class="card-body px-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product Name</th>
+                            <th>SKU</th>
+                            <th>Location</th>
+                            <th class="text-end">On-Hand</th>
+                            <th class="text-end">Reserved</th>
+                            <th class="text-end">Available</th>
+                            <th>Stock Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stock_items %}
+                        <tr>
+                            <td><a href="{% url 'inventory:stock_detail' item.pk %}" class="fw-semibold text-decoration-none">{{ item.product.name }}</a></td>
+                            <td><code>{{ item.product.sku }}</code></td>
+                            <td><span class="badge bg-light text-dark border">{{ item.location.code|default:"Unassigned" }}</span></td>
+                            <td class="text-end fw-bold">{{ item.quantity_on_hand }}</td>
+                            <td class="text-end text-warning">{{ item.quantity_reserved }}</td>
+                            <td class="text-end text-success fw-bold">{{ item.quantity_available }}</td>
+                            <td>
+                                {% if item.is_below_safety %}
+                                <span class="badge bg-danger">Critical Safety</span>
+                                {% elif item.needs_reorder %}
+                                <span class="badge bg-warning text-dark">Reorder Required</span>
+                                {% else %}
+                                <span class="badge bg-success-subtle text-success">Healthy</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-center text-muted py-4">No inventory positioned in this warehouse yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

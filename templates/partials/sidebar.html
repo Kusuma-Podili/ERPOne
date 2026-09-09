@@ -136,12 +136,23 @@
         </div>
         {% endif %}
 
-        <div class="nav-section-title">Enterprise Modules</div>
-        <div class="nav-item" style="opacity: 0.6; cursor: default;">
+        <div class="nav-section-title">Inventory & Warehousing</div>
+        {% if active_organization %}
+        <a href="{% url 'inventory:warehouse_list' %}" class="nav-item {% if request.resolver_match.app_name == 'inventory' and 'warehouse' in request.resolver_match.url_name %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>Warehouses</span>
+        </a>
+        <a href="{% url 'inventory:stock_list' %}" class="nav-item {% if request.resolver_match.app_name == 'inventory' and 'stock' in request.resolver_match.url_name %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="m7 11 4-4-4-4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
-            <span>Supply Chain</span>
-            <span class="badge badge-secondary" style="margin-left: auto; font-size: 0.65rem;">Phases 5-6</span>
+            <span>Stock Levels</span>
+        </a>
+        {% else %}
+        <div class="nav-item" style="opacity: 0.6; cursor: default;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            <span>Warehousing</span>
+            <span class="badge badge-secondary" style="margin-left: auto; font-size: 0.65rem;">Select Org</span>
         </div>
+        {% endif %}
         <div class="nav-item" style="opacity: 0.6; cursor: default;">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             <span>Finance & Ledger</span>
