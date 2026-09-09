@@ -7,6 +7,10 @@ from . import views
 app_name = "sales"
 
 urlpatterns = [
+    # Sales Dashboard
+    path("", views.SalesDashboardView.as_view(), name="dashboard"),
+    path("dashboard/", views.SalesDashboardView.as_view(), name="sales_dashboard"),
+
     # Products
     path("products/", views.ProductListView.as_view(), name="product_list"),
     path("products/create/", views.ProductCreateView.as_view(), name="product_create"),
@@ -22,10 +26,12 @@ urlpatterns = [
     path("price-books/<uuid:pk>/delete/", views.PriceBookDeleteView.as_view(), name="pricebook_delete"),
     path("price-books/<uuid:pk>/add-entry/", views.PriceBookEntryCreateView.as_view(), name="pricebook_entry_create"),
     path("price-books/entries/<uuid:pk>/delete/", views.PriceBookEntryDeleteView.as_view(), name="pricebook_entry_delete"),
+
     # Quotes & Workflow
     path("quotes/", views.QuoteListView.as_view(), name="quote_list"),
     path("quotes/create/", views.QuoteCreateView.as_view(), name="quote_create"),
     path("quotes/<uuid:pk>/", views.QuoteDetailView.as_view(), name="quote_detail"),
+    path("quotes/<uuid:pk>/print/", views.QuotePrintView.as_view(), name="quote_print"),
     path("quotes/<uuid:pk>/edit/", views.QuoteUpdateView.as_view(), name="quote_edit"),
     path("quotes/<uuid:pk>/delete/", views.QuoteDeleteView.as_view(), name="quote_delete"),
     path("quotes/<uuid:pk>/add-line/", views.QuoteLineItemCreateView.as_view(), name="quote_line_create"),
@@ -41,6 +47,7 @@ urlpatterns = [
     path("orders/", views.OrderListView.as_view(), name="order_list"),
     path("orders/create/", views.OrderCreateView.as_view(), name="order_create"),
     path("orders/<uuid:pk>/", views.OrderDetailView.as_view(), name="order_detail"),
+    path("orders/<uuid:pk>/print/", views.OrderPrintView.as_view(), name="order_print"),
     path("orders/<uuid:pk>/edit/", views.OrderUpdateView.as_view(), name="order_edit"),
     path("orders/<uuid:pk>/add-line/", views.OrderLineItemCreateView.as_view(), name="order_line_create"),
     path("orders/lines/<uuid:pk>/delete/", views.OrderLineItemDeleteView.as_view(), name="order_line_delete"),

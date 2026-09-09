@@ -73,6 +73,10 @@
         </form>
         {% endif %}
 
+        <a href="{% url 'sales:order_print' order.pk %}" target="_blank" class="btn btn-secondary">
+            Print / Packing Slip
+        </a>
+
         {% if 'cancelled' in next_allowed_statuses %}
         <form method="post" action="{% url 'sales:order_transition' order.pk %}" style="margin: 0;" onsubmit="return confirm('Cancel this sales order?');">
             {% csrf_token %}
