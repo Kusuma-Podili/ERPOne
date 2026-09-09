@@ -3,6 +3,7 @@ EnterpriseOne Sales Forms.
 Defines form classes for Product, Category, UOM, PriceBook, PriceBookEntry, and TieredDiscount.
 """
 from django import forms
+from apps.crm.models import Account, Contact, Deal
 from .models import (
     ProductCategory,
     UnitOfMeasure,
@@ -10,6 +11,9 @@ from .models import (
     PriceBook,
     PriceBookEntry,
     TieredDiscount,
+    Quote,
+    QuoteLineItem,
+    QuoteApproval,
 )
 
 
@@ -116,3 +120,64 @@ class TieredDiscountForm(BaseSalesForm):
     class Meta:
         model = TieredDiscount
         fields = ["min_quantity", "max_quantity", "discount_type", "discount_value", "is_active"]
+
+
+class QuoteForm(BaseSalesForm):
+    class Meta:
+        model = Quote
+        fields = [
+            "title",
+            "account",
+            "contact",
+            "deal",
+            "price_book",
+            "valid_until",
+            "payment_terms",
+            "shipping_amount",
+            "terms_and_conditions",
+            "customer_notes",
+            "internal_notes",
+        ]
+        widgets = {
+            "valid_until": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["account"].queryset = Account.objects.filter(organization=organization)
+            self.fields["contact"].queryset = Contact.objects.filter(organization=organization)
+            self.fields["deal"].queryset = Deal.objects.filter(organization=organization, is_closed=False)
+            self.fields["price_book"].queryset = PriceBook.objects.filter(organization=organization, is_active=True)
+
+
+class QuoteLineItemForm(BaseSalesForm):
+    class Meta:
+        model = QuoteLineItem
+        fields = [
+            "product",
+            "description",
+            "quantity",
+            "unit_price",
+            "discount_percent",
+            "tax_rate",
+        ]
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["product"].queryset = Product.objects.filter(
+                organization=organization, is_active=True
+            )
+
+
+class QuoteApprovalActionForm(forms.Form):
+    decision = forms.ChoiceField(
+        choices=[("approve", "Approve Quotation"), ("reject", "Reject Terms")],
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-textarea", "rows": 3, "placeholder": "Approval or rejection notes..."}),
+    )
+

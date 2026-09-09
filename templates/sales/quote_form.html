@@ -1,0 +1,102 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{% if object %}Edit {{ object.quote_number }}{% else %}New Quotation{% endif %} &bull; Sales &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<a href="{% url 'sales:quote_list' %}">Quotations</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{% if object %}Edit Quote{% else %}Create Quote{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{% if object %}Edit Quotation {{ object.quote_number }}{% else %}Create Commercial Quotation{% endif %}</h1>
+        <p class="page-subtitle">Configure customer account, payment terms, validity period, and pricing schedules.</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 900px;">
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <div style="margin-bottom: 1rem;">
+            <label class="form-label" style="font-weight: 600;">Quotation Title / Subject *</label>
+            {{ form.title }}
+            {% if form.title.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.title.errors }}</div>{% endif %}
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Customer Account *</label>
+                {{ form.account }}
+                {% if form.account.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.account.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Primary Contact</label>
+                {{ form.contact }}
+                {% if form.contact.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.contact.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Associated CRM Deal</label>
+                {{ form.deal }}
+                {% if form.deal.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.deal.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Price Book Schedule</label>
+                {{ form.price_book }}
+                {% if form.price_book.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.price_book.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Valid Until</label>
+                {{ form.valid_until }}
+                {% if form.valid_until.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.valid_until.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Payment Terms</label>
+                {{ form.payment_terms }}
+                {% if form.payment_terms.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.payment_terms.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Shipping Amount ($)</label>
+                {{ form.shipping_amount }}
+                {% if form.shipping_amount.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.shipping_amount.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label class="form-label" style="font-weight: 600;">Customer Facing Notes</label>
+            {{ form.customer_notes }}
+            {% if form.customer_notes.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.customer_notes.errors }}</div>{% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label class="form-label" style="font-weight: 600;">Terms and Conditions</label>
+            {{ form.terms_and_conditions }}
+            {% if form.terms_and_conditions.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.terms_and_conditions.errors }}</div>{% endif %}
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <a href="{% url 'sales:quote_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                {% if object %}Save Changes{% else %}Create Quote & Add Products{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

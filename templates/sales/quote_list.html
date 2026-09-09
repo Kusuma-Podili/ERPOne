@@ -1,0 +1,151 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Quotations &bull; Sales &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Quotations</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Commercial Quotations</h1>
+        <p class="page-subtitle">Manage customer quotes, line item discounts, tax schedules, and executive approvals.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'sales:product_list' %}" class="btn btn-secondary">
+            Product Catalog
+        </a>
+        <a href="{% url 'sales:quote_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Quote
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem;">
+    <form method="get" action="{% url 'sales:quote_list' %}" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+        <div style="flex: 2; min-width: 240px;">
+            <input type="text" name="q" value="{{ search_query }}" class="form-input" placeholder="Search by quote #, title, customer account...">
+        </div>
+        <div style="flex: 1; min-width: 160px;">
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        {% if search_query or current_status %}
+        <a href="{% url 'sales:quote_list' %}" class="btn btn-secondary" style="color: var(--text-muted);">Reset</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Quotations Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Quote Number / Title</th>
+                    <th>Customer Account</th>
+                    <th style="text-align: right;">Subtotal</th>
+                    <th style="text-align: right;">Discount</th>
+                    <th style="text-align: right;">Grand Total</th>
+                    <th>Status</th>
+                    <th>Valid Until</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for quote in quotes %}
+                <tr>
+                    <td>
+                        <a href="{% url 'sales:quote_detail' quote.pk %}" style="font-weight: 600; color: var(--primary); text-decoration: none;">
+                            {{ quote.quote_number }}
+                        </a>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ quote.title }}</div>
+                    </td>
+                    <td>
+                        <a href="{% url 'crm:account_detail' quote.account.pk %}" style="color: var(--text-primary); text-decoration: none; font-weight: 500;">
+                            {{ quote.account.name }}
+                        </a>
+                        {% if quote.contact %}
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Attn: {{ quote.contact.get_full_name }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; font-family: monospace; color: var(--text-muted);">
+                        ${{ quote.subtotal_amount|floatformat:2 }}
+                    </td>
+                    <td style="text-align: right; font-family: monospace; {% if quote.discount_amount > 0 %}color: #ef4444;{% else %}color: var(--text-muted);{% endif %}">
+                        {% if quote.discount_amount > 0 %}-${{ quote.discount_amount|floatformat:2 }}{% else %}$0.00{% endif %}
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: var(--primary); font-family: monospace; font-size: 1.05rem;">
+                        ${{ quote.grand_total|floatformat:2 }}
+                    </td>
+                    <td>
+                        {% if quote.status == 'draft' %}
+                        <span class="badge badge-secondary">Draft</span>
+                        {% elif quote.status == 'pending_approval' %}
+                        <span class="badge badge-warning">Pending Approval</span>
+                        {% elif quote.status == 'approved' %}
+                        <span class="badge badge-primary">Approved</span>
+                        {% elif quote.status == 'presented' %}
+                        <span class="badge badge-info">Presented</span>
+                        {% elif quote.status == 'accepted' %}
+                        <span class="badge badge-success">Accepted</span>
+                        {% elif quote.status == 'converted' %}
+                        <span class="badge badge-success">Converted to Order</span>
+                        {% elif quote.status == 'rejected' %}
+                        <span class="badge badge-danger">Rejected</span>
+                        {% elif quote.status == 'expired' %}
+                        <span class="badge badge-secondary">Expired</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 0.85rem; {% if quote.is_expired %}color: var(--danger); font-weight: 600;{% else %}color: var(--text-secondary);{% endif %}">
+                            {{ quote.valid_until|default:"Open-ended" }}
+                            {% if quote.is_expired %}(Expired){% endif %}
+                        </span>
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 0.5rem;">
+                            <a href="{% url 'sales:quote_detail' quote.pk %}" class="btn btn-sm btn-secondary">View</a>
+                            {% if quote.can_edit %}
+                            <a href="{% url 'sales:quote_edit' quote.pk %}" class="btn btn-sm btn-secondary">Edit</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 3rem 1rem;">
+                        <div style="color: var(--text-muted); margin-bottom: 1rem;">No commercial quotations found.</div>
+                        <a href="{% url 'sales:quote_create' %}" class="btn btn-primary">Create Your First Quotation</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_paginated %}
+<div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 1.5rem;">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&status={{ current_status }}" class="btn btn-secondary btn-sm">&laquo; Previous</a>
+    {% endif %}
+    <span class="btn btn-secondary btn-sm" style="pointer-events: none;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&status={{ current_status }}" class="btn btn-secondary btn-sm">Next &raquo;</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
