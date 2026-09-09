@@ -346,3 +346,88 @@ class POApprovalDecisionForm(forms.Form):
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Approval or rejection notes..."}),
         required=False,
     )
+
+
+from .models import (
+    BillStatus,
+    MatchStatus,
+    VendorBill,
+    VendorBillLine,
+    ThreeWayMatch,
+)
+
+
+class VendorBillForm(forms.ModelForm):
+    class Meta:
+        model = VendorBill
+        fields = [
+            "supplier",
+            "purchase_order",
+            "bill_number",
+            "bill_date",
+            "due_date",
+            "currency",
+            "notes",
+        ]
+        widgets = {
+            "supplier": forms.Select(attrs={"class": "form-select"}),
+            "purchase_order": forms.Select(attrs={"class": "form-select"}),
+            "bill_number": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. INV-2026-9041"}),
+            "bill_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "due_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "currency": forms.TextInput(attrs={"class": "form-control"}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["supplier"].queryset = Supplier.objects.filter(organization=organization, is_active=True)
+            self.fields["purchase_order"].queryset = PurchaseOrder.objects.filter(
+                organization=organization,
+                status__in=[POStatus.APPROVED, POStatus.ISSUED, POStatus.PARTIALLY_RECEIVED, POStatus.COMPLETED],
+            )
+
+
+class VendorBillLineForm(forms.ModelForm):
+    class Meta:
+        model = VendorBillLine
+        fields = [
+            "product",
+            "po_line",
+            "billed_quantity",
+            "unit_price",
+            "tax_rate",
+            "notes",
+        ]
+        widgets = {
+            "product": forms.Select(attrs={"class": "form-select"}),
+            "po_line": forms.Select(attrs={"class": "form-select"}),
+            "billed_quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "unit_price": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "tax_rate": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "notes": forms.TextInput(attrs={"class": "form-control", "placeholder": "Remarks"}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+            self.fields["po_line"].queryset = PurchaseOrderLine.objects.filter(purchase_order__organization=organization)
+
+
+VendorBillLineFormSet = forms.inlineformset_factory(
+    VendorBill,
+    VendorBillLine,
+    form=VendorBillLineForm,
+    extra=1,
+    can_delete=True,
+)
+
+
+class ThreeWayMatchResolutionForm(forms.Form):
+    resolution_notes = forms.CharField(
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Credit memo agreed with supplier, freight fee authorized by VP..."}),
+        label="Resolution Justification / Audit Notes",
+        required=True,
+    )

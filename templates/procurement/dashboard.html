@@ -1,0 +1,148 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Procurement Operations Dashboard &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Procurement</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0.25rem;">Procurement & Sourcing Operations</h1>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-bottom: 0;">
+            Real-time commercial commitments, competitive bidding events, 3-Way Matching accuracy, and spend analytics.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'procurement:rfq_create' %}" class="btn btn-secondary">New RFQ</a>
+        <a href="{% url 'procurement:po_create' %}" class="btn btn-secondary">New Purchase Order</a>
+        <a href="{% url 'procurement:bill_create' %}" class="btn btn-secondary">Register Bill</a>
+        <a href="{% url 'procurement:supplier_create' %}" class="btn btn-primary">+ Register Supplier</a>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Active Suppliers</div>
+        <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin-top: 0.25rem;">
+            {{ total_suppliers }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);"><a href="{% url 'procurement:supplier_list' %}" style="color: var(--color-primary);">View Catalog &rarr;</a></div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Open RFQs</div>
+        <div style="font-size: 1.8rem; font-weight: 800; color: #0284c7; margin-top: 0.25rem;">
+            {{ open_rfqs }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);"><a href="{% url 'procurement:rfq_list' %}" style="color: #0284c7;">Active Bidding Events &rarr;</a></div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Committed PO Spend</div>
+        <div style="font-size: 1.8rem; font-weight: 800; color: #10b981; margin-top: 0.25rem;">
+            ${{ total_committed_spend }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ total_active_pos }} Active Purchase Orders</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">3-Way Match Rate</div>
+        <div style="font-size: 1.8rem; font-weight: 800; color: {% if match_accuracy >= 95 %}#10b981{% else %}#f59e0b{% endif %}; margin-top: 0.25rem;">
+            {{ match_accuracy }}%
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ matched_bills }} / {{ total_bills }} Invoices Matched</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Disputed Invoices</div>
+        <div style="font-size: 1.8rem; font-weight: 800; color: {% if disputed_bills > 0 %}#ef4444{% else %}#64748b{% endif %}; margin-top: 0.25rem;">
+            {{ disputed_bills }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);"><a href="{% url 'procurement:bill_list' %}?status=disputed" style="color: #ef4444;">Variance Flagged &rarr;</a></div>
+    </div>
+</div>
+
+<!-- Two-Column Operations Layout -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Recent Purchase Orders -->
+    <div class="card" style="background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; overflow: hidden;">
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Recent Purchase Orders</h3>
+            <a href="{% url 'procurement:po_list' %}" style="font-size: 0.8rem; color: var(--color-primary); text-decoration: none;">View All &rarr;</a>
+        </div>
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.6rem 1rem;">PO #</th>
+                    <th style="padding: 0.6rem 1rem;">Supplier</th>
+                    <th style="padding: 0.6rem 1rem;">Total Value</th>
+                    <th style="padding: 0.6rem 1rem;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for po in recent_pos %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.6rem 1rem; font-family: monospace;">
+                        <a href="{% url 'procurement:po_detail' pk=po.pk %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none;">
+                            {{ po.po_number }}
+                        </a>
+                    </td>
+                    <td style="padding: 0.6rem 1rem; font-size: 0.85rem;">{{ po.supplier.name }}</td>
+                    <td style="padding: 0.6rem 1rem; font-weight: 700; color: #10b981; font-size: 0.9rem;">${{ po.total_amount }}</td>
+                    <td style="padding: 0.6rem 1rem;">
+                        <span class="badge" style="font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 9999px; background: rgba(0,0,0,0.06); color: var(--text-primary);">
+                            {{ po.get_status_display }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="padding: 1rem; text-align: center; color: var(--text-muted);">No POs logged.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Recent Vendor Invoices / Bills -->
+    <div class="card" style="background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; overflow: hidden;">
+        <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Recent Vendor Bills & 3-Way Match</h3>
+            <a href="{% url 'procurement:bill_list' %}" style="font-size: 0.8rem; color: var(--color-primary); text-decoration: none;">View All &rarr;</a>
+        </div>
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.6rem 1rem;">Bill #</th>
+                    <th style="padding: 0.6rem 1rem;">Supplier</th>
+                    <th style="padding: 0.6rem 1rem;">Amount</th>
+                    <th style="padding: 0.6rem 1rem;">3-Way Match</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in recent_bills %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.6rem 1rem; font-family: monospace;">
+                        <a href="{% url 'procurement:bill_detail' pk=b.pk %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none;">
+                            {{ b.bill_number }}
+                        </a>
+                    </td>
+                    <td style="padding: 0.6rem 1rem; font-size: 0.85rem;">{{ b.supplier.name }}</td>
+                    <td style="padding: 0.6rem 1rem; font-weight: 700; color: #10b981; font-size: 0.9rem;">${{ b.total_amount }}</td>
+                    <td style="padding: 0.6rem 1rem;">
+                        {% if b.match_status == 'matched' or b.match_status == 'tolerance_accepted' or b.match_status == 'resolved' %}
+                        <span class="badge badge-success" style="background: #10b981; color: #fff; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 9999px;">Matched</span>
+                        {% elif b.match_status == 'disputed' or b.match_status == 'price_variance' or b.match_status == 'quantity_variance' %}
+                        <span class="badge badge-danger" style="background: #ef4444; color: #fff; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 9999px;">Variance</span>
+                        {% else %}
+                        <span class="badge" style="background: #f59e0b; color: #fff; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 9999px;">Pending</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="padding: 1rem; text-align: center; color: var(--text-muted);">No vendor bills logged.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

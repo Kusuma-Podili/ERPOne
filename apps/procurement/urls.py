@@ -7,8 +7,11 @@ from . import views
 app_name = "procurement"
 
 urlpatterns = [
+    # Dashboard & Sourcing Overview
+    path("", views.ProcurementDashboardView.as_view(), name="index"),
+    path("dashboard/", views.ProcurementDashboardView.as_view(), name="dashboard"),
+
     # Suppliers Master
-    path("", views.SupplierListView.as_view(), name="index"),
     path("suppliers/", views.SupplierListView.as_view(), name="supplier_list"),
     path("suppliers/create/", views.SupplierCreateView.as_view(), name="supplier_create"),
     path("suppliers/<uuid:pk>/", views.SupplierDetailView.as_view(), name="supplier_detail"),
@@ -44,4 +47,12 @@ urlpatterns = [
     path("orders/<uuid:pk>/reject/", views.PORejectView.as_view(), name="po_reject"),
     path("orders/<uuid:pk>/issue/", views.POIssueView.as_view(), name="po_issue"),
     path("orders/<uuid:pk>/print/", views.POPrintView.as_view(), name="po_print"),
+
+    # Vendor Bills & Three-Way Matching
+    path("bills/", views.VendorBillListView.as_view(), name="bill_list"),
+    path("bills/create/", views.VendorBillCreateView.as_view(), name="bill_create"),
+    path("bills/<uuid:pk>/", views.VendorBillDetailView.as_view(), name="bill_detail"),
+    path("bills/<uuid:bill_pk>/match/", views.ThreeWayMatchExecuteView.as_view(), name="bill_match"),
+    path("matches/<uuid:pk>/", views.ThreeWayMatchDetailView.as_view(), name="match_detail"),
+    path("matches/<uuid:pk>/resolve/", views.ThreeWayMatchResolveView.as_view(), name="match_resolve"),
 ]
