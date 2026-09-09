@@ -7,6 +7,8 @@ from .models import (
     StorageZone,
     StorageLocation,
     StockItem,
+    StockMovement,
+    StockMovementLine,
 )
 
 
@@ -50,3 +52,18 @@ class StockItemAdmin(admin.ModelAdmin):
     list_display = ("product", "warehouse", "location", "quantity_on_hand", "quantity_reserved", "quantity_available", "needs_reorder")
     list_filter = ("warehouse", "product")
     search_fields = ("product__name", "product__sku", "warehouse__code", "location__code")
+
+
+class StockMovementLineInline(admin.TabularInline):
+    model = StockMovementLine
+    extra = 0
+    fields = ("product", "source_location", "destination_location", "quantity", "unit_cost", "batch_number", "serial_number")
+
+
+@admin.register(StockMovement)
+class StockMovementAdmin(admin.ModelAdmin):
+    list_display = ("movement_number", "movement_type", "status", "source_warehouse", "destination_warehouse", "movement_date", "posted_at", "created_by")
+    list_filter = ("movement_type", "status", "source_warehouse", "destination_warehouse")
+    search_fields = ("movement_number", "reference_document", "notes")
+    inlines = [StockMovementLineInline]
+

@@ -17,6 +17,7 @@ from django.views.generic import (
     View,
 )
 from apps.organizations.views import OrganizationAccessMixin
+from apps.sales.models import Product
 from .models import (
     Warehouse,
     WarehouseType,
@@ -24,16 +25,24 @@ from .models import (
     StorageZoneType,
     StorageLocation,
     StockItem,
+    StockMovement,
+    StockMovementType,
+    StockMovementStatus,
+    StockMovementLine,
 )
 from .forms import (
     WarehouseForm,
     StorageZoneForm,
     StorageLocationForm,
     StockItemForm,
+    StockMovementForm,
+    StockMovementLineFormSet,
+    StockQuickAdjustmentForm,
 )
 from .services import (
     WarehouseHierarchyService,
     StockLevelService,
+    StockMovementService,
 )
 
 
@@ -310,3 +319,205 @@ class StockItemUpdateView(OrganizationAccessMixin, UpdateView):
 
     def get_success_url(self):
         return reverse("inventory:stock_list")
+
+
+# ==============================================================================
+# STOCK MOVEMENT LEDGER & ADJUSTMENT VIEWS (Milestone 5.2)
+# ==============================================================================
+
+class StockMovementListView(OrganizationAccessMixin, ListView):
+    model = StockMovement
+    template_name = "inventory/movement_list.html"
+    context_object_name = "movements"
+    paginate_by = 20
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return StockMovement.objects.none()
+
+        qs = StockMovement.objects.filter(organization=org).select_related(
+            "source_warehouse",
+            "destination_warehouse",
+            "created_by",
+            "posted_by",
+        ).prefetch_related("lines__product")
+
+        # Filtering
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(movement_number__icontains=q) |
+                Q(reference_document__icontains=q) |
+                Q(notes__icontains=q)
+            )
+
+        movement_type = self.request.GET.get("type", "").strip()
+        if movement_type:
+            qs = qs.filter(movement_type=movement_type)
+
+        status = self.request.GET.get("status", "").strip()
+        if status:
+            qs = qs.filter(status=status)
+
+        warehouse_id = self.request.GET.get("warehouse", "").strip()
+        if warehouse_id:
+            qs = qs.filter(
+                Q(source_warehouse_id=warehouse_id) |
+                Q(destination_warehouse_id=warehouse_id)
+            )
+
+        return qs.order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        context["movement_types"] = StockMovementType.choices
+        context["movement_statuses"] = StockMovementStatus.choices
+        context["warehouses"] = Warehouse.objects.filter(organization=org, is_active=True) if org else []
+        context["current_q"] = self.request.GET.get("q", "")
+        context["current_type"] = self.request.GET.get("type", "")
+        context["current_status"] = self.request.GET.get("status", "")
+        context["current_warehouse"] = self.request.GET.get("warehouse", "")
+        return context
+
+
+class StockMovementDetailView(OrganizationAccessMixin, DetailView):
+    model = StockMovement
+    template_name = "inventory/movement_detail.html"
+    context_object_name = "movement"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return StockMovement.objects.none()
+        return StockMovement.objects.filter(organization=org).select_related(
+            "source_warehouse",
+            "destination_warehouse",
+            "created_by",
+            "posted_by",
+        ).prefetch_related(
+            "lines__product",
+            "lines__source_location",
+            "lines__destination_location",
+        )
+
+
+class StockMovementCreateView(OrganizationAccessMixin, CreateView):
+    model = StockMovement
+    form_class = StockMovementForm
+    template_name = "inventory/movement_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        if self.request.POST:
+            context["formset"] = StockMovementLineFormSet(self.request.POST)
+        else:
+            context["formset"] = StockMovementLineFormSet()
+            # Bound queryset for products in formset
+            for line_form in context["formset"].forms:
+                line_form.fields["product"].queryset = Product.objects.filter(organization=org, is_active=True)
+                line_form.fields["source_location"].queryset = StorageLocation.objects.filter(organization=org, is_active=True)
+                line_form.fields["destination_location"].queryset = StorageLocation.objects.filter(organization=org, is_active=True)
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        formset = context["formset"]
+
+        if formset.is_valid():
+            form.instance.organization = self.request.organization
+            form.instance.created_by = self.request.user
+            self.object = form.save()
+            formset.instance = self.object
+            formset.save()
+            messages.success(self.request, f"Stock movement draft '{self.object.movement_number}' created.")
+            return redirect("inventory:movement_detail", pk=self.object.pk)
+        else:
+            return self.form_invalid(form)
+
+
+class StockMovementPostView(OrganizationAccessMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        org = request.organization
+        movement = get_object_or_404(StockMovement, pk=pk, organization=org)
+        from django.core.exceptions import ValidationError
+        try:
+            StockMovementService.post_movement(movement, posted_by=request.user)
+            messages.success(request, f"Stock movement '{movement.movement_number}' posted successfully. Inventory balances updated.")
+        except ValidationError as e:
+            messages.error(request, f"Cannot post movement: {e.message if hasattr(e, 'message') else e}")
+        return redirect("inventory:movement_detail", pk=movement.pk)
+
+
+class StockMovementCancelView(OrganizationAccessMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        org = request.organization
+        movement = get_object_or_404(StockMovement, pk=pk, organization=org)
+        reason = request.POST.get("reason", "Cancelled by user.")
+        from django.core.exceptions import ValidationError
+        try:
+            StockMovementService.cancel_movement(movement, cancelled_by=request.user, reason=reason)
+            messages.info(request, f"Stock movement '{movement.movement_number}' cancelled.")
+        except ValidationError as e:
+            messages.error(request, f"Cannot cancel movement: {e.message if hasattr(e, 'message') else e}")
+        return redirect("inventory:movement_detail", pk=movement.pk)
+
+
+class StockMovementPrintView(OrganizationAccessMixin, DetailView):
+    model = StockMovement
+    template_name = "inventory/movement_print.html"
+    context_object_name = "movement"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return StockMovement.objects.none()
+        return StockMovement.objects.filter(organization=org).select_related(
+            "organization",
+            "source_warehouse",
+            "destination_warehouse",
+            "created_by",
+            "posted_by",
+        ).prefetch_related(
+            "lines__product",
+            "lines__source_location",
+            "lines__destination_location",
+        )
+
+
+class StockLedgerView(OrganizationAccessMixin, ListView):
+    template_name = "inventory/stock_ledger.html"
+    context_object_name = "ledger_entries"
+    paginate_by = 30
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return StockMovementLine.objects.none()
+
+        product_id = self.request.GET.get("product")
+        warehouse_id = self.request.GET.get("warehouse")
+        product = Product.objects.filter(id=product_id, organization=org).first() if product_id else None
+        warehouse = Warehouse.objects.filter(id=warehouse_id, organization=org).first() if warehouse_id else None
+
+        return StockMovementService.get_ledger_history(
+            organization=org,
+            product=product,
+            warehouse=warehouse,
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        org = self.request.organization
+        context["products"] = Product.objects.filter(organization=org, is_active=True).order_by("name") if org else []
+        context["warehouses"] = Warehouse.objects.filter(organization=org, is_active=True).order_by("name") if org else []
+        context["selected_product"] = self.request.GET.get("product", "")
+        context["selected_warehouse"] = self.request.GET.get("warehouse", "")
+        return context
