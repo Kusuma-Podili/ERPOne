@@ -1,0 +1,124 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}Stock Item Levels — EnterpriseOne{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="page-title mb-1">Inventory Stock Levels</h1>
+            <p class="text-muted mb-0">Real-time on-hand balances, reserved allocations, free availability, and reorder point surveillance.</p>
+        </div>
+        <div>
+            <a href="{% url 'inventory:stock_create' %}" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Position Stock
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-center">
+                <div class="col-12 col-md-5">
+                    <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search by product name, SKU, warehouse, or location...">
+                </div>
+                <div class="col-12 col-md-3">
+                    <select name="warehouse" class="form-select">
+                        <option value="">All Warehouses</option>
+                        {% for wh in warehouses %}
+                        <option value="{{ wh.pk }}" {% if current_warehouse == wh.pk|stringformat:"s" %}selected{% endif %}>{{ wh.name }} ({{ wh.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-2">
+                    <select name="alert" class="form-select">
+                        <option value="">All Inventory States</option>
+                        <option value="reorder" {% if current_alert == 'reorder' %}selected{% endif %}>Needs Reorder</option>
+                        <option value="safety" {% if current_alert == 'safety' %}selected{% endif %}>Below Safety Buffer</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                    {% if search_query or current_warehouse or current_alert %}
+                    <a href="{% url 'inventory:stock_list' %}" class="btn btn-outline-secondary">Reset</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock Levels Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product Name</th>
+                            <th>SKU</th>
+                            <th>Warehouse</th>
+                            <th>Storage Coordinate</th>
+                            <th class="text-end">On-Hand</th>
+                            <th class="text-end">Reserved</th>
+                            <th class="text-end">Available</th>
+                            <th class="text-end">Reorder Pt</th>
+                            <th>Status Alert</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stock_items %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'inventory:stock_detail' item.pk %}" class="fw-bold text-decoration-none">
+                                    {{ item.product.name }}
+                                </a>
+                            </td>
+                            <td><code>{{ item.product.sku }}</code></td>
+                            <td><a href="{% url 'inventory:warehouse_detail' item.warehouse.pk %}" class="text-decoration-none">{{ item.warehouse.code }}</a></td>
+                            <td>
+                                {% if item.location %}
+                                <code>{{ item.location.code }}</code>
+                                {% else %}
+                                <span class="text-muted">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold">{{ item.quantity_on_hand }}</td>
+                            <td class="text-end text-warning">{{ item.quantity_reserved }}</td>
+                            <td class="text-end text-success fw-bold">{{ item.quantity_available }}</td>
+                            <td class="text-end text-muted">{{ item.reorder_point }}</td>
+                            <td>
+                                {% if item.is_below_safety %}
+                                <span class="badge bg-danger">Critical Safety</span>
+                                {% elif item.needs_reorder %}
+                                <span class="badge bg-warning text-dark">Reorder Alert</span>
+                                {% else %}
+                                <span class="badge bg-success-subtle text-success">Healthy</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'inventory:stock_detail' item.pk %}" class="btn btn-outline-secondary">View</a>
+                                    <a href="{% url 'inventory:stock_edit' item.pk %}" class="btn btn-outline-secondary">Edit</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center py-5 text-muted">
+                                <h5>No stock level records found</h5>
+                                <p class="small mb-3">Position inventory for products across warehouse locations to begin inventory accounting.</p>
+                                <a href="{% url 'inventory:stock_create' %}" class="btn btn-sm btn-primary">Position Stock</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

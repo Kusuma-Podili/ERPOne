@@ -1,0 +1,78 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}SN: {{ serial.serial_number }} &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:warehouse_list' %}">Inventory</a>
+<span>/</span>
+<a href="{% url 'inventory:serial_list' %}">Serial Numbers</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ serial.serial_number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h1 class="page-title mb-0 font-monospace">{{ serial.serial_number }}</h1>
+            <span class="badge bg-light text-dark border">{{ serial.get_status_display }}</span>
+        </div>
+        <p class="page-subtitle">{{ serial.product.name }} &bull; SKU: {{ serial.product.sku }}</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Current Storage Coordinate</h6>
+                <p class="mb-1 small">Warehouse: <strong>{{ serial.warehouse.name|default:"Not in warehouse" }} ({{ serial.warehouse.code|default:"-" }})</strong></p>
+                <p class="mb-0 small">Bin Location: <strong>{{ serial.location.code|default:"Unassigned" }}</strong></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Production Origin</h6>
+                <p class="mb-1 small">Production Lot:
+                    {% if serial.lot %}
+                    <a href="{% url 'inventory:lot_detail' serial.lot.pk %}">{{ serial.lot.batch_number }}</a>
+                    {% else %}N/A{% endif %}
+                </p>
+                <p class="mb-0 small">Enrolled: <strong>{{ serial.created_at|date:"F d, Y" }}</strong></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Warranty Protection</h6>
+                <p class="mb-1 small">Start Date: <strong>{{ serial.warranty_start_date|date:"M d, Y"|default:"N/A" }}</strong></p>
+                <p class="mb-1 small">Expiration: <strong>{{ serial.warranty_end_date|date:"M d, Y"|default:"N/A" }}</strong></p>
+                <p class="mb-0 small">Warranty Status:
+                    {% if serial.is_under_warranty %}
+                    <span class="text-success fw-bold">Active Coverage</span>
+                    {% else %}
+                    <span class="text-muted">Expired / No Coverage</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if serial.notes %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="card-title mb-0">Service & Lifecycle Notes</h5>
+    </div>
+    <div class="card-body">
+        <pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ serial.notes }}</pre>
+    </div>
+</div>
+{% endif %}
+{% endblock %}\n

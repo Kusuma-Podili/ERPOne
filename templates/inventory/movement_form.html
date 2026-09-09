@@ -1,0 +1,134 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}New Stock Movement &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:warehouse_list' %}">Inventory</a>
+<span>/</span>
+<a href="{% url 'inventory:movement_list' %}">Stock Movements</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">New Movement</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Create Stock Movement</h1>
+        <p class="page-subtitle">Initiate a goods receipt, warehouse transfer, or inventory balance adjustment.</p>
+    </div>
+</div>
+
+<form method="post" id="stockMovementForm">
+    {% csrf_token %}
+
+    <!-- Header Information Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 card-title">Movement Header & Routing</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold">Movement Type <span class="text-danger">*</span></label>
+                    {{ form.movement_type }}
+                    {% if form.movement_type.errors %}<div class="text-danger small mt-1">{{ form.movement_type.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold">Reference Document</label>
+                    {{ form.reference_document }}
+                    <div class="form-text">e.g. PO number, Sales Order, RMA, or Audit ID</div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold">Movement Date</label>
+                    {{ form.movement_date }}
+                </div>
+                <div class="col-12 col-md-6" id="sourceWarehouseGroup">
+                    <label class="form-label fw-bold">Source Warehouse (Origin)</label>
+                    {{ form.source_warehouse }}
+                    {% if form.source_warehouse.errors %}<div class="text-danger small mt-1">{{ form.source_warehouse.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12 col-md-6" id="destWarehouseGroup">
+                    <label class="form-label fw-bold">Destination Warehouse</label>
+                    {{ form.destination_warehouse }}
+                    {% if form.destination_warehouse.errors %}<div class="text-danger small mt-1">{{ form.destination_warehouse.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold">Notes & Justification</label>
+                    {{ form.notes }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Line Items FormSet Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 card-title">Movement Line Items</h5>
+        </div>
+        <div class="card-body p-0">
+            {{ formset.management_form }}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="linesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width: 220px;">Product</th>
+                            <th style="min-width: 160px;">Source Bin</th>
+                            <th style="min-width: 160px;">Dest Bin</th>
+                            <th style="width: 120px;">Quantity</th>
+                            <th style="width: 120px;">Unit Cost</th>
+                            <th style="width: 140px;">Lot / Batch</th>
+                            <th style="width: 140px;">Serial #</th>
+                            <th style="width: 70px;" class="text-center">Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line_form in formset %}
+                        <tr>
+                            <td>
+                                {{ line_form.id }}
+                                {{ line_form.product }}
+                                {% if line_form.product.errors %}<div class="text-danger small">{{ line_form.product.errors }}</div>{% endif %}
+                            </td>
+                            <td>
+                                {{ line_form.source_location }}
+                            </td>
+                            <td>
+                                {{ line_form.destination_location }}
+                            </td>
+                            <td>
+                                {{ line_form.quantity }}
+                                {% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}
+                            </td>
+                            <td>
+                                {{ line_form.unit_cost }}
+                            </td>
+                            <td>
+                                {{ line_form.batch_number }}
+                            </td>
+                            <td>
+                                {{ line_form.serial_number }}
+                            </td>
+                            <td class="text-center">
+                                {% if line_form.instance.pk %}
+                                {{ line_form.DELETE }}
+                                {% else %}
+                                &mdash;
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mb-5">
+        <a href="{% url 'inventory:movement_list' %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Save Draft Movement</button>
+    </div>
+</form>
+{% endblock %}\n

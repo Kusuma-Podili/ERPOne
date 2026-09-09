@@ -1,0 +1,101 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}New Purchase Requisition &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:dashboard' %}">Inventory</a>
+<span>/</span>
+<a href="{% url 'inventory:requisition_list' %}">Purchase Requisitions</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">New Requisition</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Create Purchase Requisition</h1>
+        <p class="page-subtitle">Submit a procurement replenishment demand for warehouse stocking.</p>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="card-title mb-0">Requisition Header</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold">Target Warehouse <span class="text-danger">*</span></label>
+                    {{ form.warehouse }}
+                    {% if form.warehouse.errors %}<div class="text-danger small">{{ form.warehouse.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold">Priority</label>
+                    {{ form.priority }}
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold">Required Delivery Date</label>
+                    {{ form.required_by_date }}
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold">Business Justification</label>
+                    {{ form.justification }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items FormSet -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="card-title mb-0">Demanded Item Lines</h5>
+        </div>
+        <div class="card-body p-0">
+            {{ formset.management_form }}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width: 250px;">Product</th>
+                            <th style="width: 140px;">Quantity</th>
+                            <th style="width: 140px;">Est. Unit Cost</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line_form in formset %}
+                        <tr>
+                            <td>
+                                {{ line_form.id }}
+                                {{ line_form.product }}
+                                {% if line_form.product.errors %}<div class="text-danger small">{{ line_form.product.errors }}</div>{% endif %}
+                            </td>
+                            <td>
+                                {{ line_form.quantity_requested }}
+                                {% if line_form.quantity_requested.errors %}<div class="text-danger small">{{ line_form.quantity_requested.errors }}</div>{% endif %}
+                            </td>
+                            <td>
+                                {{ line_form.estimated_unit_cost }}
+                            </td>
+                            <td>
+                                {{ line_form.notes }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mb-5">
+        <a href="{% url 'inventory:requisition_list' %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Submit Purchase Requisition</button>
+    </div>
+</form>
+{% endblock %}\n

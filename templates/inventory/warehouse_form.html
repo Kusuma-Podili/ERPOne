@@ -1,0 +1,111 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Edit Warehouse{% else %}New Warehouse{% endif %} — EnterpriseOne{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 900px;">
+    <div class="page-header mb-4">
+        <h1 class="page-title mb-1">{% if form.instance.pk %}Edit Warehouse Facility{% else %}New Warehouse Facility{% endif %}</h1>
+        <p class="text-muted mb-0">Define location parameters, facility type, physical address, and managerial governance.</p>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+                {% if form.errors %}
+                <div class="alert alert-danger mb-4">
+                    Please correct the errors indicated below.
+                </div>
+                {% endif %}
+
+                <div class="row g-3">
+                    <div class="col-12 col-md-8">
+                        <label class="form-label fw-bold">Facility Name <span class="text-danger">*</span></label>
+                        {{ form.name }}
+                        {{ form.name.errors }}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-bold">Warehouse Code <span class="text-danger">*</span></label>
+                        {{ form.code }}
+                        {{ form.code.errors }}
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-bold">Facility Classification</label>
+                        {{ form.warehouse_type }}
+                        {{ form.warehouse_type.errors }}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-bold">Corporate Branch</label>
+                        {{ form.branch }}
+                        {{ form.branch.errors }}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-bold">Facility Manager</label>
+                        {{ form.manager }}
+                        {{ form.manager.errors }}
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Street Address</label>
+                        {{ form.address }}
+                        {{ form.address.errors }}
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-bold">City</label>
+                        {{ form.city }}
+                        {{ form.city.errors }}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-bold">State / Province</label>
+                        {{ form.state_province }}
+                        {{ form.state_province.errors }}
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fw-bold">Postal Code</label>
+                        {{ form.postal_code }}
+                        {{ form.postal_code.errors }}
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-bold">Country</label>
+                        {{ form.country }}
+                        {{ form.country.errors }}
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-bold">Total Storage Capacity (m³)</label>
+                        {{ form.total_capacity_cbm }}
+                        {{ form.total_capacity_cbm.errors }}
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <div class="form-check mt-3">
+                            {{ form.is_primary }}
+                            <label class="form-check-label fw-bold" for="{{ form.is_primary.id_for_label }}">
+                                Primary Fulfillment Node
+                            </label>
+                            <div class="form-text">Designates the primary facility for automated sales allocation.</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="form-check mt-3">
+                            {{ form.is_active }}
+                            <label class="form-check-label fw-bold" for="{{ form.is_active.id_for_label }}">
+                                Facility Operational & Active
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <a href="{% url 'inventory:warehouse_list' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4">Save Warehouse</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

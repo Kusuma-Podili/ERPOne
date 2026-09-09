@@ -1,0 +1,145 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}Stock Movement Ledger &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:warehouse_list' %}">Inventory</a>
+<span>/</span>
+<a href="{% url 'inventory:movement_list' %}">Stock Movements</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Stock Ledger</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Inventory Audit Ledger</h1>
+        <p class="page-subtitle">Double-entry physical inventory ledger recording all receipts, allocations, and bin relocations.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'inventory:movement_list' %}" class="btn btn-secondary">
+            Stock Movements
+        </a>
+    </div>
+</div>
+
+<!-- Ledger Filter Card -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-12 col-md-5">
+                <select name="product" class="form-select">
+                    <option value="">All Products</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" {% if selected_product == p.id|stringformat:"s" %}selected{% endif %}>{{ p.sku }} &mdash; {{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-5">
+                <select name="warehouse" class="form-select">
+                    <option value="">All Warehouses</option>
+                    {% for wh in warehouses %}
+                    <option value="{{ wh.id }}" {% if selected_warehouse == wh.id|stringformat:"s" %}selected{% endif %}>{{ wh.code }} &mdash; {{ wh.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary w-100">Filter Ledger</button>
+                {% if selected_product or selected_warehouse %}
+                <a href="{% url 'inventory:stock_ledger' %}" class="btn btn-outline-secondary">Reset</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Ledger Entries Table -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Movement #</th>
+                        <th>Type</th>
+                        <th>Product & SKU</th>
+                        <th>Origin</th>
+                        <th>Destination</th>
+                        <th>Lot / Serial</th>
+                        <th class="text-end">Quantity</th>
+                        <th class="text-end">Valuation</th>
+                        <th>Posted By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in ledger_entries %}
+                    <tr>
+                        <td class="small">{{ entry.movement.posted_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'inventory:movement_detail' entry.movement.pk %}" class="fw-bold text-decoration-none">
+                                {{ entry.movement.movement_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ entry.movement.get_movement_type_display }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ entry.product.name }}</strong>
+                            <small class="text-muted d-block">{{ entry.product.sku }}</small>
+                        </td>
+                        <td>
+                            {% if entry.movement.source_warehouse %}
+                            {{ entry.movement.source_warehouse.code }}
+                            {% if entry.source_location %}<small class="text-muted">({{ entry.source_location.code }})</small>{% endif %}
+                            {% else %}
+                            <span class="text-muted">Inbound Supplier</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if entry.movement.destination_warehouse %}
+                            {{ entry.movement.destination_warehouse.code }}
+                            {% if entry.destination_location %}<small class="text-muted">({{ entry.destination_location.code }})</small>{% endif %}
+                            {% else %}
+                            <span class="text-muted">Outbound Scrap</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            {{ entry.batch_number|default:entry.serial_number|default:"&mdash;" }}
+                        </td>
+                        <td class="text-end fw-bold">{{ entry.quantity }}</td>
+                        <td class="text-end">${{ entry.total_value|floatformat:2 }}</td>
+                        <td class="small">{{ entry.movement.posted_by.get_full_name|default:entry.movement.posted_by.email }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5 text-muted">
+                            <h5>No ledger transactions recorded</h5>
+                            <p>Completed stock receipts, transfers, and adjustments will appear chronologically in this audit ledger.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if is_paginated %}
+    <div class="card-footer bg-white border-0 py-3">
+        <nav>
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}\n
