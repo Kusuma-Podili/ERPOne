@@ -70,6 +70,10 @@
 
         <div class="nav-section-title">Customer Relationship (CRM)</div>
         {% if active_organization %}
+        <a href="{% url 'crm:dashboard' %}" class="nav-item {% if request.resolver_match.app_name == 'crm' and request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+            <span>CRM Dashboard</span>
+        </a>
         <a href="{% url 'crm:lead_list' %}" class="nav-item {% if request.resolver_match.app_name == 'crm' and 'lead' in request.resolver_match.url_name %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
             <span>Leads</span>
@@ -89,6 +93,10 @@
         <a href="{% url 'crm:deal_kanban' %}" class="nav-item {% if request.resolver_match.app_name == 'crm' and 'kanban' in request.resolver_match.url_name %}active{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="6" height="18" x="3" y="3" rx="1"/><rect width="6" height="12" x="15" y="3" rx="1"/></svg>
             <span>Pipeline Kanban</span>
+        </a>
+        <a href="{% url 'crm:activity_list' %}" class="nav-item {% if request.resolver_match.app_name == 'crm' and 'activity' in request.resolver_match.url_name %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Activities & Tasks</span>
         </a>
         {% else %}
         <div class="nav-item" style="opacity: 0.6; cursor: default;">

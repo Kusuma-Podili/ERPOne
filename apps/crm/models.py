@@ -624,3 +624,189 @@ class DealStageTransition(models.Model):
         return f"{self.deal.name}: {from_name} -> {self.to_stage.name}"
 
 
+class ActivityType(models.TextChoices):
+    CALL = "CALL", _("Phone Call")
+    MEETING = "MEETING", _("Meeting / Conference")
+    TASK = "TASK", _("To-Do Task")
+    EMAIL = "EMAIL", _("Email Correspondence")
+    DEMO = "DEMO", _("Product Demonstration")
+    NOTE = "NOTE", _("General Note")
+
+
+class ActivityStatus(models.TextChoices):
+    PLANNED = "PLANNED", _("Planned / Scheduled")
+    IN_PROGRESS = "IN_PROGRESS", _("In Progress")
+    COMPLETED = "COMPLETED", _("Completed")
+    CANCELLED = "CANCELLED", _("Cancelled")
+
+
+class ActivityPriority(models.TextChoices):
+    LOW = "LOW", _("Low")
+    NORMAL = "NORMAL", _("Normal")
+    HIGH = "HIGH", _("High")
+    URGENT = "URGENT", _("Urgent")
+
+
+class Activity(models.Model):
+    """
+    Interaction, touchpoint, or scheduled task linked to accounts, contacts, leads, or deals.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="crm_activities",
+        verbose_name=_("Organization"),
+    )
+    activity_type = models.CharField(
+        _("Activity Type"),
+        max_length=32,
+        choices=ActivityType.choices,
+        default=ActivityType.TASK,
+        db_index=True,
+    )
+    subject = models.CharField(_("Subject / Title"), max_length=255)
+    description = models.TextField(_("Description / Agenda / Notes"), blank=True)
+    due_date = models.DateTimeField(_("Due Date / Scheduled Time"), null=True, blank=True, db_index=True)
+    completed_at = models.DateTimeField(_("Completion Timestamp"), null=True, blank=True)
+    status = models.CharField(
+        _("Status"),
+        max_length=32,
+        choices=ActivityStatus.choices,
+        default=ActivityStatus.PLANNED,
+        db_index=True,
+    )
+    priority = models.CharField(
+        _("Priority"),
+        max_length=16,
+        choices=ActivityPriority.choices,
+        default=ActivityPriority.NORMAL,
+    )
+    # Linked entities
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="activities",
+        verbose_name=_("Account"),
+    )
+    contact = models.ForeignKey(
+        Contact,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="activities",
+        verbose_name=_("Contact"),
+    )
+    lead = models.ForeignKey(
+        Lead,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="activities",
+        verbose_name=_("Lead"),
+    )
+    deal = models.ForeignKey(
+        Deal,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="activities",
+        verbose_name=_("Deal"),
+    )
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_crm_activities",
+        verbose_name=_("Assigned Representative"),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_crm_activities",
+        verbose_name=_("Created By"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Activity")
+        verbose_name_plural = _("Activities")
+        ordering = ["-due_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "status"]),
+            models.Index(fields=["organization", "due_date"]),
+            models.Index(fields=["account", "status"]),
+            models.Index(fields=["deal", "status"]),
+        ]
+
+    def __str__(self):
+        return f"[{self.get_activity_type_display()}] {self.subject}"
+
+
+class Note(models.Model):
+    """
+    Rich notes and documentation attached to CRM entities.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="crm_notes",
+        verbose_name=_("Organization"),
+    )
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notes_list",
+        verbose_name=_("Account"),
+    )
+    contact = models.ForeignKey(
+        Contact,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notes_list",
+        verbose_name=_("Contact"),
+    )
+    deal = models.ForeignKey(
+        Deal,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notes_list",
+        verbose_name=_("Deal"),
+    )
+    title = models.CharField(_("Note Title"), max_length=255)
+    content = models.TextField(_("Content"))
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_crm_notes",
+        verbose_name=_("Created By"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Note")
+        verbose_name_plural = _("Notes")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "created_at"]),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+

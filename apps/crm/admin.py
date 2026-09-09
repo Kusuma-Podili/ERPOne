@@ -6,6 +6,8 @@ from apps.crm.models import (
     PipelineStage,
     Deal,
     DealStageTransition,
+    Activity,
+    Note,
 )
 
 
@@ -197,5 +199,41 @@ class DealStageTransitionAdmin(admin.ModelAdmin):
     list_display = ("deal", "from_stage", "to_stage", "changed_by", "duration_in_previous_stage_seconds", "created_at")
     list_filter = ("to_stage", "organization")
     readonly_fields = ("id", "deal", "from_stage", "to_stage", "changed_by", "transition_notes", "duration_in_previous_stage_seconds", "created_at")
+
+
+@admin.register(Activity)
+class ActivityAdmin(admin.ModelAdmin):
+    list_display = (
+        "subject",
+        "activity_type",
+        "status",
+        "priority",
+        "due_date",
+        "account",
+        "deal",
+        "assigned_to",
+        "organization",
+    )
+    list_filter = (
+        "activity_type",
+        "status",
+        "priority",
+        "organization",
+    )
+    search_fields = (
+        "subject",
+        "description",
+        "account__name",
+        "deal__name",
+    )
+    readonly_fields = ("id", "created_at", "updated_at")
+
+
+@admin.register(Note)
+class NoteAdmin(admin.ModelAdmin):
+    list_display = ("title", "account", "deal", "contact", "created_by", "created_at")
+    search_fields = ("title", "content", "account__name", "deal__name")
+    readonly_fields = ("id", "created_at", "updated_at")
+
 
 
