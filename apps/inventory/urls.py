@@ -7,8 +7,11 @@ from . import views
 app_name = "inventory"
 
 urlpatterns = [
+    # Executive Inventory Command Center
+    path("", views.InventoryDashboardView.as_view(), name="index"),
+    path("dashboard/", views.InventoryDashboardView.as_view(), name="dashboard"),
+
     # Warehouses
-    path("", views.WarehouseListView.as_view(), name="index"),
     path("warehouses/", views.WarehouseListView.as_view(), name="warehouse_list"),
     path("warehouses/create/", views.WarehouseCreateView.as_view(), name="warehouse_create"),
     path("warehouses/<uuid:pk>/", views.WarehouseDetailView.as_view(), name="warehouse_detail"),
@@ -51,4 +54,19 @@ urlpatterns = [
 
     # Expiry & FEFO Reporting
     path("expiring-stock/", views.ExpiringStockReportView.as_view(), name="expiring_stock"),
+
+    # Automated Reorder Policies (Milestone 5.4)
+    path("reorder-rules/", views.ReorderRuleListView.as_view(), name="reorder_rule_list"),
+    path("reorder-rules/create/", views.ReorderRuleCreateView.as_view(), name="reorder_rule_create"),
+    path("reorder-rules/<uuid:pk>/edit/", views.ReorderRuleUpdateView.as_view(), name="reorder_rule_edit"),
+
+    # Automated Replenishment Evaluation Trigger
+    path("replenishment/scan/", views.ReplenishmentScanTriggerView.as_view(), name="replenishment_scan"),
+
+    # Purchase Replenishment Requisitions
+    path("requisitions/", views.PurchaseRequisitionListView.as_view(), name="requisition_list"),
+    path("requisitions/create/", views.PurchaseRequisitionCreateView.as_view(), name="requisition_create"),
+    path("requisitions/<uuid:pk>/", views.PurchaseRequisitionDetailView.as_view(), name="requisition_detail"),
+    path("requisitions/<uuid:pk>/approve/", views.PurchaseRequisitionApproveView.as_view(), name="requisition_approve"),
+    path("requisitions/<uuid:pk>/cancel/", views.PurchaseRequisitionCancelView.as_view(), name="requisition_cancel"),
 ]

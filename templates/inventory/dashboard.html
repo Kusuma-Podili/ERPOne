@@ -1,0 +1,233 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}Inventory & Logistics Operations Dashboard &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Inventory Command Center</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Inventory & Logistics Command Center</h1>
+        <p class="page-subtitle">Real-time valuation, facility storage utilization, automated replenishment, and supply chain health.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <form method="post" action="{% url 'inventory:replenishment_scan' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Scan & Run Replenishment
+            </button>
+        </form>
+        <a href="{% url 'inventory:movement_create' %}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            New Stock Movement
+        </a>
+    </div>
+</div>
+
+<!-- Top Executive KPI Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <span class="text-muted text-uppercase fw-semibold small">Total Stock Valuation</span>
+                <h2 class="display-6 fw-bold mt-2 mb-1 text-primary">${{ kpis.total_valuation|floatformat:2 }}</h2>
+                <div class="text-muted small">{{ kpis.total_distinct_products }} Distinct SKUs across {{ kpis.total_warehouses }} facilities</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <span class="text-muted text-uppercase fw-semibold small">Stockout & Low Stock</span>
+                <h2 class="display-6 fw-bold mt-2 mb-1 {% if kpis.stockout_count > 0 %}text-danger{% elif kpis.low_stock_count > 0 %}text-warning{% else %}text-success{% endif %}">
+                    {{ kpis.stockout_count }} / {{ kpis.low_stock_count }}
+                </h2>
+                <div class="text-muted small">{{ kpis.stockout_count }} stockouts, {{ kpis.low_stock_count }} below reorder point</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <span class="text-muted text-uppercase fw-semibold small">Pending Requisitions</span>
+                <h2 class="display-6 fw-bold mt-2 mb-1 text-info">{{ kpis.pending_requisitions }}</h2>
+                <div class="text-muted small">Awaiting procurement authorization</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <span class="text-muted text-uppercase fw-semibold small">Batches Near Expiration</span>
+                <h2 class="display-6 fw-bold mt-2 mb-1 {% if kpis.expiring_lots_count > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ kpis.expiring_lots_count }}
+                </h2>
+                <div class="text-muted small">Expiring within next 30 days (FEFO priority)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Two-Column Operational Views -->
+<div class="row g-4 mb-4">
+    <!-- Left: Low Stock & Reorder Triggers -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Low Stock & Restocking Alerts</h5>
+                <a href="{% url 'inventory:stock_list' %}" class="btn btn-sm btn-link text-decoration-none">View All Stock</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product / SKU</th>
+                                <th>Warehouse</th>
+                                <th class="text-end">On-Hand</th>
+                                <th class="text-end">Min Threshold</th>
+                                <th class="text-end">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in low_stock_items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.product.name }}</strong>
+                                    <small class="text-muted d-block">{{ item.product.sku }}</small>
+                                </td>
+                                <td>{{ item.warehouse.code }}</td>
+                                <td class="text-end fw-bold text-danger">{{ item.quantity_on_hand }}</td>
+                                <td class="text-end text-muted">{{ item.reorder_point }}</td>
+                                <td class="text-end">
+                                    {% if item.is_below_safety %}
+                                    <span class="badge bg-danger text-white">Critical Safety</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Reorder Point</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">All active SKUs are currently operating above minimum buffer levels.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Recent Stock Movements -->
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Stock Movements</h5>
+                <a href="{% url 'inventory:movement_list' %}" class="btn btn-sm btn-link text-decoration-none">View All Movements</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Movement #</th>
+                                <th>Type</th>
+                                <th>Routing</th>
+                                <th>Status</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in recent_movements %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'inventory:movement_detail' m.pk %}" class="fw-bold text-decoration-none">
+                                        {{ m.movement_number }}
+                                    </a>
+                                </td>
+                                <td><span class="badge bg-light text-dark border">{{ m.get_movement_type_display }}</span></td>
+                                <td class="small">
+                                    {{ m.source_warehouse.code|default:"Inbound" }} &rarr; {{ m.destination_warehouse.code|default:"Outbound" }}
+                                </td>
+                                <td>
+                                    {% if m.status == 'completed' %}
+                                    <span class="badge bg-success-subtle text-success">Completed</span>
+                                    {% else %}
+                                    <span class="badge bg-warning-subtle text-warning">{{ m.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{% url 'inventory:movement_detail' m.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">No stock movements recorded yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Warehouse Logistics Infrastructure -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Warehouse Logistics Facilities</h5>
+        <a href="{% url 'inventory:warehouse_create' %}" class="btn btn-sm btn-primary">New Warehouse</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Facility Name</th>
+                        <th>Code</th>
+                        <th>Type</th>
+                        <th>Location</th>
+                        <th>Zones</th>
+                        <th>Storage Bins</th>
+                        <th>Capacity</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for wh in warehouses %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'inventory:warehouse_detail' wh.pk %}" class="fw-bold text-decoration-none">
+                                {{ wh.name }}
+                            </a>
+                            {% if wh.is_primary %}<span class="badge bg-primary text-white ms-1">Primary</span>{% endif %}
+                        </td>
+                        <td><code>{{ wh.code }}</code></td>
+                        <td>{{ wh.get_warehouse_type_display }}</td>
+                        <td>{{ wh.city }}, {{ wh.state_province }}</td>
+                        <td>{{ wh.total_zones_count }}</td>
+                        <td>{{ wh.total_locations_count }}</td>
+                        <td>{{ wh.total_capacity_cbm|floatformat:2 }} m³</td>
+                        <td class="text-end">
+                            <a href="{% url 'inventory:warehouse_detail' wh.pk %}" class="btn btn-sm btn-outline-secondary">Manage</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No warehouse facilities provisioned.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}\n

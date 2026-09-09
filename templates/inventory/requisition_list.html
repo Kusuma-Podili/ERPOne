@@ -1,0 +1,150 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}Purchase Requisitions &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:dashboard' %}">Inventory</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Purchase Requisitions</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Purchase Replenishment Requisitions</h1>
+        <p class="page-subtitle">Procurement demand documents generated from automated restocking scans or manual requests.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <form method="post" action="{% url 'inventory:replenishment_scan' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Scan & Run Replenishment
+            </button>
+        </form>
+        <a href="{% url 'inventory:requisition_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            New Requisition
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-12 col-md-4">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <select name="priority" class="form-select">
+                    <option value="">All Priorities</option>
+                    {% for val, label in priorities %}
+                    <option value="{{ val }}" {% if current_priority == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <select name="warehouse" class="form-select">
+                    <option value="">All Warehouses</option>
+                    {% for wh in warehouses %}
+                    <option value="{{ wh.id }}" {% if current_warehouse == wh.id|stringformat:"s" %}selected{% endif %}>{{ wh.code }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                {% if current_status or current_priority or current_warehouse %}
+                <a href="{% url 'inventory:requisition_list' %}" class="btn btn-outline-secondary">Reset</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Requisitions Table -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Requisition #</th>
+                        <th>Warehouse</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Items Count</th>
+                        <th class="text-end">Estimated Cost</th>
+                        <th>Required By</th>
+                        <th>Requested By</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in requisitions %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'inventory:requisition_detail' r.pk %}" class="fw-bold text-decoration-none">
+                                {{ r.requisition_number }}
+                            </a>
+                        </td>
+                        <td>{{ r.warehouse.code }}</td>
+                        <td>
+                            {% if r.priority == 'critical' %}
+                            <span class="badge bg-danger text-white">Critical</span>
+                            {% elif r.priority == 'high' %}
+                            <span class="badge bg-warning text-dark">High</span>
+                            {% elif r.priority == 'medium' %}
+                            <span class="badge bg-info text-dark">Medium</span>
+                            {% else %}
+                            <span class="badge bg-light text-dark border">Low</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if r.status == 'approved' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Approved</span>
+                            {% elif r.status == 'pending' %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Pending</span>
+                            {% elif r.status == 'draft' %}
+                            <span class="badge bg-secondary-subtle text-dark border">Draft</span>
+                            {% elif r.status == 'cancelled' %}
+                            <span class="badge bg-secondary text-white">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.total_items_count }}</td>
+                        <td class="text-end fw-bold">${{ r.total_estimated_cost|floatformat:2 }}</td>
+                        <td>{{ r.required_by_date|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ r.requested_by.get_full_name|default:r.requested_by.email }}</td>
+                        <td class="text-end">
+                            <a href="{% url 'inventory:requisition_detail' r.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+                            {% if r.can_approve %}
+                            <form method="post" action="{% url 'inventory:requisition_approve' r.pk %}" style="display:inline;" onsubmit="return confirm('Approve requisition {{ r.requisition_number }} for procurement?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <h5>No purchase requisitions found</h5>
+                            <p>Trigger an automated scan or submit a manual requisition to restock facility buffers.</p>
+                            <a href="{% url 'inventory:requisition_create' %}" class="btn btn-sm btn-primary">Create Requisition</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}\n

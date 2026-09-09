@@ -1,0 +1,82 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}Reorder Policy &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:dashboard' %}">Inventory</a>
+<span>/</span>
+<a href="{% url 'inventory:reorder_rule_list' %}">Reorder Policies</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Policy Form</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Configure Reorder Policy</h1>
+        <p class="page-subtitle">Establish restocking safety thresholds and replenishment batch sizes.</p>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4" style="max-width: 800px;">
+    <div class="card-body p-4">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-bold">Warehouse Facility <span class="text-danger">*</span></label>
+                    {{ form.warehouse }}
+                    {% if form.warehouse.errors %}<div class="text-danger small">{{ form.warehouse.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-bold">Target Product <span class="text-danger">*</span></label>
+                    {{ form.product }}
+                    {% if form.product.errors %}<div class="text-danger small">{{ form.product.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold">Minimum Threshold (Restock Trigger)</label>
+                    {{ form.min_quantity }}
+                    {% if form.min_quantity.errors %}<div class="text-danger small">{{ form.min_quantity.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold">Maximum Capacity Ceiling</label>
+                    {{ form.max_quantity }}
+                    {% if form.max_quantity.errors %}<div class="text-danger small">{{ form.max_quantity.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-bold">Economic Order Qty (EOQ)</label>
+                    {{ form.reorder_quantity }}
+                    {% if form.reorder_quantity.errors %}<div class="text-danger small">{{ form.reorder_quantity.errors }}</div>{% endif %}
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-bold">Lead Time (Calendar Days)</label>
+                    {{ form.lead_time_days }}
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-bold">Preferred Supplier / Vendor</label>
+                    {{ form.preferred_vendor_name }}
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        {{ form.auto_reorder_enabled }}
+                        <label class="form-check-label fw-bold" for="{{ form.auto_reorder_enabled.id_for_label }}">Auto-Generate Purchase Requisitions during Scan</label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label fw-bold" for="{{ form.is_active.id_for_label }}">Policy Active</label>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a href="{% url 'inventory:reorder_rule_list' %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Policy</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}\n

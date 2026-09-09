@@ -21,6 +21,11 @@ from .models import (
     SerialStatus,
     LotBatch,
     SerialNumber,
+    ReorderRule,
+    RequisitionStatus,
+    RequisitionPriority,
+    PurchaseRequisition,
+    PurchaseRequisitionLine,
 )
 
 
@@ -454,3 +459,104 @@ class SerialNumberBulkCreateForm(forms.Form):
             self.fields["lot"].queryset = LotBatch.objects.filter(organization=organization, is_active=True)
             self.fields["warehouse"].queryset = Warehouse.objects.filter(organization=organization, is_active=True)
             self.fields["location"].queryset = StorageLocation.objects.filter(organization=organization, is_active=True)
+
+
+# ==============================================================================
+# REORDER RULES & PURCHASE REQUISITION FORMS (Milestone 5.4)
+# ==============================================================================
+
+class ReorderRuleForm(forms.ModelForm):
+    class Meta:
+        model = ReorderRule
+        fields = [
+            "warehouse",
+            "product",
+            "min_quantity",
+            "max_quantity",
+            "reorder_quantity",
+            "lead_time_days",
+            "auto_reorder_enabled",
+            "preferred_vendor_name",
+            "is_active",
+        ]
+        widgets = {
+            "warehouse": forms.Select(attrs={"class": "form-select"}),
+            "product": forms.Select(attrs={"class": "form-select"}),
+            "min_quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "max_quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "reorder_quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "lead_time_days": forms.NumberInput(attrs={"class": "form-control", "min": "1"}),
+            "auto_reorder_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "preferred_vendor_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Preferred supplier..."}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["warehouse"].queryset = Warehouse.objects.filter(organization=organization, is_active=True)
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+
+
+class PurchaseRequisitionForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseRequisition
+        fields = [
+            "warehouse",
+            "priority",
+            "required_by_date",
+            "justification",
+        ]
+        widgets = {
+            "warehouse": forms.Select(attrs={"class": "form-select"}),
+            "priority": forms.Select(attrs={"class": "form-select"}),
+            "required_by_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "justification": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Business justification for this replenishment requisition..."}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["warehouse"].queryset = Warehouse.objects.filter(organization=organization, is_active=True)
+
+
+class PurchaseRequisitionLineForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseRequisitionLine
+        fields = [
+            "product",
+            "quantity_requested",
+            "estimated_unit_cost",
+            "notes",
+        ]
+        widgets = {
+            "product": forms.Select(attrs={"class": "form-select"}),
+            "quantity_requested": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01"}),
+            "estimated_unit_cost": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "notes": forms.TextInput(attrs={"class": "form-control", "placeholder": "Notes"}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+
+
+PurchaseRequisitionLineFormSet = inlineformset_factory(
+    PurchaseRequisition,
+    PurchaseRequisitionLine,
+    fields=[
+        "product",
+        "quantity_requested",
+        "estimated_unit_cost",
+        "notes",
+    ],
+    extra=1,
+    can_delete=True,
+    widgets={
+        "product": forms.Select(attrs={"class": "form-select"}),
+        "quantity_requested": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0.01"}),
+        "estimated_unit_cost": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+        "notes": forms.TextInput(attrs={"class": "form-control", "placeholder": "Notes"}),
+    }
+)

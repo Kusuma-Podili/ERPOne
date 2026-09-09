@@ -723,3 +723,228 @@ class SerialNumber(models.Model):
         if self.warranty_end_date:
             return self.warranty_end_date >= timezone.now().date()
         return False
+
+
+class ReorderRule(models.Model):
+    """
+    Automated replenishment policy defining restocking triggers and batch sizes per product and warehouse.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="reorder_rules",
+    )
+    product = models.ForeignKey(
+        "sales.Product",
+        on_delete=models.CASCADE,
+        related_name="reorder_rules",
+    )
+    warehouse = models.ForeignKey(
+        Warehouse,
+        on_delete=models.CASCADE,
+        related_name="reorder_rules",
+    )
+    min_quantity = models.DecimalField(
+        _("Minimum Stock Threshold"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("10.00"),
+        help_text=_("Quantity at which a replenishment trigger is fired."),
+    )
+    max_quantity = models.DecimalField(
+        _("Target Maximum Capacity"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("100.00"),
+        help_text=_("Ceiling quantity to prevent overstocking."),
+    )
+    reorder_quantity = models.DecimalField(
+        _("Replenishment Batch Size (EOQ)"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("50.00"),
+        help_text=_("Recommended order batch quantity."),
+    )
+    lead_time_days = models.PositiveIntegerField(
+        _("Lead Time (Days)"),
+        default=7,
+        help_text=_("Estimated vendor delivery turnaround in calendar days."),
+    )
+    auto_reorder_enabled = models.BooleanField(_("Auto-Generate Requisition"), default=True)
+    preferred_vendor_name = models.CharField(_("Preferred Supplier / Vendor"), max_length=150, blank=True)
+    is_active = models.BooleanField(_("Active"), default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Reorder Policy")
+        verbose_name_plural = _("Reorder Policies")
+        ordering = ["warehouse__code", "product__name"]
+        unique_together = ("warehouse", "product")
+
+    def __str__(self):
+        return f"{self.product.sku} @ {self.warehouse.code} (Min: {self.min_quantity}, Max: {self.max_quantity})"
+
+    def clean(self):
+        super().clean()
+        if self.min_quantity < Decimal("0.00"):
+            raise ValidationError({"min_quantity": _("Minimum stock cannot be negative.")})
+        if self.max_quantity < self.min_quantity:
+            raise ValidationError({"max_quantity": _("Maximum capacity cannot be lower than minimum threshold.")})
+        if self.reorder_quantity <= Decimal("0.00"):
+            raise ValidationError({"reorder_quantity": _("Reorder quantity must be greater than zero.")})
+
+
+class RequisitionStatus(models.TextChoices):
+    DRAFT = "draft", _("Draft")
+    PENDING = "pending", _("Pending Approval")
+    APPROVED = "approved", _("Approved for Procurement")
+    CONVERTED = "converted", _("Converted to Purchase Order")
+    CANCELLED = "cancelled", _("Cancelled")
+
+
+class RequisitionPriority(models.TextChoices):
+    LOW = "low", _("Low / Scheduled Stocking")
+    MEDIUM = "medium", _("Medium / Standard Reorder")
+    HIGH = "high", _("High / Urgent Stockout Threat")
+    CRITICAL = "critical", _("Critical / Immediate Line Down")
+
+
+class PurchaseRequisition(models.Model):
+    """
+    Procurement demand document requesting standard or emergency replenishment for warehouse facilities.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="purchase_requisitions",
+    )
+    requisition_number = models.CharField(_("Requisition Number"), max_length=64, blank=True, db_index=True)
+    warehouse = models.ForeignKey(
+        Warehouse,
+        on_delete=models.PROTECT,
+        related_name="purchase_requisitions",
+    )
+    status = models.CharField(
+        _("Status"),
+        max_length=30,
+        choices=RequisitionStatus.choices,
+        default=RequisitionStatus.DRAFT,
+    )
+    priority = models.CharField(
+        _("Priority"),
+        max_length=30,
+        choices=RequisitionPriority.choices,
+        default=RequisitionPriority.MEDIUM,
+    )
+    required_by_date = models.DateField(_("Required Delivery Date"), null=True, blank=True)
+    justification = models.TextField(_("Business Justification & Context"), blank=True)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="requested_requisitions",
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_requisitions",
+    )
+    approved_at = models.DateTimeField(_("Approval Timestamp"), null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Purchase Requisition")
+        verbose_name_plural = _("Purchase Requisitions")
+        ordering = ["-created_at"]
+        unique_together = ("organization", "requisition_number")
+
+    def __str__(self):
+        return f"{self.requisition_number} ({self.warehouse.code}) - {self.get_status_display()}"
+
+    def save(self, *args, **kwargs):
+        if not self.requisition_number:
+            self.requisition_number = self.generate_requisition_number()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        if not self.requisition_number and self.organization_id:
+            self.requisition_number = self.generate_requisition_number()
+
+    def generate_requisition_number(self) -> str:
+        year = timezone.now().year
+        count = PurchaseRequisition.objects.filter(
+            organization=self.organization,
+            created_at__year=year,
+        ).count() + 1
+        return f"PR-{year}-{count:05d}"
+
+    @property
+    def total_items_count(self) -> int:
+        return self.lines.count()
+
+    @property
+    def total_estimated_cost(self) -> Decimal:
+        return sum((line.estimated_extended_cost for line in self.lines.all()), Decimal("0.00"))
+
+    @property
+    def can_approve(self) -> bool:
+        return self.status in [RequisitionStatus.DRAFT, RequisitionStatus.PENDING]
+
+    @property
+    def can_cancel(self) -> bool:
+        return self.status in [RequisitionStatus.DRAFT, RequisitionStatus.PENDING, RequisitionStatus.APPROVED]
+
+
+class PurchaseRequisitionLine(models.Model):
+    """
+    Individual requested SKU item line in a purchase replenishment requisition.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requisition = models.ForeignKey(
+        PurchaseRequisition,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    product = models.ForeignKey(
+        "sales.Product",
+        on_delete=models.CASCADE,
+        related_name="requisition_lines",
+    )
+    quantity_requested = models.DecimalField(
+        _("Quantity Requested"),
+        max_digits=12,
+        decimal_places=2,
+    )
+    estimated_unit_cost = models.DecimalField(
+        _("Estimated Unit Cost"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    notes = models.CharField(_("Specification Notes"), max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Requisition Line")
+        verbose_name_plural = _("Requisition Lines")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.product.name} x {self.quantity_requested} ({self.requisition.requisition_number})"
+
+    @property
+    def estimated_extended_cost(self) -> Decimal:
+        return (self.quantity_requested or Decimal("0.00")) * (self.estimated_unit_cost or Decimal("0.00"))
+
+    def clean(self):
+        super().clean()
+        if self.quantity_requested is not None and self.quantity_requested <= Decimal("0.00"):
+            raise ValidationError({"quantity_requested": _("Requested replenishment quantity must be greater than zero.")})
