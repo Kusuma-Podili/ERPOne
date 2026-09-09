@@ -38,6 +38,7 @@ ENTERPRISE_APPS = [
     "apps.sales.apps.SalesConfig",
     "apps.inventory.apps.InventoryConfig",
     "apps.procurement.apps.ProcurementConfig",
+    "apps.finance.apps.FinanceConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + ENTERPRISE_APPS

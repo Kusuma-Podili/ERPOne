@@ -1,0 +1,95 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Account Card: {{ account.code }} &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'finance:dashboard' %}">Finance</a>
+<span>/</span>
+<a href="{% url 'finance:account_list' %}">Chart of Accounts</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ account.code }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0.25rem;">{{ account.code }} &mdash; {{ account.name }}</h1>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-bottom: 0;">
+            {{ account.get_category_display }} &bull; {{ account.get_subtype_display }} &bull; Normal: {{ account.get_normal_balance_display }}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'finance:account_update' account.pk %}" class="btn btn-secondary">Edit Account</a>
+        <a href="{% url 'finance:account_list' %}" class="btn btn-secondary">&larr; Back to COA</a>
+    </div>
+</div>
+
+<!-- Account Summary Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Cumulative Posted Debits</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: #0284c7; margin-top: 0.25rem;">
+            ${{ total_debits|floatformat:2 }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Cumulative Posted Credits</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: #6366f1; margin-top: 0.25rem;">
+            ${{ total_credits|floatformat:2 }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Current Ending Balance</div>
+        <div style="font-size: 1.6rem; font-weight: 800; color: #10b981; margin-top: 0.25rem;">
+            ${{ final_balance|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ account.get_normal_balance_display }} Balance</div>
+    </div>
+</div>
+
+<!-- General Ledger Line Activity -->
+<div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+    <h3 style="margin-top: 0; margin-bottom: 1rem;">General Ledger Account Card Activity</h3>
+    <table class="table" style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+        <thead>
+            <tr style="border-bottom: 2px solid var(--border-color); background: var(--surface-background); text-align: left;">
+                <th style="padding: 0.6rem;">Date</th>
+                <th style="padding: 0.6rem;">Voucher #</th>
+                <th style="padding: 0.6rem;">Period</th>
+                <th style="padding: 0.6rem;">Reference</th>
+                <th style="padding: 0.6rem;">Memo / Partner</th>
+                <th style="padding: 0.6rem; text-align: right;">Debit</th>
+                <th style="padding: 0.6rem; text-align: right;">Credit</th>
+                <th style="padding: 0.6rem; text-align: right;">Running Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in ledger_rows %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 0.6rem;">{{ row.entry_date }}</td>
+                <td style="padding: 0.6rem; font-weight: 600;">
+                    <a href="{% url 'finance:journal_entry_detail' row.entry_id %}">{{ row.entry_number }}</a>
+                </td>
+                <td style="padding: 0.6rem; font-size: 0.85rem;">{{ row.period }}</td>
+                <td style="padding: 0.6rem; font-size: 0.85rem;">{{ row.reference|default:"-" }}</td>
+                <td style="padding: 0.6rem;">
+                    {{ row.memo }}
+                    {% if row.partner %}<span style="color: var(--text-muted); font-size: 0.8rem;"> &bull; {{ row.partner }}</span>{% endif %}
+                </td>
+                <td style="padding: 0.6rem; text-align: right;">{% if row.debit > 0 %}${{ row.debit|floatformat:2 }}{% else %}-{% endif %}</td>
+                <td style="padding: 0.6rem; text-align: right;">{% if row.credit > 0 %}${{ row.credit|floatformat:2 }}{% else %}-{% endif %}</td>
+                <td style="padding: 0.6rem; text-align: right; font-weight: 700;">${{ row.running_balance|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                    No posted transactions have affected this account yet.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

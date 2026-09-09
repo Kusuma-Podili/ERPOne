@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Journal Voucher &bull; {{ entry.entry_number }}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 40px; color: #1e293b; }
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
+        .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .meta-table td { padding: 6px 12px; font-size: 14px; }
+        .lines-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+        .lines-table th, .lines-table td { border: 1px solid #cbd5e1; padding: 8px 12px; font-size: 13px; }
+        .lines-table th { background: #f8fafc; font-weight: 700; text-align: left; }
+        .text-right { text-align: right; }
+        .footer-signs { display: flex; justify-content: space-between; margin-top: 80px; }
+        .sign-box { border-top: 1px solid #0f172a; width: 28%; text-align: center; padding-top: 8px; font-size: 13px; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 20px;">
+        <button onclick="window.print()" style="padding: 8px 16px; background: #0f172a; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Print Voucher</button>
+        <button onclick="window.close()" style="padding: 8px 16px; background: #94a3b8; color: #fff; border: none; border-radius: 4px; cursor: pointer; margin-left: 8px;">Close</button>
+    </div>
+
+    <div class="header">
+        <div>
+            <h2 style="margin: 0; color: #0f172a;">{{ entry.organization.name }}</h2>
+            <div style="font-size: 14px; color: #64748b; margin-top: 4px;">General Ledger Journal Voucher</div>
+        </div>
+        <div style="text-align: right;">
+            <h2 style="margin: 0; color: #0284c7;">{{ entry.entry_number }}</h2>
+            <div style="font-size: 14px; color: #64748b; margin-top: 4px;">Status: {{ entry.get_status_display|upper }}</div>
+        </div>
+    </div>
+
+    <table class="meta-table">
+        <tr>
+            <td style="width: 15%; font-weight: 600;">Transaction Date:</td>
+            <td style="width: 35%;">{{ entry.entry_date }}</td>
+            <td style="width: 15%; font-weight: 600;">Fiscal Period:</td>
+            <td style="width: 35%;">{{ entry.fiscal_period.name }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: 600;">Posting Date:</td>
+            <td>{{ entry.posting_date|default:"Unposted" }}</td>
+            <td style="font-weight: 600;">Reference:</td>
+            <td>{{ entry.reference|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: 600;">Source:</td>
+            <td>{{ entry.get_source_document_type_display }}</td>
+            <td style="font-weight: 600;">Posted By:</td>
+            <td>{{ entry.posted_by.email|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: 600; vertical-align: top;">Narration:</td>
+            <td colspan="3">{{ entry.narration }}</td>
+        </tr>
+    </table>
+
+    <table class="lines-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 15%;">Account Code</th>
+                <th style="width: 30%;">Account Title</th>
+                <th style="width: 20%;">Memo / Partner</th>
+                <th style="width: 15%; text-align: right;">Debit ($)</th>
+                <th style="width: 15%; text-align: right;">Credit ($)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in entry.lines.all %}
+            <tr>
+                <td>{{ line.line_number }}</td>
+                <td style="font-family: monospace;">{{ line.account.code }}</td>
+                <td>{{ line.account.name }}</td>
+                <td>{{ line.narration }}{% if line.partner_name %} ({{ line.partner_name }}){% endif %}</td>
+                <td class="text-right">{% if line.debit > 0 %}${{ line.debit|floatformat:2 }}{% else %}-{% endif %}</td>
+                <td class="text-right">{% if line.credit > 0 %}${{ line.credit|floatformat:2 }}{% else %}-{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="font-weight: 700; background: #f8fafc;">
+                <td colspan="4" class="text-right">Totals:</td>
+                <td class="text-right">${{ entry.total_debit|floatformat:2 }}</td>
+                <td class="text-right">${{ entry.total_credit|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="footer-signs">
+        <div class="sign-box">Prepared By (Finance Officer)</div>
+        <div class="sign-box">Reviewed By (Chief Accountant)</div>
+        <div class="sign-box">Approved By (Controller / CFO)</div>
+    </div>
+</body>
+</html>
