@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Order {{ order.order_number }} ? {{ order.organization.name }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { background: #f8fafc; color: #1e293b; line-height: 1.5; padding: 40px; }
+        .document-container { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 48px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 24px; margin-bottom: 28px; }
+        .brand-title { font-size: 24px; font-weight: 700; color: #0f172a; }
+        .doc-title { font-size: 28px; font-weight: 800; color: #059669; text-align: right; }
+        .doc-meta { font-size: 13px; color: #64748b; text-align: right; margin-top: 4px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px; font-size: 14px; }
+        .info-block h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; }
+        .table th { background: #f1f5f9; color: #475569; font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 1px solid #cbd5e1; }
+        .table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+        .table tr:last-child td { border-bottom: none; }
+        .text-end { text-align: right; }
+        .totals-section { display: flex; justify-content: flex-end; margin-bottom: 32px; }
+        .totals-table { width: 320px; font-size: 14px; }
+        .totals-table tr td { padding: 6px 12px; }
+        .totals-table tr.grand-total td { font-size: 16px; font-weight: 700; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; padding: 10px 12px; color: #0f172a; }
+        .terms-section { border-top: 1px solid #e2e8f0; padding-top: 20px; margin-bottom: 32px; font-size: 12px; color: #64748b; }
+        .terms-section h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #334155; margin-bottom: 6px; }
+        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 48px; }
+        .signature-line { border-top: 1px solid #94a3b8; padding-top: 8px; font-size: 12px; color: #64748b; }
+        .print-btn-bar { position: fixed; top: 20px; right: 20px; z-index: 1000; }
+        .print-btn { background: #059669; color: #ffffff; border: none; padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 8px rgba(5,150,105,0.3); }
+        .print-btn:hover { background: #047857; }
+        @media print {
+            body { background: #ffffff; padding: 0; }
+            .document-container { max-width: 100%; box-shadow: none; padding: 0; }
+            .print-btn-bar { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-btn-bar">
+        <button class="print-btn" onclick="window.print()">Print / Export PDF</button>
+    </div>
+
+    <div class="document-container">
+        <div class="header">
+            <div>
+                <div class="brand-title">{{ order.organization.name }}</div>
+                <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Official Commercial Sales Order</div>
+            </div>
+            <div>
+                <div class="doc-title">SALES ORDER</div>
+                <div class="doc-meta"><strong>Order #:</strong> {{ order.order_number }}</div>
+                <div class="doc-meta"><strong>Date:</strong> {{ order.order_date|date:"F j, Y" }}</div>
+                {% if order.required_date %}
+                <div class="doc-meta"><strong>Required By:</strong> {{ order.required_date|date:"F j, Y" }}</div>
+                {% endif %}
+                <div class="doc-meta"><strong>Fulfillment Status:</strong> {{ order.get_status_display }} ({{ order.fulfillment_percentage }}%)</div>
+                {% if order.quote %}
+                <div class="doc-meta"><strong>Quote Ref:</strong> {{ order.quote.quote_number }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-block">
+                <h4>Customer & Shipping</h4>
+                <div style="font-weight: 600; color: #0f172a;">{{ order.account.name }}</div>
+                {% if order.contact %}
+                <div>Attn: {{ order.contact.full_name }}</div>
+                <div>{{ order.contact.email }}</div>
+                {% endif %}
+                {% if order.shipping_address %}
+                <div style="margin-top: 4px;"><strong>Ship To:</strong><br>{{ order.shipping_address|linebreaksbr }}</div>
+                {% endif %}
+            </div>
+            <div class="info-block">
+                <h4>Billing & Order Terms</h4>
+                {% if order.billing_address %}
+                <div><strong>Bill To:</strong><br>{{ order.billing_address|linebreaksbr }}</div>
+                {% endif %}
+                <div style="margin-top: 4px;"><strong>Payment Terms:</strong> {{ order.payment_terms }}</div>
+                <div><strong>Currency:</strong> {{ order.currency }}</div>
+                <div><strong>Placed By:</strong> {{ order.created_by.get_full_name|default:order.created_by.email }}</div>
+            </div>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 40%;">Product & Description</th>
+                    <th style="width: 12%;" class="text-end">Ordered</th>
+                    <th style="width: 12%;" class="text-end">Fulfilled</th>
+                    <th style="width: 15%;" class="text-end">Unit Price</th>
+                    <th style="width: 16%;" class="text-end">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in line_items %}
+                <tr>
+                    <td>{{ line.line_number }}</td>
+                    <td>
+                        <div style="font-weight: 600; color: #0f172a;">{{ line.product.name }}</div>
+                        <div style="font-size: 11px; color: #64748b;">SKU: {{ line.product.sku }}{% if line.description and line.description != line.product.name %} ? {{ line.description }}{% endif %}</div>
+                    </td>
+                    <td class="text-end">{{ line.quantity_ordered }}</td>
+                    <td class="text-end">{{ line.quantity_fulfilled }}</td>
+                    <td class="text-end">${{ line.unit_price }}</td>
+                    <td class="text-end fw-semibold">${{ line.total_price }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totals-section">
+            <table class="totals-table">
+                <tr>
+                    <td class="text-muted">Subtotal:</td>
+                    <td class="text-end">${{ order.subtotal_amount }}</td>
+                </tr>
+                {% if order.discount_amount > 0 %}
+                <tr>
+                    <td class="text-muted">Discounts:</td>
+                    <td class="text-end text-success">-${{ order.discount_amount }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td class="text-muted">Taxes:</td>
+                    <td class="text-end">${{ order.tax_amount }}</td>
+                </tr>
+                {% if order.shipping_amount > 0 %}
+                <tr>
+                    <td class="text-muted">Shipping:</td>
+                    <td class="text-end">${{ order.shipping_amount }}</td>
+                </tr>
+                {% endif %}
+                <tr class="grand-total">
+                    <td>Grand Total ({{ order.currency }}):</td>
+                    <td class="text-end">${{ order.grand_total }}</td>
+                </tr>
+            </table>
+        </div>
+
+        {% if order.customer_notes %}
+        <div class="terms-section">
+            <h4>Customer Instructions</h4>
+            <p>{{ order.customer_notes }}</p>
+        </div>
+        {% endif %}
+
+        <div class="signature-grid">
+            <div>
+                <div class="signature-line">Warehouse Dispatch / Operations</div>
+            </div>
+            <div>
+                <div class="signature-line">Customer Receiving Confirmation & Date</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -94,6 +94,10 @@
         {% endwith %}
         {% endif %}
 
+        <a href="{% url 'sales:quote_print' quote.pk %}" target="_blank" class="btn btn-secondary">
+            Print / PDF
+        </a>
+
         {% if quote.status == 'draft' %}
         <a href="{% url 'sales:quote_delete' quote.pk %}" class="btn btn-danger">Delete</a>
         {% endif %}

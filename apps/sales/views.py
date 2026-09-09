@@ -2,11 +2,13 @@
 EnterpriseOne Sales Views.
 Handles Product Catalog, Categories, UOMs, Price Books, and Tiered Discounts.
 """
+from decimal import Decimal
 from django.contrib import messages
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Sum
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy, reverse
 from django.views.generic import (
+    TemplateView,
     ListView,
     DetailView,
     CreateView,
@@ -722,5 +724,151 @@ class QuoteConvertToOrderView(OrganizationAccessMixin, View):
         else:
             messages.error(request, "Invalid order conversion parameters.")
         return redirect("sales:quote_detail", pk=quote.pk)
+
+
+# =====================================================================
+# SALES DASHBOARD & PRINT READY VIEWS (Milestone 4.4)
+# =====================================================================
+
+class SalesDashboardView(OrganizationAccessMixin, TemplateView):
+    """
+    Executive Sales & Order Management overview dashboard.
+    Consolidates revenue metrics, quotation conversion rates, order fulfillment pipeline,
+    and product catalog distribution.
+    """
+    template_name = "sales/dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        org = self.request.organization
+        if not org:
+            return ctx
+
+        # Quotes metrics
+        quotes_qs = Quote.objects.filter(organization=org)
+        total_quotes = quotes_qs.count()
+        quotes_draft = quotes_qs.filter(status=QuoteStatus.DRAFT).count()
+        quotes_pending = quotes_qs.filter(status=QuoteStatus.PENDING_APPROVAL).count()
+        quotes_approved = quotes_qs.filter(status=QuoteStatus.APPROVED).count()
+        quotes_presented = quotes_qs.filter(status=QuoteStatus.PRESENTED).count()
+        quotes_accepted = quotes_qs.filter(status=QuoteStatus.ACCEPTED).count()
+        quotes_converted = quotes_qs.filter(status=QuoteStatus.CONVERTED).count()
+        quote_pipeline_value = quotes_qs.aggregate(total=Sum("grand_total"))["total"] or Decimal("0.00")
+        accepted_quote_value = quotes_qs.filter(status__in=[QuoteStatus.ACCEPTED, QuoteStatus.CONVERTED]).aggregate(total=Sum("grand_total"))["total"] or Decimal("0.00")
+
+        conversion_rate = 0.0
+        if total_quotes > 0:
+            conversion_rate = round((quotes_converted / total_quotes) * 100, 1)
+
+        # Sales Orders metrics
+        orders_qs = SalesOrder.objects.filter(organization=org)
+        total_orders = orders_qs.count()
+        orders_draft = orders_qs.filter(status=OrderStatus.DRAFT).count()
+        orders_confirmed = orders_qs.filter(status=OrderStatus.CONFIRMED).count()
+        orders_processing = orders_qs.filter(status=OrderStatus.PROCESSING).count()
+        orders_partially_fulfilled = orders_qs.filter(status=OrderStatus.PARTIALLY_FULFILLED).count()
+        orders_fulfilled = orders_qs.filter(status=OrderStatus.FULFILLED).count()
+        orders_invoiced = orders_qs.filter(status=OrderStatus.INVOICED).count()
+        orders_cancelled = orders_qs.filter(status=OrderStatus.CANCELLED).count()
+
+        pending_fulfillment_count = orders_qs.filter(
+            status__in=[OrderStatus.CONFIRMED, OrderStatus.PROCESSING, OrderStatus.PARTIALLY_FULFILLED]
+        ).count()
+
+        total_sales_revenue = orders_qs.exclude(status=OrderStatus.CANCELLED).aggregate(total=Sum("grand_total"))["total"] or Decimal("0.00")
+        fulfilled_revenue = orders_qs.filter(status__in=[OrderStatus.FULFILLED, OrderStatus.INVOICED]).aggregate(total=Sum("grand_total"))["total"] or Decimal("0.00")
+
+        # Products / Catalog metrics
+        products_qs = Product.objects.filter(organization=org)
+        active_products_count = products_qs.filter(is_active=True).count()
+        total_categories_count = ProductCategory.objects.filter(organization=org).count()
+        pricebooks_count = PriceBook.objects.filter(organization=org).count()
+
+        # Top product categories with product count
+        top_categories = ProductCategory.objects.filter(organization=org).annotate(
+            prod_count=Count("products")
+        ).order_by("-prod_count")[:5]
+
+        # Recent records
+        recent_quotes = quotes_qs.select_related("account", "created_by").order_by("-created_at")[:5]
+        recent_orders = orders_qs.select_related("account", "created_by").order_by("-created_at")[:5]
+
+        ctx.update({
+            "total_quotes": total_quotes,
+            "quotes_draft": quotes_draft,
+            "quotes_pending": quotes_pending,
+            "quotes_approved": quotes_approved,
+            "quotes_presented": quotes_presented,
+            "quotes_accepted": quotes_accepted,
+            "quotes_converted": quotes_converted,
+            "quote_pipeline_value": quote_pipeline_value,
+            "accepted_quote_value": accepted_quote_value,
+            "conversion_rate": conversion_rate,
+
+            "total_orders": total_orders,
+            "orders_draft": orders_draft,
+            "orders_confirmed": orders_confirmed,
+            "orders_processing": orders_processing,
+            "orders_partially_fulfilled": orders_partially_fulfilled,
+            "orders_fulfilled": orders_fulfilled,
+            "orders_invoiced": orders_invoiced,
+            "orders_cancelled": orders_cancelled,
+            "pending_fulfillment_count": pending_fulfillment_count,
+            "total_sales_revenue": total_sales_revenue,
+            "fulfilled_revenue": fulfilled_revenue,
+
+            "active_products_count": active_products_count,
+            "total_categories_count": total_categories_count,
+            "pricebooks_count": pricebooks_count,
+            "top_categories": top_categories,
+            "recent_quotes": recent_quotes,
+            "recent_orders": recent_orders,
+        })
+        return ctx
+
+
+class QuotePrintView(OrganizationAccessMixin, DetailView):
+    """
+    Renders print-ready, professional commercial quotation layout.
+    """
+    model = Quote
+    template_name = "sales/quote_print.html"
+    context_object_name = "quote"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return Quote.objects.none()
+        return Quote.objects.filter(organization=org).select_related(
+            "account", "contact", "deal", "created_by", "approved_by"
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["line_items"] = self.object.line_items.select_related("product", "product__uom").order_by("line_number")
+        return ctx
+
+
+class OrderPrintView(OrganizationAccessMixin, DetailView):
+    """
+    Renders print-ready, professional commercial sales order and packing slip.
+    """
+    model = SalesOrder
+    template_name = "sales/order_print.html"
+    context_object_name = "order"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return SalesOrder.objects.none()
+        return SalesOrder.objects.filter(organization=org).select_related(
+            "account", "contact", "deal", "quote", "created_by"
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["line_items"] = self.object.line_items.select_related("product", "product__uom").order_by("line_number")
+        return ctx
+
 
 
