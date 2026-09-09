@@ -33,6 +33,7 @@ THIRD_PARTY_APPS = [
 
 ENTERPRISE_APPS = [
     "apps.accounts.apps.AccountsConfig",
+    "apps.organizations.apps.OrganizationsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + ENTERPRISE_APPS
@@ -48,6 +49,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "enterpriseone.middleware.security.EnterpriseSecurityMiddleware",
     "enterpriseone.middleware.session.SessionSecurityMiddleware",
+    "enterpriseone.middleware.organization.OrganizationContextMiddleware",
     "enterpriseone.middleware.audit.AuditContextMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -66,6 +68,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.accounts.context_processors.auth_context",
+                "apps.organizations.context_processors.organization_context",
             ],
         },
     },
