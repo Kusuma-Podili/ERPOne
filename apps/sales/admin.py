@@ -9,6 +9,11 @@ from .models import (
     PriceBook,
     PriceBookEntry,
     TieredDiscount,
+    TaxRule,
+    TaxRate,
+    Quote,
+    QuoteLineItem,
+    QuoteApproval,
 )
 
 
@@ -66,3 +71,40 @@ class PriceBookEntryAdmin(admin.ModelAdmin):
 class TieredDiscountAdmin(admin.ModelAdmin):
     list_display = ("price_book_entry", "min_quantity", "max_quantity", "discount_type", "discount_value", "is_active")
     list_filter = ("is_active", "discount_type")
+
+
+class TaxRateInline(admin.TabularInline):
+    model = TaxRate
+    extra = 0
+    fields = ("name", "rate", "is_compound", "is_active")
+
+
+@admin.register(TaxRule)
+class TaxRuleAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "organization", "is_active")
+    list_filter = ("organization", "is_active")
+    search_fields = ("name", "code")
+    inlines = [TaxRateInline]
+
+
+class QuoteLineItemInline(admin.TabularInline):
+    model = QuoteLineItem
+    extra = 0
+    fields = ("line_number", "product", "quantity", "unit_price", "discount_percent", "tax_rate", "total_price")
+    readonly_fields = ("total_price",)
+
+
+class QuoteApprovalInline(admin.TabularInline):
+    model = QuoteApproval
+    extra = 0
+    fields = ("requested_by", "approver", "discount_threshold_exceeded", "status", "requested_at", "decided_at")
+    readonly_fields = ("requested_at",)
+
+
+@admin.register(Quote)
+class QuoteAdmin(admin.ModelAdmin):
+    list_display = ("quote_number", "title", "account", "organization", "status", "grand_total", "valid_until", "created_at")
+    list_filter = ("organization", "status")
+    search_fields = ("quote_number", "title", "account__name")
+    inlines = [QuoteLineItemInline, QuoteApprovalInline]
+

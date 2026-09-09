@@ -21,6 +21,7 @@ This document tracks all formal Pull Requests prepared, reviewed, and merged thr
 | #11 | `feature/phase3-crm-pipelines-deals-kanban` | CRM Pipeline Stages, Deal Tracking & Interactive Kanban Board | Phase 3 | Merged | 2026-09-09 |
 | #12 | `feature/phase3-crm-activities-dashboard-tests` | CRM Activities, Notes, Executive Revenue Dashboard & 18 Tests | Phase 3 | Merged | 2026-09-09 |
 | #13 | `feature/phase4-products-pricebooks` | Product Catalog, UOMs, Multi-Tier Price Books & Pricing Engine | Phase 4 | Merged & Closed | 2026-09-09 |
+| #14 | `feature/phase4-quotes-approvals` | Commercial Quotations, Tax Engine & Managerial Approval Workflows | Phase 4 | Merged & Closed | 2026-09-09 |
 
 ---
 
@@ -112,4 +113,12 @@ This document tracks all formal Pull Requests prepared, reviewed, and merged thr
 - **Branch**: `feature/phase4-products-pricebooks` -> `development` | **Status**: Merged & Closed
 - **Phase**: Phase 4 — Sales & Order Management
 - **Purpose**: Establish Product Catalog domain models (`ProductCategory` hierarchical tree, `UnitOfMeasure` standards with conversion ratios, `Product` with profit margin computation), `PriceBook` management with default constraints, `PriceBookEntry`, `TieredDiscount` volume breaks, `PricingEngineService` calculating dynamic unit prices and tiered brackets, complete CRUD template views, admin tabular inlines, sidebar navigation integration, and 6 automated unit tests (79 total tests passing at 100%).
+
+---
+
+## PR #14 — Commercial Quotations, Tax Engine & Managerial Approval Workflows
+- **Branch**: `feature/phase4-quotes-approvals` -> `development` | **Status**: Merged & Closed
+- **Phase**: Phase 4 — Sales & Order Management
+- **Purpose**: Deliver Quotation domain models (`TaxRule`, `TaxRate`, `Quote` with sequential auto-numbering, `QuoteLineItem` with precision calculation, `QuoteApproval`), `QuoteCalculationService` managing multi-rate tax and discount aggregation, `QuoteApprovalService` enforcing a 15% discount threshold policy, Quote CRUD views, line item formsets, approval decision modals, customer presentation/acceptance transitions, and 8 automated unit & integration tests (87 total tests passing at 100%).
+
 

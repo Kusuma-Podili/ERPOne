@@ -1,0 +1,329 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ quote.quote_number }} &bull; {{ quote.title }} &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<a href="{% url 'sales:quote_list' %}">Quotations</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ quote.quote_number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+            <h1 class="page-title" style="margin: 0;">{{ quote.quote_number }}</h1>
+            {% if quote.status == 'draft' %}
+            <span class="badge badge-secondary">Draft</span>
+            {% elif quote.status == 'pending_approval' %}
+            <span class="badge badge-warning">Pending Approval</span>
+            {% elif quote.status == 'approved' %}
+            <span class="badge badge-primary">Approved</span>
+            {% elif quote.status == 'presented' %}
+            <span class="badge badge-info">Presented</span>
+            {% elif quote.status == 'accepted' %}
+            <span class="badge badge-success">Accepted</span>
+            {% elif quote.status == 'converted' %}
+            <span class="badge badge-success">Converted to Order</span>
+            {% elif quote.status == 'rejected' %}
+            <span class="badge badge-danger">Rejected</span>
+            {% elif quote.status == 'expired' %}
+            <span class="badge badge-secondary">Expired</span>
+            {% endif %}
+            <span style="font-size: 0.9rem; color: var(--text-muted);">Version {{ quote.version }}</span>
+        </div>
+        <p class="page-subtitle">{{ quote.title }} &bull; Customer: <a href="{% url 'crm:account_detail' quote.account.pk %}" style="color: var(--primary); font-weight: 600;">{{ quote.account.name }}</a></p>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        {% if quote.can_edit %}
+        <a href="{% url 'sales:quote_edit' quote.pk %}" class="btn btn-secondary">Edit Terms</a>
+        {% endif %}
+
+        {% if quote.status == 'draft' or quote.status == 'rejected' %}
+        <form method="post" action="{% url 'sales:quote_submit_approval' quote.pk %}" style="margin: 0;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                Submit for Approval
+            </button>
+        </form>
+        {% endif %}
+
+        {% if quote.status == 'pending_approval' %}
+        <button type="button" onclick="document.getElementById('approval-action-modal').style.display='flex';" class="btn btn-primary">
+            Review & Decide
+        </button>
+        {% endif %}
+
+        {% if quote.status == 'approved' %}
+        <form method="post" action="{% url 'sales:quote_present' quote.pk %}" style="margin: 0;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                Send / Present to Customer
+            </button>
+        </form>
+        {% endif %}
+
+        {% if quote.status == 'presented' %}
+        <form method="post" action="{% url 'sales:quote_accept' quote.pk %}" style="margin: 0;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success" style="background: #10b981; color: white;">
+                &check; Accept Quote
+            </button>
+        </form>
+        {% endif %}
+
+        {% if quote.status == 'draft' %}
+        <a href="{% url 'sales:quote_delete' quote.pk %}" class="btn btn-danger">Delete</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if quote.rejection_reason %}
+<div class="alert alert-danger" style="margin-bottom: 1.5rem; display: flex; gap: 0.75rem; align-items: center;">
+    <strong>Rejection Reason:</strong> {{ quote.rejection_reason }}
+</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: 2.2fr 1fr; gap: 1.5rem; margin-top: 1rem;">
+    <!-- Left Column: Line Items, Terms, Approval Log -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        
+        <!-- Line Items Table -->
+        <div class="card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: 1.05rem; font-weight: 600; margin: 0;">Quotation Line Items</h3>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">{{ line_items.count }} items</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Product / SKU</th>
+                            <th style="text-align: right;">Qty</th>
+                            <th style="text-align: right;">Unit Price</th>
+                            <th style="text-align: right;">Discount</th>
+                            <th style="text-align: right;">Tax</th>
+                            <th style="text-align: right;">Total</th>
+                            {% if quote.can_edit %}
+                            <th style="text-align: right;">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in line_items %}
+                        <tr>
+                            <td style="color: var(--text-muted); font-size: 0.85rem;">{{ item.line_number }}</td>
+                            <td>
+                                <a href="{% url 'sales:product_detail' item.product.pk %}" style="font-weight: 600; color: var(--primary); text-decoration: none;">
+                                    {{ item.product.name }}
+                                </a>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">SKU: {{ item.product.sku }}</div>
+                            </td>
+                            <td style="text-align: right; font-family: monospace;">{{ item.quantity }}</td>
+                            <td style="text-align: right; font-family: monospace;">${{ item.unit_price|floatformat:2 }}</td>
+                            <td style="text-align: right; font-family: monospace; {% if item.discount_percent > 15 %}color: #ef4444; font-weight: 600;{% endif %}">
+                                {% if item.discount_percent > 0 %}{{ item.discount_percent }}% (-${{ item.discount_amount|floatformat:2 }}){% else %}—{% endif %}
+                            </td>
+                            <td style="text-align: right; font-family: monospace; color: var(--text-muted);">
+                                {% if item.tax_rate > 0 %}{{ item.tax_rate }}%{% else %}—{% endif %}
+                            </td>
+                            <td style="text-align: right; font-weight: 600; font-family: monospace; color: var(--primary);">
+                                ${{ item.total_price|floatformat:2 }}
+                            </td>
+                            {% if quote.can_edit %}
+                            <td style="text-align: right;">
+                                <form method="post" action="{% url 'sales:quote_line_delete' item.pk %}" style="margin: 0;" onsubmit="return confirm('Remove this line item?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-secondary" style="color: var(--danger); padding: 0.2rem 0.5rem;" title="Remove">
+                                        &times;
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{% if quote.can_edit %}8{% else %}7{% endif %}" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+                                No line items added to this quotation. Use the form below to add products.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Add Line Item Form (if editable) -->
+        {% if quote.can_edit %}
+        <div class="card">
+            <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem;">Add Product Line Item</h3>
+            <form method="post" action="{% url 'sales:quote_line_create' quote.pk %}">
+                {% csrf_token %}
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Product *</label>
+                        {{ line_form.product }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Quantity *</label>
+                        {{ line_form.quantity }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Unit Price ($) *</label>
+                        {{ line_form.unit_price }}
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Discount %</label>
+                        {{ line_form.discount_percent }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Tax Rate %</label>
+                        {{ line_form.tax_rate }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Line Description / Custom Notes</label>
+                        {{ line_form.description }}
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end;">
+                    <button type="submit" class="btn btn-primary">Add Line Item</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Terms & Conditions -->
+        {% if quote.terms_and_conditions or quote.customer_notes %}
+        <div class="card">
+            <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 0.75rem;">Commercial Terms & Notes</h3>
+            {% if quote.customer_notes %}
+            <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Customer Notes</div>
+                <p style="color: var(--text-secondary); margin-top: 0.25rem;">{{ quote.customer_notes }}</p>
+            </div>
+            {% endif %}
+            {% if quote.terms_and_conditions %}
+            <div>
+                <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Terms & Conditions</div>
+                <p style="color: var(--text-secondary); margin-top: 0.25rem; font-size: 0.85rem;">{{ quote.terms_and_conditions }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Approvals History -->
+        {% if approvals %}
+        <div class="card">
+            <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem;">Executive Approval History</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                {% for app in approvals %}
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-secondary); border-radius: 6px;">
+                    <div>
+                        <span style="font-weight: 600;">Requested by {{ app.requested_by.get_full_name|default:app.requested_by.email }}</span>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Max discount: {{ app.discount_threshold_exceeded }}% &bull; {{ app.requested_at|date:"M d, Y H:i" }}</div>
+                        {% if app.decision_notes %}
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">Notes: {{ app.decision_notes }}</div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if app.status == 'approved' %}
+                        <span class="badge badge-success">Approved by {{ app.approver.get_full_name|default:app.approver.email }}</span>
+                        {% elif app.status == 'rejected' %}
+                        <span class="badge badge-danger">Rejected by {{ app.approver.get_full_name|default:app.approver.email }}</span>
+                        {% else %}
+                        <span class="badge badge-warning">Pending Review</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Financial Summary & Metadata -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div class="card">
+            <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem;">Financial Summary</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Subtotal:</span>
+                    <span style="font-family: monospace; font-weight: 600;">${{ quote.subtotal_amount|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Line Item Discounts:</span>
+                    <span style="font-family: monospace; font-weight: 600; {% if quote.discount_amount > 0 %}color: #ef4444;{% endif %}">
+                        {% if quote.discount_amount > 0 %}-${{ quote.discount_amount|floatformat:2 }}{% else %}$0.00{% endif %}
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Taxes:</span>
+                    <span style="font-family: monospace; font-weight: 600;">${{ quote.tax_amount|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Shipping:</span>
+                    <span style="font-family: monospace; font-weight: 600;">${{ quote.shipping_amount|floatformat:2 }}</span>
+                </div>
+                <div style="border-top: 2px solid var(--border-color); padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 1.1rem; font-weight: 700;">Grand Total:</span>
+                    <span style="font-size: 1.35rem; font-weight: 700; color: var(--primary); font-family: monospace;">${{ quote.grand_total|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem;">Quotation Details</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem; color: var(--text-secondary);">
+                <div>Account: <strong>{{ quote.account.name }}</strong></div>
+                {% if quote.contact %}
+                <div>Contact: <strong>{{ quote.contact.get_full_name }}</strong> ({{ quote.contact.email }})</div>
+                {% endif %}
+                {% if quote.deal %}
+                <div>Associated Deal: <strong>{{ quote.deal.name }}</strong></div>
+                {% endif %}
+                <div>Price Book: <strong>{{ quote.price_book.name|default:"Standard Catalog" }}</strong></div>
+                <div>Payment Terms: <strong>{{ quote.payment_terms }}</strong></div>
+                <div>Valid Until: <strong>{{ quote.valid_until|default:"Open-ended" }}</strong></div>
+                <div>Currency: <strong>{{ quote.currency }}</strong></div>
+                <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color);">
+                    Created: {{ quote.created_at|date:"M d, Y" }} by {{ quote.created_by.get_full_name|default:quote.created_by.email }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Deciding on Quotation Approval -->
+<div id="approval-action-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 480px; padding: 1.5rem; background: var(--bg-primary);">
+        <h3 style="margin-top: 0; font-weight: 600; margin-bottom: 0.5rem;">Review Quotation Approval</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+            Quote {{ quote.quote_number }} contains discounted terms requiring executive sign-off.
+        </p>
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+            <form method="post" action="{% url 'sales:quote_approve' quote.pk %}" style="flex: 1;">
+                {% csrf_token %}
+                <textarea name="notes" rows="2" class="form-textarea" placeholder="Optional approval notes..." style="margin-bottom: 0.75rem;"></textarea>
+                <button type="submit" class="btn btn-primary" style="width: 100%; background: #10b981;">Approve Terms</button>
+            </form>
+            <form method="post" action="{% url 'sales:quote_reject' quote.pk %}" style="flex: 1;">
+                {% csrf_token %}
+                <textarea name="notes" rows="2" class="form-textarea" placeholder="Reason for rejection..." required style="margin-bottom: 0.75rem;"></textarea>
+                <button type="submit" class="btn btn-danger" style="width: 100%;">Reject Terms</button>
+            </form>
+        </div>
+        <div style="text-align: right;">
+            <button type="button" onclick="document.getElementById('approval-action-modal').style.display='none';" class="btn btn-secondary btn-sm">Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
