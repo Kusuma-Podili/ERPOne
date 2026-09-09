@@ -23,6 +23,9 @@ urlpatterns = [
     path("support/", include("apps.support.urls", namespace="support")),
     path("analytics/", include("apps.analytics.urls", namespace="analytics")),
     path("ai/", include("apps.ai_engine.urls", namespace="ai_engine")),
+    path("documents/", include("apps.documents.urls", namespace="documents")),
+    path("notifications/", include("apps.notifications.urls", namespace="notifications")),
+    path("security/", include("apps.security.urls", namespace="security")),
     path("api/", include("enterpriseone.urls.api")),
     path("", RedirectView.as_view(pattern_name="accounts:dashboard", permanent=False), name="home"),
 ]

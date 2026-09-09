@@ -1,0 +1,1 @@
+{% extends 'security/base.html' %}{% block content %}<h1>Permission Matrix</h1><table><tr><th>Permission</th><th>Granted</th></tr>{% for code,allowed in matrix.items %}<tr><td>{{ code }}</td><td>{% if allowed %}Yes{% else %}No{% endif %}</td></tr>{% endfor %}</table>{% endblock %}

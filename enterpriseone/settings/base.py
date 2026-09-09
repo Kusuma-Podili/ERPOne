@@ -45,6 +45,9 @@ ENTERPRISE_APPS = [
     "apps.support.apps.SupportConfig",
     "apps.analytics.apps.AnalyticsConfig",
     "apps.ai_engine.apps.AiEngineConfig",
+    "apps.documents.apps.DocumentsConfig",
+    "apps.notifications.apps.NotificationsConfig",
+    "apps.security.apps.SecurityConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + ENTERPRISE_APPS
