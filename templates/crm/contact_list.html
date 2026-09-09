@@ -1,0 +1,176 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Contacts Directory &bull; CRM &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">CRM</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Contacts</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Contacts & Decision Makers</h1>
+        <p class="page-subtitle">Directory of client representatives, stakeholders, and business decision makers.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'crm:account_list' %}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            View Accounts
+        </a>
+        <a href="{% url 'crm:contact_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Contact
+        </a>
+    </div>
+</div>
+
+<!-- Metrics Bar -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Contacts</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">{{ total_contacts_count }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Primary Decision Makers</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary-color, #2563eb); margin-top: 0.25rem;">{{ primary_contacts_count }}</div>
+    </div>
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem;">
+    <form method="get" action="{% url 'crm:contact_list' %}" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+        <div style="flex: 2; min-width: 200px;">
+            <input type="text" name="q" value="{{ current_q }}" class="form-control enterprise-input" placeholder="Search by name, email, phone, job title...">
+        </div>
+        <div style="flex: 1.5; min-width: 180px;">
+            <select name="account" class="form-select enterprise-input">
+                <option value="">All Accounts</option>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}" {% if current_account == acc.id|stringformat:"s" %}selected{% endif %}>{{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <select name="lifecycle" class="form-select enterprise-input">
+                <option value="">All Lifecycle Stages</option>
+                {% for val, label in lifecycle_stages %}
+                <option value="{{ val }}" {% if current_lifecycle == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">Filter</button>
+        {% if current_q or current_account or current_lifecycle %}
+        <a href="{% url 'crm:contact_list' %}" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Reset</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Contacts Table -->
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">Contacts Directory ({{ paginator.count }})</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Contact Name</th>
+                    <th>Account / Company</th>
+                    <th>Job Title & Dept</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Lifecycle</th>
+                    <th>Owner</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in contacts %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <a href="{% url 'crm:contact_detail' pk=c.pk %}" style="font-weight: 600; color: var(--text-primary); text-decoration: none;">
+                                {{ c.full_name }}
+                            </a>
+                            {% if c.is_primary_contact %}
+                            <span class="badge badge-primary" style="font-size: 0.65rem;">Primary</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if c.account %}
+                        <a href="{% url 'crm:account_detail' pk=c.account.pk %}" style="color: #2563eb; text-decoration: none;">
+                            {{ c.account.name }}
+                        </a>
+                        {% else %}
+                        <span style="color: var(--text-muted);">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div>{{ c.job_title|default:"&mdash;" }}</div>
+                        {% if c.department %}
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ c.department }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="mailto:{{ c.email }}" style="color: #2563eb;">{{ c.email }}</a>
+                    </td>
+                    <td>
+                        {{ c.phone|default:c.mobile|default:"&mdash;" }}
+                    </td>
+                    <td>
+                        <span class="badge badge-outline">{{ c.get_lifecycle_stage_display }}</span>
+                    </td>
+                    <td>
+                        {% if c.owner %}
+                        {{ c.owner.get_full_name|default:c.owner.email }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <a href="{% url 'crm:contact_detail' pk=c.pk %}" class="btn btn-sm btn-secondary" title="View Profile">
+                            View
+                        </a>
+                        <a href="{% url 'crm:contact_update' pk=c.pk %}" class="btn btn-sm btn-secondary" title="Edit">
+                            Edit
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.5;"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <p style="font-size: 1.1rem; font-weight: 500; margin-bottom: 0.5rem;">No contacts found</p>
+                        <p style="font-size: 0.875rem;">Create key contacts and decision makers to track relationship history.</p>
+                        <a href="{% url 'crm:contact_create' %}" class="btn btn-primary" style="margin-top: 1rem;">
+                            Add Contact
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div style="padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);">
+        <div style="font-size: 0.875rem; color: var(--text-muted);">
+            Showing page {{ page_obj.number }} of {{ paginator.num_pages }}
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_account %}&account={{ current_account }}{% endif %}" class="btn btn-sm btn-secondary">&laquo; Previous</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_account %}&account={{ current_account }}{% endif %}" class="btn btn-sm btn-secondary">Next &raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

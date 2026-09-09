@@ -1,0 +1,115 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ form_title }} &bull; EnterpriseOne CRM{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:deal_list' %}">Deals</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ form_title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ form_title }}</h1>
+        <p class="page-subtitle">Configure commercial contract value, stage progression, and expected close timeline.</p>
+    </div>
+</div>
+
+<form method="post" class="enterprise-form">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+        {% for err in form.non_field_errors %}
+        <p style="margin: 0;">{{ err }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+        <div>
+            <!-- Deal Core Fields -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Commercial Agreement</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div style="grid-column: span 2;">
+                        <label class="form-label" style="font-weight: 600;">Deal / Opportunity Name *</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Corporate Account *</label>
+                        {{ form.account }}
+                        {% if form.account.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.account.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Primary Contact</label>
+                        {{ form.primary_contact }}
+                        {% if form.primary_contact.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.primary_contact.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Total Contract Value ($) *</label>
+                        {{ form.amount }}
+                        {% if form.amount.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.amount.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Win Probability (%)</label>
+                        {{ form.probability }}
+                        {% if form.probability.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.probability.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="form-label" style="font-weight: 600;">Expected Close Date</label>
+                        {{ form.expected_close_date }}
+                        {% if form.expected_close_date.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.expected_close_date.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scope / Description -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Scope & Deliverables</h3>
+                </div>
+                <div style="padding: 1.5rem;">
+                    {{ form.description }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar / Pipeline Settings -->
+        <div>
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Pipeline Position</h3>
+                </div>
+                <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Pipeline Stage *</label>
+                        {{ form.stage }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Deal Owner</label>
+                        {{ form.owner }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                    {{ form_action }}
+                </button>
+                <a href="{% url 'crm:deal_list' %}" class="btn btn-secondary" style="width: 100%; justify-content: center;">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

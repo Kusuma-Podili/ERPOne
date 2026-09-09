@@ -1,0 +1,43 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Delete Account &bull; EnterpriseOne CRM{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">Accounts</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Delete Confirmation</span>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 2rem auto;">
+    <div class="card" style="border-top: 4px solid #ef4444;">
+        <div class="card-header">
+            <h3 class="card-title" style="color: #ef4444;">Confirm Account Deletion</h3>
+        </div>
+        <div style="padding: 1.5rem;">
+            <p style="font-size: 1rem; color: var(--text-primary); margin-bottom: 1rem;">
+                Are you sure you want to permanently delete the corporate account <strong>"{{ object.name }}"</strong> (<code>{{ object.account_number }}</code>)?
+            </p>
+            <div class="alert alert-warning" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #d97706; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+                <strong>Warning:</strong> Deleting this account will detach {{ object.total_contacts_count }} associated contact(s) and any linked deals or activity logs. This operation cannot be reversed.
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <a href="{% url 'crm:account_detail' pk=object.pk %}" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary" style="background: #ef4444; border-color: #ef4444;">
+                        Yes, Delete Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,239 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ account.name }} &bull; Account Profile &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">Accounts</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ account.name }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- Account Header -->
+<div class="page-header">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <h1 class="page-title" style="margin-bottom: 0;">{{ account.name }}</h1>
+            <span class="badge badge-secondary"><code>{{ account.account_number }}</code></span>
+            {% if account.status == 'ACTIVE' %}
+            <span class="badge badge-success">Active</span>
+            {% elif account.status == 'ON_HOLD' %}
+            <span class="badge badge-warning">On Hold</span>
+            {% else %}
+            <span class="badge badge-secondary">{{ account.get_status_display }}</span>
+            {% endif %}
+            <span class="badge badge-outline">{{ account.get_lifecycle_stage_display }}</span>
+        </div>
+        <p class="page-subtitle" style="margin-top: 0.25rem;">
+            {{ account.get_industry_display }} &bull; {{ account.get_account_type_display }}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'crm:contact_create' %}?account={{ account.pk }}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Contact
+        </a>
+        <a href="{% url 'crm:account_update' pk=account.pk %}" class="btn btn-secondary">
+            Edit Account
+        </a>
+        <a href="{% url 'crm:account_delete' pk=account.pk %}" class="btn btn-outline-danger" style="color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">
+            Delete
+        </a>
+    </div>
+</div>
+
+<!-- Highlight Metrics -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Annual Revenue</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: #10b981; margin-top: 0.25rem;">
+            {% if account.annual_revenue %}${{ account.annual_revenue|floatformat:2 }}{% else %}&mdash;{% endif %}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Organization Scale</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">
+            {% if account.employee_count %}{{ account.employee_count }} Employees{% else %}Scale Unspecified{% endif %}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Account Contacts</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary-color, #2563eb); margin-top: 0.25rem;">
+            {{ contacts.count }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Account Owner</div>
+        <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.4rem;">
+            {{ account.owner.get_full_name|default:account.owner.email|default:"Unassigned" }}
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <!-- Left Column: Details & Addresses -->
+    <div>
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">Demographics & Profile</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                <table style="width: 100%; font-size: 0.875rem;">
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted); width: 35%;">Corporate Website</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">
+                                {% if account.website %}
+                                <a href="{{ account.website }}" target="_blank" rel="noopener noreferrer" style="color: #2563eb;">{{ account.website }}</a>
+                                {% else %}&mdash;{% endif %}
+                            </td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Main Phone</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ account.phone|default:"&mdash;" }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">General Email</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">
+                                {% if account.email %}
+                                <a href="mailto:{{ account.email }}" style="color: #2563eb;">{{ account.email }}</a>
+                                {% else %}&mdash;{% endif %}
+                            </td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Created On</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ account.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Last Updated</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ account.updated_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                {% if account.description %}
+                <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                    <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 0.5rem;">Notes & Description</div>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; white-space: pre-line;">{{ account.description }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Addresses Card -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Corporate Locations</h3>
+            </div>
+            <div style="padding: 1.25rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <h4 style="font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Billing Address</h4>
+                    {% if account.billing_address_line1 %}
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.4;">
+                        {{ account.billing_address_line1 }}<br>
+                        {% if account.billing_address_line2 %}{{ account.billing_address_line2 }}<br>{% endif %}
+                        {{ account.billing_city }}, {{ account.billing_state }} {{ account.billing_postal_code }}<br>
+                        {{ account.billing_country }}
+                    </p>
+                    {% else %}
+                    <p style="font-size: 0.875rem; color: var(--text-muted);">No billing address configured.</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <h4 style="font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Shipping / Facility Address</h4>
+                    {% if account.shipping_address_line1 %}
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.4;">
+                        {{ account.shipping_address_line1 }}<br>
+                        {% if account.shipping_address_line2 %}{{ account.shipping_address_line2 }}<br>{% endif %}
+                        {{ account.shipping_city }}, {{ account.shipping_state }} {{ account.shipping_postal_code }}<br>
+                        {{ account.shipping_country }}
+                    </p>
+                    {% else %}
+                    <p style="font-size: 0.875rem; color: var(--text-muted);">Same as billing or unconfigured.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Contacts Roster & Deals -->
+    <div>
+        <!-- Associated Contacts Card -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">Contacts & Decision Makers ({{ contacts.count }})</h3>
+                <a href="{% url 'crm:contact_create' %}?account={{ account.pk }}" class="btn btn-sm btn-primary">
+                    + Add Contact
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="enterprise-table">
+                    <thead>
+                        <tr>
+                            <th>Contact</th>
+                            <th>Role / Title</th>
+                            <th>Contact Info</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in contacts %}
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <a href="{% url 'crm:contact_detail' pk=c.pk %}" style="font-weight: 600; color: var(--text-primary); text-decoration: none;">
+                                        {{ c.full_name }}
+                                    </a>
+                                    {% if c.is_primary_contact %}
+                                    <span class="badge badge-primary" style="font-size: 0.65rem;">Primary</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>{{ c.job_title|default:"&mdash;" }}</td>
+                            <td>
+                                <div style="font-size: 0.8rem;">
+                                    <a href="mailto:{{ c.email }}" style="color: #2563eb;">{{ c.email }}</a>
+                                    {% if c.phone %}
+                                    <div style="color: var(--text-muted); font-size: 0.75rem;">{{ c.phone }}</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td style="text-align: right;">
+                                <a href="{% url 'crm:contact_update' pk=c.pk %}" class="btn btn-sm btn-secondary">Edit</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                                No contacts listed for this account yet.
+                                <div style="margin-top: 0.5rem;">
+                                    <a href="{% url 'crm:contact_create' %}?account={{ account.pk }}" class="btn btn-sm btn-primary">Add First Contact</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Deals & Opportunities Section -->
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">Deals & Opportunities</h3>
+            </div>
+            <div style="padding: 1.5rem; text-align: center; color: var(--text-muted);">
+                {% if deals %}
+                <!-- Deals table rendered when deals exist -->
+                {% else %}
+                <p style="font-size: 0.875rem; margin-bottom: 0;">No active deals linked to this account yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ contact.full_name }} &bull; Contact Profile &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:contact_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:contact_list' %}">Contacts</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ contact.full_name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <h1 class="page-title" style="margin-bottom: 0;">{{ contact.full_name }}</h1>
+            {% if contact.is_primary_contact %}
+            <span class="badge badge-primary">Primary Contact</span>
+            {% endif %}
+            <span class="badge badge-outline">{{ contact.get_lifecycle_stage_display }}</span>
+        </div>
+        <p class="page-subtitle" style="margin-top: 0.25rem;">
+            {{ contact.job_title|default:"No title" }}
+            {% if contact.account %}
+            at <a href="{% url 'crm:account_detail' pk=contact.account.pk %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">{{ contact.account.name }}</a>
+            {% endif %}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'crm:contact_update' pk=contact.pk %}" class="btn btn-secondary">
+            Edit Contact
+        </a>
+        <a href="{% url 'crm:contact_delete' pk=contact.pk %}" class="btn btn-outline-danger" style="color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">
+            Delete
+        </a>
+    </div>
+</div>
+
+<!-- Highlight Metrics -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Email Address</div>
+        <div style="font-size: 1rem; font-weight: 600; color: #2563eb; margin-top: 0.35rem; word-break: break-all;">
+            <a href="mailto:{{ contact.email }}" style="color: inherit; text-decoration: none;">{{ contact.email }}</a>
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Phone Number</div>
+        <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.35rem;">
+            {{ contact.phone|default:contact.mobile|default:"&mdash;" }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Associated Account</div>
+        <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.35rem;">
+            {% if contact.account %}
+            <a href="{% url 'crm:account_detail' pk=contact.account.pk %}" style="color: #2563eb; text-decoration: none;">{{ contact.account.name }}</a>
+            {% else %}
+            <span style="color: var(--text-muted);">Independent / Unlinked</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Contact Owner</div>
+        <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.35rem;">
+            {{ contact.owner.get_full_name|default:contact.owner.email|default:"Unassigned" }}
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <!-- Left Column: Details -->
+    <div>
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">Contact Profile</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                <table style="width: 100%; font-size: 0.875rem;">
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted); width: 35%;">Job Title</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ contact.job_title|default:"&mdash;" }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Department</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ contact.department|default:"&mdash;" }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Direct Phone</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ contact.phone|default:"&mdash;" }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Mobile Phone</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ contact.mobile|default:"&mdash;" }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Communication Flags</td>
+                            <td style="padding: 0.6rem 0;">
+                                {% if contact.do_not_call %}
+                                <span class="badge badge-danger" style="margin-right: 0.25rem;">Do Not Call</span>
+                                {% endif %}
+                                {% if contact.do_not_email %}
+                                <span class="badge badge-danger">Do Not Email</span>
+                                {% endif %}
+                                {% if not contact.do_not_call and not contact.do_not_email %}
+                                <span style="color: #10b981; font-weight: 500;">Consent Granted</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Created On</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ contact.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Last Updated</td>
+                            <td style="padding: 0.6rem 0; font-weight: 500;">{{ contact.updated_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Address Card -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Mailing Address</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                {% if contact.address_line1 %}
+                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.4; margin: 0;">
+                    {{ contact.address_line1 }}<br>
+                    {% if contact.address_line2 %}{{ contact.address_line2 }}<br>{% endif %}
+                    {{ contact.city }}{% if contact.state %}, {{ contact.state }}{% endif %} {{ contact.postal_code }}<br>
+                    {{ contact.country }}
+                </p>
+                {% else %}
+                <p style="font-size: 0.875rem; color: var(--text-muted); margin: 0;">No personal mailing address registered.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Account & Notes -->
+    <div>
+        {% if contact.account %}
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">Corporate Account</h3>
+                <a href="{% url 'crm:account_detail' pk=contact.account.pk %}" class="btn btn-sm btn-secondary">
+                    View Account &rarr;
+                </a>
+            </div>
+            <div style="padding: 1.25rem;">
+                <h4 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
+                    {{ contact.account.name }}
+                </h4>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    {{ contact.account.get_industry_display }} &bull; {{ contact.account.get_account_type_display }}
+                </div>
+                <table style="width: 100%; font-size: 0.85rem;">
+                    <tbody>
+                        <tr>
+                            <td style="color: var(--text-muted); padding: 0.25rem 0;">Account Number:</td>
+                            <td style="font-weight: 500;"><code>{{ contact.account.account_number }}</code></td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); padding: 0.25rem 0;">Status:</td>
+                            <td><span class="badge badge-success">{{ contact.account.get_status_display }}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="color: var(--text-muted); padding: 0.25rem 0;">Phone:</td>
+                            <td>{{ contact.account.phone|default:"&mdash;" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Internal Notes & History</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                {% if contact.notes %}
+                <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; white-space: pre-line; margin: 0;">
+                    {{ contact.notes }}
+                </p>
+                {% else %}
+                <p style="font-size: 0.875rem; color: var(--text-muted); margin: 0;">No notes added yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

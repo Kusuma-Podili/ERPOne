@@ -1,0 +1,129 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ form_title }} &bull; EnterpriseOne CRM{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:dashboard' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:activity_list' %}">Activities</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ form_title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ form_title }}</h1>
+        <p class="page-subtitle">Log a customer call, meeting, demo, or assign a task to a sales representative.</p>
+    </div>
+</div>
+
+<form method="post" class="enterprise-form">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+        {% for err in form.non_field_errors %}
+        <p style="margin: 0;">{{ err }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+        <div>
+            <!-- Activity Core Fields -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Activity Information</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Activity Type *</label>
+                        {{ form.activity_type }}
+                        {% if form.activity_type.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.activity_type.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Scheduled Due Time *</label>
+                        {{ form.due_date }}
+                        {% if form.due_date.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.due_date.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="form-label" style="font-weight: 600;">Subject / Title *</label>
+                        {{ form.subject }}
+                        {% if form.subject.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.subject.errors.0 }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Associations -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Entity Relationships</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Account</label>
+                        {{ form.account }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Contact</label>
+                        {{ form.contact }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Lead</label>
+                        {{ form.lead }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Deal</label>
+                        {{ form.deal }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agenda & Notes -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Discussion Agenda & Outcomes</h3>
+                </div>
+                <div style="padding: 1.5rem;">
+                    {{ form.description }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Controls -->
+        <div>
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Status & Assignment</h3>
+                </div>
+                <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Status</label>
+                        {{ form.status }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Priority</label>
+                        {{ form.priority }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Assigned To</label>
+                        {{ form.assigned_to }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                    {{ form_action }}
+                </button>
+                <a href="{% url 'crm:activity_list' %}" class="btn btn-secondary" style="width: 100%; justify-content: center;">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

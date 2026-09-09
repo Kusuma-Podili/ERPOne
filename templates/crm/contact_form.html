@@ -1,0 +1,187 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ form_title }} &bull; EnterpriseOne CRM{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:contact_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:contact_list' %}">Contacts</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ form_title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ form_title }}</h1>
+        <p class="page-subtitle">Configure contact details, corporate affiliation, and communication consent.</p>
+    </div>
+</div>
+
+<form method="post" class="enterprise-form">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+        {% for err in form.non_field_errors %}
+        <p style="margin: 0;">{{ err }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+        <div>
+            <!-- Contact Demographics -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Identity & Affiliation</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">First Name *</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.first_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Last Name *</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.last_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="form-label" style="font-weight: 600;">Corporate Account</label>
+                        {{ form.account }}
+                        {% if form.account.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.account.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Job Title</label>
+                        {{ form.job_title }}
+                        {% if form.job_title.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.job_title.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Department</label>
+                        {{ form.department }}
+                        {% if form.department.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.department.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div style="grid-column: span 2; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                        {{ form.is_primary_contact }}
+                        <label for="{{ form.is_primary_contact.id_for_label }}" style="font-weight: 500; font-size: 0.875rem; margin-bottom: 0;">
+                            Set as primary contact for this account
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Communication Channels -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Communication & Channels</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div style="grid-column: span 2;">
+                        <label class="form-label" style="font-weight: 600;">Email Address *</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.email.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Direct Phone</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.phone.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Mobile Phone</label>
+                        {{ form.mobile }}
+                        {% if form.mobile.errors %}<div class="form-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem;">{{ form.mobile.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div style="grid-column: span 2; display: flex; gap: 2rem; margin-top: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            {{ form.do_not_call }}
+                            <label for="{{ form.do_not_call.id_for_label }}" style="font-size: 0.875rem; margin-bottom: 0;">
+                                Do Not Call
+                            </label>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            {{ form.do_not_email }}
+                            <label for="{{ form.do_not_email.id_for_label }}" style="font-size: 0.875rem; margin-bottom: 0;">
+                                Do Not Email
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address Card -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Mailing Address</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div style="grid-column: span 2;">
+                        <label class="form-label" style="font-size: 0.85rem;">Address Line 1</label>
+                        {{ form.address_line1 }}
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <label class="form-label" style="font-size: 0.85rem;">Address Line 2</label>
+                        {{ form.address_line2 }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">City</label>
+                        {{ form.city }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">State / Province</label>
+                        {{ form.state }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">Postal Code</label>
+                        {{ form.postal_code }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size: 0.85rem;">Country</label>
+                        {{ form.country }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Notes & Observations</h3>
+                </div>
+                <div style="padding: 1.5rem;">
+                    {{ form.notes }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Settings -->
+        <div>
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-header">
+                    <h3 class="card-title">Ownership & Stage</h3>
+                </div>
+                <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Lifecycle Stage</label>
+                        {{ form.lifecycle_stage }}
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-weight: 600;">Contact Owner</label>
+                        {{ form.owner }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                    {{ form_action }}
+                </button>
+                <a href="{% url 'crm:contact_list' %}" class="btn btn-secondary" style="width: 100%; justify-content: center;">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

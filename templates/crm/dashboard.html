@@ -1,0 +1,247 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}CRM Executive Dashboard &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">CRM Dashboard</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Customer Relationship Management</h1>
+        <p class="page-subtitle">Revenue intelligence, pipeline health, opportunity velocity, and customer touchpoints.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <a href="{% url 'crm:activity_create' %}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Schedule Activity
+        </a>
+        <a href="{% url 'crm:lead_create' %}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+            Capture Lead
+        </a>
+        <a href="{% url 'crm:deal_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Deal
+        </a>
+    </div>
+</div>
+
+<!-- Key Revenue & Forecast Metrics -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Active Pipeline</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">
+            ${{ forecast.total_pipeline_value|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Across {{ forecast.open_deals_count }} open deals
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Weighted Forecast</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary-color, #2563eb); margin-top: 0.25rem;">
+            ${{ forecast.weighted_forecast_value|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Probability-adjusted
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Won Revenue</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #10b981; margin-top: 0.25rem;">
+            ${{ forecast.won_revenue|floatformat:2 }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            {{ forecast.won_deals_count }} closed contracts
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Win Rate</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #8b5cf6; margin-top: 0.25rem;">
+            {{ forecast.win_rate_percentage }}%
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Closed pipeline conversions
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Statistics Grid -->
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1rem; text-align: center;">
+        <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">{{ total_accounts_count }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);"><a href="{% url 'crm:account_list' %}" style="color: inherit; text-decoration: none;">Total Accounts &rarr;</a></div>
+    </div>
+    <div class="card" style="padding: 1rem; text-align: center;">
+        <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">{{ total_contacts_count }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);"><a href="{% url 'crm:contact_list' %}" style="color: inherit; text-decoration: none;">Contacts Roster &rarr;</a></div>
+    </div>
+    <div class="card" style="padding: 1rem; text-align: center;">
+        <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">{{ open_leads_count }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);"><a href="{% url 'crm:lead_list' %}" style="color: inherit; text-decoration: none;">Open Inbound Leads &rarr;</a></div>
+    </div>
+    <div class="card" style="padding: 1rem; text-align: center;">
+        <div style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);">{{ forecast.open_deals_count }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);"><a href="{% url 'crm:deal_kanban' %}" style="color: inherit; text-decoration: none;">View Kanban Board &rarr;</a></div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <!-- Left Column: High-Value Deals & Hot Leads -->
+    <div>
+        <!-- Active High-Value Deals -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">Top Active Pipeline Deals</h3>
+                <a href="{% url 'crm:deal_list' %}" class="btn btn-sm btn-secondary">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="enterprise-table">
+                    <thead>
+                        <tr>
+                            <th>Deal</th>
+                            <th>Account</th>
+                            <th>Stage</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in recent_deals %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'crm:deal_detail' pk=d.pk %}" style="font-weight: 600; color: var(--text-primary); text-decoration: none;">
+                                    {{ d.name }}
+                                </a>
+                            </td>
+                            <td>{{ d.account.name }}</td>
+                            <td>
+                                <span class="badge" style="background: rgba(37, 99, 235, 0.1); color: {{ d.stage.color|default:'#2563eb' }}; font-weight: 600;">
+                                    {{ d.stage.name }}
+                                </span>
+                            </td>
+                            <td style="font-weight: 700; color: #10b981;">
+                                ${{ d.amount|floatformat:2 }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                                No active deals in pipeline.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Hot Leads by Algorithmic Score -->
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">High-Scoring Leads</h3>
+                <a href="{% url 'crm:lead_list' %}" class="btn btn-sm btn-secondary">View All Leads</a>
+            </div>
+            <div class="table-responsive">
+                <table class="enterprise-table">
+                    <thead>
+                        <tr>
+                            <th>Lead</th>
+                            <th>Company</th>
+                            <th>Score</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in hot_leads %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'crm:lead_detail' pk=l.pk %}" style="font-weight: 600; color: var(--text-primary); text-decoration: none;">
+                                    {{ l.full_name }}
+                                </a>
+                            </td>
+                            <td>{{ l.company_name }}</td>
+                            <td>
+                                {% if l.lead_score >= 75 %}
+                                <span class="badge badge-danger">&#9733; {{ l.lead_score }}</span>
+                                {% elif l.lead_score >= 50 %}
+                                <span class="badge badge-primary">{{ l.lead_score }}</span>
+                                {% else %}
+                                <span class="badge badge-secondary">{{ l.lead_score }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: right;">
+                                <a href="{% url 'crm:lead_convert' pk=l.pk %}" class="btn btn-sm btn-primary">Convert</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                                No leads captured yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Scheduled Activities & Touchpoints -->
+    <div>
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 class="card-title">Upcoming Activities & Tasks</h3>
+                <a href="{% url 'crm:activity_create' %}" class="btn btn-sm btn-primary">+ Schedule</a>
+            </div>
+            <div style="padding: 1rem;">
+                {% for act in upcoming_activities %}
+                <div style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="badge badge-secondary" style="font-size: 0.7rem;">
+                                {{ act.get_activity_type_display }}
+                            </span>
+                            <span style="font-weight: 600; font-size: 0.875rem; color: var(--text-primary);">
+                                {{ act.subject }}
+                            </span>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            {% if act.account %}
+                            Account: <strong>{{ act.account.name }}</strong>
+                            {% elif act.lead %}
+                            Lead: <strong>{{ act.lead.full_name }}</strong>
+                            {% elif act.deal %}
+                            Deal: <strong>{{ act.deal.name }}</strong>
+                            {% endif %}
+                            &bull; Due: {{ act.due_date|date:"M d, H:i"|default:"No due date" }}
+                        </div>
+                    </div>
+                    <form method="post" action="{% url 'crm:activity_complete' pk=act.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-secondary" title="Mark as Completed">
+                            &check; Done
+                        </button>
+                    </form>
+                </div>
+                {% empty %}
+                <div style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                    No pending activities scheduled.
+                    <div style="margin-top: 0.75rem;">
+                        <a href="{% url 'crm:activity_create' %}" class="btn btn-sm btn-primary">Schedule First Activity</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); text-align: right;">
+                <a href="{% url 'crm:activity_list' %}" style="font-size: 0.85rem; color: #2563eb; text-decoration: none; font-weight: 500;">
+                    View Complete Activities History &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
