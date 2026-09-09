@@ -1,0 +1,116 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Sales Pipeline Kanban &bull; CRM &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:deal_list' %}">Deals</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Kanban Board</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Sales Pipeline Kanban</h1>
+        <p class="page-subtitle">Visual stage progression and revenue distribution across active sales opportunities.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'crm:deal_list' %}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Table View
+        </a>
+        <a href="{% url 'crm:deal_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Deal
+        </a>
+    </div>
+</div>
+
+<!-- Forecast Metrics Bar -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1rem 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Active Pipeline</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">
+            ${{ forecast.total_pipeline_value|floatformat:2 }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1rem 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Weighted Forecast</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary-color, #2563eb); margin-top: 0.25rem;">
+            ${{ forecast.weighted_forecast_value|floatformat:2 }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1rem 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Open Deals</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: #10b981; margin-top: 0.25rem;">
+            {{ forecast.open_deals_count }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1rem 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Historical Win Rate</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: #8b5cf6; margin-top: 0.25rem;">
+            {{ forecast.win_rate_percentage }}%
+        </div>
+    </div>
+</div>
+
+<!-- Kanban Horizontal Board -->
+<div class="kanban-board" style="display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1.5rem; align-items: flex-start; min-height: 550px;">
+    {% for col in columns %}
+    <div class="kanban-column" style="flex: 0 0 300px; background: rgba(248, 250, 252, 0.7); border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; max-height: calc(100vh - 240px);">
+        <!-- Column Header -->
+        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color); background: #ffffff; border-top-left-radius: 8px; border-top-right-radius: 8px; border-top: 3px solid {{ col.stage.color|default:'#2563eb' }};">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <h4 style="margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">
+                    {{ col.stage.name }}
+                </h4>
+                <span class="badge badge-secondary" style="font-size: 0.75rem; font-weight: 700;">
+                    {{ col.count }}
+                </span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted);">
+                <span>Prob: <strong>{{ col.stage.default_probability }}%</strong></span>
+                <span style="font-weight: 600; color: var(--text-primary);">${{ col.total_amount|floatformat:2 }}</span>
+            </div>
+        </div>
+
+        <!-- Cards Container -->
+        <div style="padding: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; flex: 1;">
+            {% for deal in col.deals %}
+            <div class="card" style="padding: 0.875rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin: 0; border: 1px solid rgba(0,0,0,0.08); transition: transform 0.15s, box-shadow 0.15s;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.35rem;">
+                    <a href="{% url 'crm:deal_detail' pk=deal.pk %}" style="font-weight: 600; font-size: 0.875rem; color: var(--text-primary); text-decoration: none; line-height: 1.3;">
+                        {{ deal.name }}
+                    </a>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    {{ deal.account.name }}
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-size: 0.8rem;">
+                    <span style="font-weight: 700; color: #10b981;">
+                        ${{ deal.amount|floatformat:2 }}
+                    </span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">
+                        {% if deal.expected_close_date %}{{ deal.expected_close_date|date:"M d" }}{% endif %}
+                    </span>
+                </div>
+                {% if deal.owner %}
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.35rem;">
+                    Owner: {{ deal.owner.get_full_name|default:deal.owner.email }}
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div style="text-align: center; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.8rem;">
+                No deals in this stage
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

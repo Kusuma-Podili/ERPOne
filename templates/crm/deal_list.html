@@ -1,0 +1,198 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Sales Pipeline Deals &bull; CRM &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">CRM</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Deals & Pipeline</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Sales Opportunities & Deals</h1>
+        <p class="page-subtitle">Track contract values, pipeline velocities, win rates, and weighted forecasts.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'crm:deal_kanban' %}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="6" height="18" x="3" y="3" rx="1"/><rect width="6" height="12" x="15" y="3" rx="1"/></svg>
+            Kanban Board
+        </a>
+        <a href="{% url 'crm:deal_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Deal
+        </a>
+    </div>
+</div>
+
+<!-- Forecast Metrics Bar -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Active Pipeline Value</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">
+            ${{ forecast.total_pipeline_value|floatformat:2 }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Weighted Forecast</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary-color, #2563eb); margin-top: 0.25rem;">
+            ${{ forecast.weighted_forecast_value|floatformat:2 }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Closed Won Revenue</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #10b981; margin-top: 0.25rem;">
+            ${{ forecast.won_revenue|floatformat:2 }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Win Rate</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #8b5cf6; margin-top: 0.25rem;">
+            {{ forecast.win_rate_percentage }}%
+        </div>
+    </div>
+</div>
+
+<!-- Filter & Search Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem;">
+    <form method="get" action="{% url 'crm:deal_list' %}" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+        <div style="flex: 2; min-width: 200px;">
+            <input type="text" name="q" value="{{ current_q }}" class="form-control enterprise-input" placeholder="Search by deal name, deal #, account, contact...">
+        </div>
+        <div style="flex: 1.5; min-width: 160px;">
+            <select name="stage" class="form-select enterprise-input">
+                <option value="">All Pipeline Stages</option>
+                {% for st in stages %}
+                <option value="{{ st.id }}" {% if current_stage == st.id|stringformat:"s" %}selected{% endif %}>{{ st.name }} ({{ st.default_probability }}%)</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 140px;">
+            <select name="status" class="form-select enterprise-input">
+                <option value="">All Statuses</option>
+                <option value="open" {% if current_status == "open" %}selected{% endif %}>Open Deals</option>
+                <option value="won" {% if current_status == "won" %}selected{% endif %}>Closed Won</option>
+                <option value="lost" {% if current_status == "lost" %}selected{% endif %}>Closed Lost</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">Filter</button>
+        {% if current_q or current_stage or current_status %}
+        <a href="{% url 'crm:deal_list' %}" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Reset</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Deals Table -->
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">Deals Roster ({{ paginator.count }})</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Deal Name</th>
+                    <th>Account</th>
+                    <th>Stage</th>
+                    <th>Amount</th>
+                    <th>Probability</th>
+                    <th>Weighted Value</th>
+                    <th>Expected Close</th>
+                    <th>Owner</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in deals %}
+                <tr>
+                    <td>
+                        <a href="{% url 'crm:deal_detail' pk=d.pk %}" style="font-weight: 600; color: var(--text-primary); text-decoration: none;">
+                            {{ d.name }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            <code>{{ d.deal_number }}</code>
+                        </div>
+                    </td>
+                    <td>
+                        <a href="{% url 'crm:account_detail' pk=d.account.pk %}" style="color: #2563eb; text-decoration: none;">
+                            {{ d.account.name }}
+                        </a>
+                        {% if d.primary_contact %}
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            {{ d.primary_contact.full_name }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge" style="background: rgba(37, 99, 235, 0.1); color: {{ d.stage.color|default:'#2563eb' }}; border: 1px solid {{ d.stage.color|default:'#2563eb' }}40; font-weight: 600;">
+                            {{ d.stage.name }}
+                        </span>
+                    </td>
+                    <td>
+                        <strong style="color: var(--text-primary);">${{ d.amount|floatformat:2 }}</strong>
+                    </td>
+                    <td>
+                        <span style="font-weight: 600;">{{ d.probability }}%</span>
+                    </td>
+                    <td>
+                        <span style="color: var(--text-secondary);">${{ d.weighted_amount|floatformat:2 }}</span>
+                    </td>
+                    <td>
+                        {% if d.expected_close_date %}
+                        {{ d.expected_close_date|date:"M d, Y" }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.owner %}
+                        {{ d.owner.get_full_name|default:d.owner.email }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <a href="{% url 'crm:deal_detail' pk=d.pk %}" class="btn btn-sm btn-secondary" title="View Dossier">
+                            View
+                        </a>
+                        <a href="{% url 'crm:deal_update' pk=d.pk %}" class="btn btn-sm btn-secondary" title="Edit">
+                            Edit
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.5;"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                        <p style="font-size: 1.1rem; font-weight: 500; margin-bottom: 0.5rem;">No deals in sales pipeline</p>
+                        <p style="font-size: 0.875rem;">Open your first sales opportunity or convert a qualified lead to start forecasting.</p>
+                        <a href="{% url 'crm:deal_create' %}" class="btn btn-primary" style="margin-top: 1rem;">
+                            Open New Deal
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div style="padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);">
+        <div style="font-size: 0.875rem; color: var(--text-muted);">
+            Showing page {{ page_obj.number }} of {{ paginator.num_pages }}
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_stage %}&stage={{ current_stage }}{% endif %}" class="btn btn-sm btn-secondary">&laquo; Previous</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_stage %}&stage={{ current_stage }}{% endif %}" class="btn btn-sm btn-secondary">Next &raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

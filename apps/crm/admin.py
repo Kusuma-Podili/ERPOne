@@ -1,9 +1,12 @@
-"""
-Enterprise CRM Django Admin Registration.
-Provides administrative inspection and management for Accounts and Contacts.
-"""
 from django.contrib import admin
-from apps.crm.models import Account, Contact, Lead
+from apps.crm.models import (
+    Account,
+    Contact,
+    Lead,
+    PipelineStage,
+    Deal,
+    DealStageTransition,
+)
 
 
 class ContactInline(admin.TabularInline):
@@ -142,4 +145,57 @@ class LeadAdmin(admin.ModelAdmin):
         "phone",
     )
     readonly_fields = ("id", "lead_score", "score_breakdown", "is_converted", "converted_at", "created_at", "updated_at")
+
+
+@admin.register(PipelineStage)
+class PipelineStageAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "organization", "order", "default_probability", "is_won_stage", "is_lost_stage", "is_active")
+    list_filter = ("is_won_stage", "is_lost_stage", "is_active", "organization")
+    search_fields = ("name", "code")
+
+
+class DealStageTransitionInline(admin.TabularInline):
+    model = DealStageTransition
+    extra = 0
+    readonly_fields = ("from_stage", "to_stage", "changed_by", "transition_notes", "duration_in_previous_stage_seconds", "created_at")
+    can_delete = False
+
+
+@admin.register(Deal)
+class DealAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "deal_number",
+        "account",
+        "stage",
+        "amount",
+        "probability",
+        "is_closed",
+        "is_won",
+        "expected_close_date",
+        "owner",
+    )
+    list_filter = (
+        "stage",
+        "is_closed",
+        "is_won",
+        "organization",
+    )
+    search_fields = (
+        "name",
+        "deal_number",
+        "account__name",
+        "primary_contact__first_name",
+        "primary_contact__last_name",
+    )
+    readonly_fields = ("id", "deal_number", "created_at", "updated_at")
+    inlines = [DealStageTransitionInline]
+
+
+@admin.register(DealStageTransition)
+class DealStageTransitionAdmin(admin.ModelAdmin):
+    list_display = ("deal", "from_stage", "to_stage", "changed_by", "duration_in_previous_stage_seconds", "created_at")
+    list_filter = ("to_stage", "organization")
+    readonly_fields = ("id", "deal", "from_stage", "to_stage", "changed_by", "transition_notes", "duration_in_previous_stage_seconds", "created_at")
+
 

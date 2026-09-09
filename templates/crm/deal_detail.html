@@ -1,0 +1,246 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ deal.name }} &bull; Deal Dossier &bull; EnterpriseOne CRM{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'crm:account_list' %}">CRM</a>
+<span>/</span>
+<a href="{% url 'crm:deal_list' %}">Deals</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ deal.name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <h1 class="page-title" style="margin-bottom: 0;">{{ deal.name }}</h1>
+            <span class="badge badge-secondary"><code>{{ deal.deal_number }}</code></span>
+            {% if deal.is_won %}
+            <span class="badge badge-success">Closed Won</span>
+            {% elif deal.is_closed %}
+            <span class="badge badge-danger">Closed Lost</span>
+            {% else %}
+            <span class="badge badge-primary">Open Pipeline</span>
+            {% endif %}
+            <span class="badge" style="background: rgba(37, 99, 235, 0.1); color: {{ deal.stage.color|default:'#2563eb' }}; font-weight: 600; border: 1px solid {{ deal.stage.color|default:'#2563eb' }}40;">
+                {{ deal.stage.name }}
+            </span>
+        </div>
+        <p class="page-subtitle" style="margin-top: 0.25rem;">
+            Account: <a href="{% url 'crm:account_detail' pk=deal.account.pk %}" style="color: #2563eb; text-decoration: none; font-weight: 600;">{{ deal.account.name }}</a>
+            {% if deal.primary_contact %}
+            &bull; Contact: <a href="{% url 'crm:contact_detail' pk=deal.primary_contact.pk %}" style="color: inherit; text-decoration: none;">{{ deal.primary_contact.full_name }}</a>
+            {% endif %}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'crm:deal_update' pk=deal.pk %}" class="btn btn-secondary">
+            Edit Deal
+        </a>
+        <a href="{% url 'crm:deal_delete' pk=deal.pk %}" class="btn btn-outline-danger" style="color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">
+            Delete
+        </a>
+    </div>
+</div>
+
+<!-- Highlight Metrics -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Contract Value</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #10b981; margin-top: 0.25rem;">
+            ${{ deal.amount|floatformat:2 }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Win Probability</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: #2563eb; margin-top: 0.25rem;">
+            {{ deal.probability }}%
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Weighted Value</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">
+            ${{ deal.weighted_amount|floatformat:2 }}
+        </div>
+    </div>
+    <div class="card" style="padding: 1.25rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Expected Close</div>
+        <div style="font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-top: 0.5rem;">
+            {{ deal.expected_close_date|date:"M d, Y"|default:"Not specified" }}
+        </div>
+    </div>
+</div>
+
+<!-- Stage Progression Pipeline Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+    <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 0.75rem;">
+        Pipeline Progression Stepper
+    </div>
+    <div style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem;">
+        {% for st in stages %}
+        <div style="flex: 1; min-width: 120px; padding: 0.75rem; border-radius: 6px; text-align: center; {% if st.id == deal.stage.id %}background: #2563eb; color: #ffffff; font-weight: 700; box-shadow: 0 2px 4px rgba(37,99,235,0.3);{% elif st.order < deal.stage.order %}background: rgba(16,185,129,0.15); color: #047857; font-weight: 600;{% else %}background: rgba(0,0,0,0.04); color: var(--text-muted);{% endif %}">
+            <div style="font-size: 0.7rem; opacity: 0.85;">Stage {{ st.order }}</div>
+            <div style="font-size: 0.8rem; margin-top: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ st.name }}</div>
+            <div style="font-size: 0.7rem; margin-top: 0.15rem; opacity: 0.75;">{{ st.default_probability }}%</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <!-- Left Column: Details & Accounts -->
+    <div>
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">Commercial Terms & Details</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                <table style="width: 100%; font-size: 0.875rem;">
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted); width: 35%;">Deal Name</td>
+                            <td style="padding: 0.6rem 0; font-weight: 600;">{{ deal.name }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Deal Number</td>
+                            <td style="padding: 0.6rem 0;"><code>{{ deal.deal_number }}</code></td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Corporate Account</td>
+                            <td style="padding: 0.6rem 0;">
+                                <a href="{% url 'crm:account_detail' pk=deal.account.pk %}" style="color: #2563eb; font-weight: 500;">
+                                    {{ deal.account.name }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Primary Contact</td>
+                            <td style="padding: 0.6rem 0;">
+                                {% if deal.primary_contact %}
+                                <a href="{% url 'crm:contact_detail' pk=deal.primary_contact.pk %}" style="color: #2563eb;">
+                                    {{ deal.primary_contact.full_name }}
+                                </a>
+                                {% else %}&mdash;{% endif %}
+                            </td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Owner / Executive</td>
+                            <td style="padding: 0.6rem 0;">{{ deal.owner.get_full_name|default:deal.owner.email|default:"Unassigned" }}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Created Date</td>
+                            <td style="padding: 0.6rem 0;">{{ deal.created_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        {% if deal.actual_close_date %}
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 0.6rem 0; color: var(--text-muted);">Actual Close Date</td>
+                            <td style="padding: 0.6rem 0; font-weight: 600;">{{ deal.actual_close_date|date:"M d, Y" }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if deal.lost_reason %}
+                        <tr>
+                            <td style="padding: 0.6rem 0; color: #ef4444;">Lost Reason</td>
+                            <td style="padding: 0.6rem 0; color: #ef4444;">{{ deal.lost_reason }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+
+                {% if deal.description %}
+                <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                    <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 0.5rem;">Deal Overview & Scope</div>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; white-space: pre-line; margin: 0;">{{ deal.description }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Transition Action & Audit History -->
+    <div>
+        <!-- Quick Stage Transition Card -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title">Advance Pipeline Stage</h3>
+            </div>
+            <div style="padding: 1.25rem;">
+                <form method="post" action="{% url 'crm:deal_transition_stage' pk=deal.pk %}">
+                    {% csrf_token %}
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label" style="font-weight: 600;">Target Stage</label>
+                        {{ transition_form.to_stage }}
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label" style="font-weight: 600;">Transition Notes</label>
+                        {{ transition_form.transition_notes }}
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <label class="form-label" style="font-weight: 600;">If Lost: Root Cause Reason</label>
+                        {{ transition_form.lost_reason }}
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                        Execute Stage Transition
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Stage Transition Audit History -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Stage Transition Audit Log</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="enterprise-table">
+                    <thead>
+                        <tr>
+                            <th>Movement</th>
+                            <th>User</th>
+                            <th>Time in Stage</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transitions %}
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600; font-size: 0.85rem;">
+                                    {% if t.from_stage %}{{ t.from_stage.name }}{% else %}<span style="color: var(--text-muted);">Creation</span>{% endif %}
+                                    &rarr; {{ t.to_stage.name }}
+                                </div>
+                                {% if t.transition_notes %}
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                                    {{ t.transition_notes }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>{{ t.changed_by.get_full_name|default:t.changed_by.email|default:"System" }}</td>
+                            <td>
+                                {% if t.duration_in_previous_stage_seconds %}
+                                <span style="font-size: 0.75rem;">
+                                    {% widthratio t.duration_in_previous_stage_seconds 86400 1 as days %}
+                                    {{ days }} day(s)
+                                </span>
+                                {% else %}&mdash;{% endif %}
+                            </td>
+                            <td style="font-size: 0.75rem; color: var(--text-muted);">
+                                {{ t.created_at|date:"M d, Y H:i" }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                                No transitions logged yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -33,4 +33,13 @@ urlpatterns = [
     path("leads/<uuid:pk>/delete/", views.LeadDeleteView.as_view(), name="lead_delete"),
     path("leads/<uuid:pk>/convert/", views.LeadConvertView.as_view(), name="lead_convert"),
     path("leads/<uuid:pk>/recalculate-score/", views.LeadRecalculateScoreView.as_view(), name="lead_recalculate_score"),
+
+    # Deals & Sales Pipeline
+    path("deals/", views.DealListView.as_view(), name="deal_list"),
+    path("deals/kanban/", views.DealKanbanView.as_view(), name="deal_kanban"),
+    path("deals/new/", views.DealCreateView.as_view(), name="deal_create"),
+    path("deals/<uuid:pk>/", views.DealDetailView.as_view(), name="deal_detail"),
+    path("deals/<uuid:pk>/edit/", views.DealUpdateView.as_view(), name="deal_update"),
+    path("deals/<uuid:pk>/delete/", views.DealDeleteView.as_view(), name="deal_delete"),
+    path("deals/<uuid:pk>/transition/", views.DealTransitionStageView.as_view(), name="deal_transition_stage"),
 ]
