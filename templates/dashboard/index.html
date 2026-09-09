@@ -1,0 +1,155 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Executive Dashboard &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-primary); font-weight: 500;">Executive Dashboard</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Enterprise Dashboard</h1>
+        <p class="page-subtitle">Welcome back, <strong>{{ request.user.get_full_name }}</strong>. Here is your enterprise operational overview.</p>
+    </div>
+    <div>
+        <span class="badge badge-primary" style="padding: 0.5rem 1rem; font-size: 0.825rem;">
+            Primary Role: {{ user_display_role }}
+        </span>
+    </div>
+</div>
+
+<!-- KPI Stats Grid -->
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value">{{ total_users_count }}</div>
+            <div class="stat-subtext">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                Registered across tenant
+            </div>
+        </div>
+        <div class="stat-icon primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Active Accounts</div>
+            <div class="stat-value">{{ active_users_count }}</div>
+            <div class="stat-subtext" style="color: var(--color-success);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Healthy operational status
+            </div>
+        </div>
+        <div class="stat-icon success">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">System Roles</div>
+            <div class="stat-value">{{ roles_count }}</div>
+            <div class="stat-subtext" style="color: var(--color-info);">
+                RBAC Level: Tier 1
+            </div>
+        </div>
+        <div class="stat-icon info">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Platform Health</div>
+            <div class="stat-value" style="font-size: 1.4rem; color: var(--color-success);">Operational</div>
+            <div class="stat-subtext">
+                Phase 1: Foundation Active
+            </div>
+        </div>
+        <div class="stat-icon warning">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/><path d="M2 12h20"/><path d="m5 7-3 5 3 5"/><path d="m19 7 3 5-3 5"/></svg>
+        </div>
+    </div>
+</div>
+
+<!-- Main Row: Quick Shortcuts & Recent Login Audits -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <!-- Recent Activity Table -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">My Recent Login History</h3>
+            <a href="{% url 'accounts:security_audit' %}" class="btn btn-secondary btn-sm">View Full Log</a>
+        </div>
+        <div class="table-responsive">
+            <table class="enterprise-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>IP Address</th>
+                        <th>Status</th>
+                        <th>User Agent / Device</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in recent_logins %}
+                    <tr>
+                        <td>{{ item.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        <td><code>{{ item.ip_address|default:"127.0.0.1" }}</code></td>
+                        <td>
+                            {% if item.status == 'SUCCESS' %}
+                            <span class="badge badge-success">Success</span>
+                            {% elif item.status == 'LOGOUT' %}
+                            <span class="badge badge-secondary">Logout</span>
+                            {% else %}
+                            <span class="badge badge-danger">{{ item.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {{ item.user_agent|truncatechars:45 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            No recent session events recorded.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Actions & System Info -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Quick Actions</h3>
+        </div>
+        <div class="card-body" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <a href="{% url 'accounts:profile' %}" class="btn btn-secondary" style="justify-content: flex-start;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Manage Profile & Preferences
+            </a>
+            <a href="{% url 'accounts:password_change' %}" class="btn btn-secondary" style="justify-content: flex-start;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Update Security Password
+            </a>
+            {% if is_super_admin or is_org_admin %}
+            <a href="{% url 'accounts:user_list' %}" class="btn btn-primary" style="justify-content: flex-start;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                User & Access Administration
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="card-footer" style="font-size: 0.75rem; color: var(--text-muted);">
+            <div>Tenant Architecture: <strong>Dedicated Multi-Module</strong></div>
+            <div style="margin-top: 0.25rem;">Database Engine: <strong>MySQL 8.0 / Active</strong></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

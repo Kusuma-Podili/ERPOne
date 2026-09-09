@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block layout_content %}
+<div class="app-shell">
+    <!-- Collapsible Enterprise Navigation Sidebar -->
+    {% include "partials/sidebar.html" %}
+
+    <div class="app-main">
+        <!-- Top Navigation Header -->
+        {% include "partials/navbar.html" %}
+
+        <!-- Breadcrumbs Navigation -->
+        {% include "partials/breadcrumbs.html" %}
+
+        <!-- Main Page View Container -->
+        <main class="page-container">
+            <!-- Global Flash Messages -->
+            {% include "partials/messages.html" %}
+
+            <!-- Dynamic View Content -->
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Standard Footer -->
+        {% include "partials/footer.html" %}
+    </div>
+</div>
+{% endblock %}

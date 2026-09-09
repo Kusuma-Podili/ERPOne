@@ -1,0 +1,136 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}User Profile &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Dashboard</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">User Profile</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">User Profile & Preferences</h1>
+        <p class="page-subtitle">Manage your personal details, corporate role, and platform preferences.</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+    <!-- Profile Card Summary -->
+    <div class="card">
+        <div class="card-body" style="text-align: center; padding: 2rem 1.25rem;">
+            <div style="width: 80px; height: 80px; border-radius: 50%; background-color: var(--color-primary); color: #fff; font-size: 2rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                {{ request.user.first_name|default:request.user.email|slice:":1"|upper }}
+            </div>
+            <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--text-primary);">{{ request.user.get_full_name }}</h3>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">{{ request.user.job_title|default:"Enterprise Member" }}</p>
+            
+            <div style="margin-top: 1rem;">
+                <span class="badge badge-primary">{{ user_display_role }}</span>
+                {% if request.user.is_verified %}
+                <span class="badge badge-success">Verified</span>
+                {% else %}
+                <span class="badge badge-warning">Verification Pending</span>
+                {% endif %}
+            </div>
+
+            <div style="margin-top: 1.75rem; text-align: left; border-top: 1px solid var(--border-color); padding-top: 1rem; font-size: 0.85rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="color: var(--text-muted);">Email</span>
+                    <strong>{{ request.user.email }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="color: var(--text-muted);">Member Since</span>
+                    <span>{{ request.user.created_at|date:"M d, Y" }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Account ID</span>
+                    <span style="font-family: var(--font-mono); font-size: 0.75rem;">{{ request.user.id|stringformat:"s"|slice:":8" }}...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Edit Form -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Edit Personal Details & Preferences</h3>
+        </div>
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.first_name.id_for_label }}">First Name</label>
+                        {{ form.first_name }}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.last_name.id_for_label }}">Last Name</label>
+                        {{ form.last_name }}
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.phone.id_for_label }}">Phone Number</label>
+                        {{ form.phone }}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.job_title.id_for_label }}">Job Title</label>
+                        {{ form.job_title }}
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.timezone.id_for_label }}">Timezone</label>
+                        {{ form.timezone }}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.language.id_for_label }}">Language</label>
+                        {{ form.language }}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.theme.id_for_label }}">Theme</label>
+                        {{ form.theme }}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.bio.id_for_label }}">Professional Bio</label>
+                    {{ form.bio }}
+                </div>
+
+                <div style="display: flex; gap: 2rem; margin-top: 1rem; margin-bottom: 1.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        {{ form.notification_email }}
+                        <label class="form-label" for="{{ form.notification_email.id_for_label }}" style="margin-bottom: 0; cursor: pointer;">
+                            Email Alerts
+                        </label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        {{ form.notification_inapp }}
+                        <label class="form-label" for="{{ form.notification_inapp.id_for_label }}" style="margin-bottom: 0; cursor: pointer;">
+                            In-App Notifications
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Save Profile Changes
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
