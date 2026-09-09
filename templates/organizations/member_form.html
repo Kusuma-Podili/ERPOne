@@ -1,0 +1,85 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Edit Member &bull; {{ member.user.get_full_name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'organizations:dashboard' %}">{{ organization.name }}</a>
+<span>/</span>
+<a href="{% url 'organizations:members' %}">Members</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Edit Member</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Edit Member: {{ member.user.get_full_name }}</h1>
+        <p class="page-subtitle">Update department, branch, and supervisor reporting lines (with cycle detection).</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 650px;">
+    <div class="card-body">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.job_title.id_for_label }}">{{ form.job_title.label }}</label>
+                    {{ form.job_title }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.employee_id.id_for_label }}">{{ form.employee_id.label }}</label>
+                    {{ form.employee_id }}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.branch.id_for_label }}">{{ form.branch.label }}</label>
+                    {{ form.branch }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.department.id_for_label }}">{{ form.department.label }}</label>
+                    {{ form.department }}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="{{ form.reports_to.id_for_label }}">{{ form.reports_to.label }}</label>
+                {{ form.reports_to }}
+                {% if form.reports_to.errors %}
+                <div class="form-error">{{ form.reports_to.errors.0 }}</div>
+                {% endif %}
+                <div class="form-text">Direct manager or supervisor. Circular reporting loops are rejected.</div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: center; margin-top: 1rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    {{ form.is_org_admin }}
+                    <label class="form-label" for="{{ form.is_org_admin.id_for_label }}" style="margin-bottom: 0; cursor: pointer;">
+                        Organization Administrator
+                    </label>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
+                    {{ form.status }}
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">Update Member</button>
+                <a href="{% url 'organizations:members' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

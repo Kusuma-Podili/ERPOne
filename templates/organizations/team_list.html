@@ -1,0 +1,76 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Teams &bull; {{ organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'organizations:dashboard' %}">{{ organization.name }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Operational Teams</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Operational Teams</h1>
+        <p class="page-subtitle">Cross-functional working groups, squads, and operational project teams.</p>
+    </div>
+    {% if is_org_admin or is_super_admin or is_manager %}
+    <div>
+        <a href="{% url 'organizations:team_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Team
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Teams Roster</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Team Name</th>
+                    <th>Code</th>
+                    <th>Department</th>
+                    <th>Team Lead</th>
+                    <th>Active Members</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in teams %}
+                <tr>
+                    <td><strong>{{ t.name }}</strong></td>
+                    <td><code>{{ t.code }}</code></td>
+                    <td>{{ t.department.name }}</td>
+                    <td>
+                        {% if t.team_lead %}
+                        {{ t.team_lead.get_full_name }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ t.memberships.count }}</td>
+                    <td>
+                        {% if t.is_active %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No operational teams found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ organization.name }} &bull; Organization Dashboard{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ organization.name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ organization.name }}</h1>
+        <p class="page-subtitle">Tenant Code: <code>{{ organization.code }}</code> &bull; Base Currency: <strong>{{ organization.currency }}</strong></p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        {% if is_org_admin or is_super_admin %}
+        <a href="{% url 'organizations:invitation_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Invite Employee
+        </a>
+        <a href="{% url 'organizations:settings' %}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Settings
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Total Members</div>
+            <div class="stat-value">{{ total_members }}</div>
+            <div class="stat-subtext">Active staff roster</div>
+        </div>
+        <div class="stat-icon primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Branches</div>
+            <div class="stat-value">{{ total_branches }}</div>
+            <div class="stat-subtext">Operational offices</div>
+        </div>
+        <div class="stat-icon success">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Departments</div>
+            <div class="stat-value">{{ total_departments }}</div>
+            <div class="stat-subtext">Cost centers & units</div>
+        </div>
+        <div class="stat-icon info">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Pending Invites</div>
+            <div class="stat-value">{{ pending_invitations_count }}</div>
+            <div class="stat-subtext" style="color: var(--color-warning);">Awaiting acceptance</div>
+        </div>
+        <div class="stat-icon warning">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h9"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M19 16v6"/><path d="M16 19h6"/></svg>
+        </div>
+    </div>
+</div>
+
+<!-- Main Row -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <!-- Recent Member Additions -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Member Additions</h3>
+            <a href="{% url 'organizations:members' %}" class="btn btn-secondary btn-sm">Full Roster</a>
+        </div>
+        <div class="table-responsive">
+            <table class="enterprise-table">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Job Title</th>
+                        <th>Department</th>
+                        <th>Joined</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in recent_members %}
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <div class="user-avatar" style="width: 28px; height: 28px; font-size: 0.75rem;">
+                                    {{ m.user.first_name|default:m.user.email|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <strong>{{ m.user.get_full_name }}</strong>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ m.user.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ m.job_title|default:"Staff" }}</td>
+                        <td>
+                            {% if m.department %}
+                            <span class="badge badge-secondary">{{ m.department.name }}</span>
+                            {% else %}
+                            <span style="color: var(--text-muted);">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ m.joined_at|date:"M d, Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            No members assigned yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Navigation Hub -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Organization Hub</h3>
+        </div>
+        <div class="card-body" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <a href="{% url 'organizations:branches' %}" class="btn btn-secondary" style="justify-content: flex-start;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                Manage Branches & Locations
+            </a>
+            <a href="{% url 'organizations:departments' %}" class="btn btn-secondary" style="justify-content: flex-start;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                Manage Departments
+            </a>
+            <a href="{% url 'organizations:teams' %}" class="btn btn-secondary" style="justify-content: flex-start;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                Manage Operational Teams
+            </a>
+            <a href="{% url 'organizations:hierarchy' %}" class="btn btn-secondary" style="justify-content: flex-start;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                View Reporting Hierarchy Chart
+            </a>
+            <a href="{% url 'organizations:invitations' %}" class="btn btn-secondary" style="justify-content: flex-start;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h9"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="M19 16v6"/><path d="M16 19h6"/></svg>
+                Manage Invitations
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

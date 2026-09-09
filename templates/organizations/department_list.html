@@ -1,0 +1,84 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Departments &bull; {{ organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'organizations:dashboard' %}">{{ organization.name }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Departments</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Departments & Cost Centers</h1>
+        <p class="page-subtitle">Manage organizational divisions, cost centers, and departmental leadership.</p>
+    </div>
+    {% if is_org_admin or is_super_admin or is_manager %}
+    <div>
+        <a href="{% url 'organizations:department_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Department
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Department Registry</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Department Name</th>
+                    <th>Code</th>
+                    <th>Parent Hierarchy</th>
+                    <th>Branch</th>
+                    <th>Department Head</th>
+                    <th>Cost Center</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in departments %}
+                <tr>
+                    <td><strong>{{ d.name }}</strong></td>
+                    <td><code>{{ d.code }}</code></td>
+                    <td>
+                        {% if d.parent_department %}
+                        <span style="color: var(--color-accent);">{{ d.parent_department.name }}</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Root Department</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ d.branch.name|default:"Corporate Wide" }}</td>
+                    <td>
+                        {% if d.head_of_department %}
+                        {{ d.head_of_department.get_full_name }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ d.budget_code|default:"—" }}</code></td>
+                    <td>
+                        {% if d.is_active %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No departments registered.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
