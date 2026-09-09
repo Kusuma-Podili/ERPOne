@@ -1,0 +1,88 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{% if object %}Edit {{ object.name }}{% else %}New Price Book{% endif %} &bull; Sales &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<a href="{% url 'sales:pricebook_list' %}">Price Books</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{% if object %}Edit{% else %}Create{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{% if object %}Edit {{ object.name }}{% else %}Create Price Book{% endif %}</h1>
+        <p class="page-subtitle">Configure pricing tier schedules, currency, and date validity.</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 700px;">
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Price Book Name *</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.name.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Code *</label>
+                {{ form.code }}
+                {% if form.code.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.code.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Currency</label>
+                {{ form.currency }}
+                {% if form.currency.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.currency.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Valid From</label>
+                {{ form.valid_from }}
+                {% if form.valid_from.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.valid_from.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Valid To</label>
+                {{ form.valid_to }}
+                {% if form.valid_to.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.valid_to.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label class="form-label" style="font-weight: 600;">Description</label>
+            {{ form.description }}
+            {% if form.description.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.description.errors }}</div>{% endif %}
+        </div>
+
+        <div style="display: flex; gap: 2rem; margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 6px;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                {{ form.is_default }}
+                <span>Default Price Book for Organization</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                {{ form.is_active }}
+                <span>Active Status</span>
+            </label>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <a href="{% url 'sales:pricebook_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                {% if object %}Save Changes{% else %}Create Price Book{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

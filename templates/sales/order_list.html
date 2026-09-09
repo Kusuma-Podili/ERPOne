@@ -1,0 +1,144 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Sales Orders &bull; Sales &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Orders</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Sales Orders</h1>
+        <p class="page-subtitle">Track commercial order fulfillment, shipping milestones, line items, and invoice generation.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'sales:quote_list' %}" class="btn btn-secondary">
+            Quotations
+        </a>
+        <a href="{% url 'sales:order_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Order
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem;">
+    <form method="get" action="{% url 'sales:order_list' %}" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+        <div style="flex: 2; min-width: 240px;">
+            <input type="text" name="q" value="{{ search_query }}" class="form-input" placeholder="Search by order #, customer, notes...">
+        </div>
+        <div style="flex: 1; min-width: 160px;">
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        {% if search_query or current_status %}
+        <a href="{% url 'sales:order_list' %}" class="btn btn-secondary" style="color: var(--text-muted);">Reset</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Orders Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Order Number</th>
+                    <th>Customer Account</th>
+                    <th>Order Date</th>
+                    <th>Fulfillment Progress</th>
+                    <th style="text-align: right;">Grand Total</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>
+                        <a href="{% url 'sales:order_detail' order.pk %}" style="font-weight: 600; color: var(--primary); text-decoration: none;">
+                            {{ order.order_number }}
+                        </a>
+                        {% if order.quote %}
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">From Quote: {{ order.quote.quote_number }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'crm:account_detail' order.account.pk %}" style="color: var(--text-primary); text-decoration: none; font-weight: 500;">
+                            {{ order.account.name }}
+                        </a>
+                        {% if order.contact %}
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Attn: {{ order.contact.get_full_name }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">{{ order.order_date|date:"M d, Y" }}</span>
+                    </td>
+                    <td style="min-width: 140px;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="flex: 1; height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                                <div style="height: 100%; width: {{ order.fulfillment_percentage }}%; background: {% if order.fulfillment_percentage == 100 %}#10b981{% else %}var(--primary){% endif %}; border-radius: 4px;"></div>
+                            </div>
+                            <span style="font-size: 0.75rem; font-family: monospace; font-weight: 600; width: 35px;">{{ order.fulfillment_percentage }}%</span>
+                        </div>
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: var(--primary); font-family: monospace; font-size: 1.05rem;">
+                        ${{ order.grand_total|floatformat:2 }}
+                    </td>
+                    <td>
+                        {% if order.status == 'draft' %}
+                        <span class="badge badge-secondary">Draft</span>
+                        {% elif order.status == 'confirmed' %}
+                        <span class="badge badge-primary">Confirmed</span>
+                        {% elif order.status == 'processing' %}
+                        <span class="badge badge-warning">Processing</span>
+                        {% elif order.status == 'partially_fulfilled' %}
+                        <span class="badge badge-info">Partially Fulfilled</span>
+                        {% elif order.status == 'fulfilled' %}
+                        <span class="badge badge-success">Fulfilled</span>
+                        {% elif order.status == 'invoiced' %}
+                        <span class="badge badge-success" style="background: #047857;">Invoiced</span>
+                        {% elif order.status == 'cancelled' %}
+                        <span class="badge badge-danger">Cancelled</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'sales:order_detail' order.pk %}" class="btn btn-sm btn-secondary">Manage</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 3rem 1rem;">
+                        <div style="color: var(--text-muted); margin-bottom: 1rem;">No sales orders recorded yet.</div>
+                        <a href="{% url 'sales:order_create' %}" class="btn btn-primary">Create Direct Sales Order</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_paginated %}
+<div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 1.5rem;">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&status={{ current_status }}" class="btn btn-secondary btn-sm">&laquo; Previous</a>
+    {% endif %}
+    <span class="btn btn-secondary btn-sm" style="pointer-events: none;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&status={{ current_status }}" class="btn btn-secondary btn-sm">Next &raquo;</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

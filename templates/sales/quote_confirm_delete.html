@@ -1,0 +1,31 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Delete Quotation &bull; Sales &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<a href="{% url 'sales:quote_list' %}">Quotations</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Delete</span>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 550px; margin: 2rem auto; text-align: center; padding: 2rem;">
+    <div style="width: 48px; height: 48px; border-radius: 50%; background: #fee2e2; color: #ef4444; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+    </div>
+    <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">Delete Draft Quotation?</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+        Are you sure you want to permanently delete quotation <strong>{{ object.quote_number }}</strong> ({{ object.title }})? This action cannot be undone.
+    </p>
+
+    <form method="post" style="display: flex; justify-content: center; gap: 0.75rem;">
+        {% csrf_token %}
+        <a href="{% url 'sales:quote_detail' object.pk %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-danger">Yes, Delete Quotation</button>
+    </form>
+</div>
+{% endblock %}

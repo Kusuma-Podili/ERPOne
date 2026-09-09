@@ -1,0 +1,264 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ order.order_number }} &bull; Order Detail &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<a href="{% url 'sales:order_list' %}">Orders</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ order.order_number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+            <h1 class="page-title" style="margin: 0;">{{ order.order_number }}</h1>
+            {% if order.status == 'draft' %}
+            <span class="badge badge-secondary">Draft</span>
+            {% elif order.status == 'confirmed' %}
+            <span class="badge badge-primary">Confirmed</span>
+            {% elif order.status == 'processing' %}
+            <span class="badge badge-warning">In Processing</span>
+            {% elif order.status == 'partially_fulfilled' %}
+            <span class="badge badge-info">Partially Fulfilled</span>
+            {% elif order.status == 'fulfilled' %}
+            <span class="badge badge-success">Fulfilled</span>
+            {% elif order.status == 'invoiced' %}
+            <span class="badge badge-success" style="background: #047857;">Invoiced</span>
+            {% elif order.status == 'cancelled' %}
+            <span class="badge badge-danger">Cancelled</span>
+            {% endif %}
+            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">{{ order.fulfillment_percentage }}% Fulfilled</span>
+        </div>
+        <p class="page-subtitle">Customer: <a href="{% url 'crm:account_detail' order.account.pk %}" style="color: var(--primary); font-weight: 600;">{{ order.account.name }}</a> &bull; Ordered: {{ order.order_date|date:"M d, Y" }}</p>
+    </div>
+
+    <!-- State Machine Actions -->
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        {% if order.status in 'draft confirmed' %}
+        <a href="{% url 'sales:order_edit' order.pk %}" class="btn btn-secondary">Edit</a>
+        {% endif %}
+
+        {% if 'confirmed' in next_allowed_statuses %}
+        <form method="post" action="{% url 'sales:order_transition' order.pk %}" style="margin: 0;">
+            {% csrf_token %}
+            <input type="hidden" name="target_status" value="confirmed">
+            <button type="submit" class="btn btn-primary">&check; Confirm Order</button>
+        </form>
+        {% endif %}
+
+        {% if 'processing' in next_allowed_statuses %}
+        <form method="post" action="{% url 'sales:order_transition' order.pk %}" style="margin: 0;">
+            {% csrf_token %}
+            <input type="hidden" name="target_status" value="processing">
+            <button type="submit" class="btn btn-secondary">Begin Processing</button>
+        </form>
+        {% endif %}
+
+        {% if order.status in 'confirmed processing partially_fulfilled' %}
+        <button type="button" onclick="document.getElementById('fulfill-items-modal').style.display='flex';" class="btn btn-primary" style="background: #10b981;">
+            Fulfill Items
+        </button>
+        {% endif %}
+
+        {% if 'invoiced' in next_allowed_statuses %}
+        <form method="post" action="{% url 'sales:order_transition' order.pk %}" style="margin: 0;">
+            {% csrf_token %}
+            <input type="hidden" name="target_status" value="invoiced">
+            <button type="submit" class="btn btn-primary" style="background: #047857;">Mark as Invoiced</button>
+        </form>
+        {% endif %}
+
+        <a href="{% url 'sales:order_print' order.pk %}" target="_blank" class="btn btn-secondary">
+            Print / Packing Slip
+        </a>
+
+        {% if 'cancelled' in next_allowed_statuses %}
+        <form method="post" action="{% url 'sales:order_transition' order.pk %}" style="margin: 0;" onsubmit="return confirm('Cancel this sales order?');">
+            {% csrf_token %}
+            <input type="hidden" name="target_status" value="cancelled">
+            <button type="submit" class="btn btn-danger">Cancel Order</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Fulfillment Progress Banner -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Overall Fulfillment Progress</span>
+        <span style="font-family: monospace; font-weight: 700; color: var(--primary);">{{ order.fulfillment_percentage }}% Complete</span>
+    </div>
+    <div style="height: 10px; background: var(--bg-tertiary); border-radius: 5px; overflow: hidden;">
+        <div style="height: 100%; width: {{ order.fulfillment_percentage }}%; background: {% if order.fulfillment_percentage == 100 %}#10b981{% else %}var(--primary){% endif %}; border-radius: 5px; transition: width 0.3s ease;"></div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2.2fr 1fr; gap: 1.5rem;">
+    <!-- Left Column: Line items, History -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- Line items table -->
+        <div class="card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: 1.05rem; font-weight: 600; margin: 0;">Ordered Products & Fulfillment</h3>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">{{ line_items.count }} lines</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Product / SKU</th>
+                            <th style="text-align: right;">Ordered</th>
+                            <th style="text-align: right;">Fulfilled</th>
+                            <th style="text-align: right;">Remaining</th>
+                            <th style="text-align: right;">Unit Price</th>
+                            <th style="text-align: right;">Total Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in line_items %}
+                        <tr>
+                            <td style="color: var(--text-muted); font-size: 0.85rem;">{{ item.line_number }}</td>
+                            <td>
+                                <a href="{% url 'sales:product_detail' item.product.pk %}" style="font-weight: 600; color: var(--primary); text-decoration: none;">
+                                    {{ item.product.name }}
+                                </a>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">SKU: {{ item.product.sku }}</div>
+                            </td>
+                            <td style="text-align: right; font-family: monospace; font-weight: 600;">{{ item.quantity_ordered }}</td>
+                            <td style="text-align: right; font-family: monospace; {% if item.is_fulfilled %}color: #10b981; font-weight: 700;{% else %}color: var(--text-secondary);{% endif %}">
+                                {{ item.quantity_fulfilled }}
+                            </td>
+                            <td style="text-align: right; font-family: monospace; {% if item.remaining_quantity > 0 %}color: #f59e0b; font-weight: 600;{% else %}color: var(--text-muted);{% endif %}">
+                                {{ item.remaining_quantity }}
+                            </td>
+                            <td style="text-align: right; font-family: monospace;">${{ item.unit_price|floatformat:2 }}</td>
+                            <td style="text-align: right; font-family: monospace; font-weight: 600; color: var(--primary);">
+                                ${{ item.total_price|floatformat:2 }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Status History Audit Log -->
+        <div class="card">
+            <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem;">State Machine Audit Trail</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                {% for hist in status_history %}
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-secondary); border-radius: 6px;">
+                    <div>
+                        <span style="font-weight: 600; text-transform: capitalize;">{{ hist.from_status }} &rarr; {{ hist.to_status }}</span>
+                        {% if hist.notes %}
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">{{ hist.notes }}</div>
+                        {% endif %}
+                    </div>
+                    <div style="text-align: right; font-size: 0.8rem; color: var(--text-muted);">
+                        <div>{{ hist.timestamp|date:"M d, Y H:i" }}</div>
+                        {% if hist.changed_by %}
+                        <div>by {{ hist.changed_by.get_full_name|default:hist.changed_by.email }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div style="color: var(--text-muted); font-size: 0.85rem;">No history records yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Financials & Shipping -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div class="card">
+            <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem;">Financial Breakdown</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Subtotal:</span>
+                    <span style="font-family: monospace; font-weight: 600;">${{ order.subtotal_amount|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Discounts:</span>
+                    <span style="font-family: monospace; font-weight: 600; {% if order.discount_amount > 0 %}color: #ef4444;{% endif %}">
+                        {% if order.discount_amount > 0 %}-${{ order.discount_amount|floatformat:2 }}{% else %}$0.00{% endif %}
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Taxes:</span>
+                    <span style="font-family: monospace; font-weight: 600;">${{ order.tax_amount|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Shipping:</span>
+                    <span style="font-family: monospace; font-weight: 600;">${{ order.shipping_amount|floatformat:2 }}</span>
+                </div>
+                <div style="border-top: 2px solid var(--border-color); padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 1.1rem; font-weight: 700;">Grand Total:</span>
+                    <span style="font-size: 1.35rem; font-weight: 700; color: var(--primary); font-family: monospace;">${{ order.grand_total|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 1rem;">Order Delivery & Addresses</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
+                <div>Required By: <strong>{{ order.required_date|default:"Immediate" }}</strong></div>
+                <div>Payment Terms: <strong>{{ order.payment_terms }}</strong></div>
+                {% if order.shipping_address %}
+                <div>
+                    <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Shipping Address</span>
+                    <div style="margin-top: 0.25rem; white-space: pre-line;">{{ order.shipping_address }}</div>
+                </div>
+                {% endif %}
+                {% if order.billing_address %}
+                <div>
+                    <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Billing Address</span>
+                    <div style="margin-top: 0.25rem; white-space: pre-line;">{{ order.billing_address }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Fulfilling Items -->
+<div id="fulfill-items-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 520px; padding: 1.5rem; background: var(--bg-primary);">
+        <h3 style="margin-top: 0; font-weight: 600; margin-bottom: 0.5rem;">Fulfill Line Items</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+            Specify the quantities being shipped or completed for each line item.
+        </p>
+        <form method="post" action="{% url 'sales:order_fulfill' order.pk %}">
+            {% csrf_token %}
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem;">
+                {% for item in line_items %}
+                {% if item.remaining_quantity > 0 %}
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: var(--bg-secondary); border-radius: 4px;">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.85rem;">{{ item.product.name }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Remaining: {{ item.remaining_quantity }} of {{ item.quantity_ordered }}</div>
+                    </div>
+                    <div style="width: 90px;">
+                        <input type="number" name="fulfill_line_{{ item.id }}" min="0" max="{{ item.remaining_quantity }}" value="{{ item.remaining_quantity }}" class="form-input" style="padding: 0.35rem; font-size: 0.85rem;">
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-size: 0.8rem;">Fulfillment Notes / Tracking #</label>
+                <input type="text" name="fulfillment_notes" class="form-input" placeholder="e.g. Shipped via FedEx tracking #123456">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" onclick="document.getElementById('fulfill-items-modal').style.display='none';" class="btn btn-secondary btn-sm">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">Confirm Fulfillment</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

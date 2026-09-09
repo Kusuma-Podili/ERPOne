@@ -1,0 +1,102 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{% if object %}Edit {{ object.order_number }}{% else %}New Sales Order{% endif %} &bull; Sales &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'sales:product_list' %}">Sales</a>
+<span>/</span>
+<a href="{% url 'sales:order_list' %}">Orders</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{% if object %}Edit Order{% else %}Create Order{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{% if object %}Edit Sales Order {{ object.order_number }}{% else %}Create Sales Order{% endif %}</h1>
+        <p class="page-subtitle">Configure customer account, delivery terms, and shipping addresses.</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 900px;">
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Customer Account *</label>
+                {{ form.account }}
+                {% if form.account.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.account.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Primary Contact</label>
+                {{ form.contact }}
+                {% if form.contact.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.contact.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Associated CRM Deal</label>
+                {{ form.deal }}
+                {% if form.deal.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.deal.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Required By Date</label>
+                {{ form.required_date }}
+                {% if form.required_date.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.required_date.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Payment Terms</label>
+                {{ form.payment_terms }}
+                {% if form.payment_terms.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.payment_terms.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label class="form-label" style="font-weight: 600;">Shipping Address</label>
+                {{ form.shipping_address }}
+                {% if form.shipping_address.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.shipping_address.errors }}</div>{% endif %}
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600;">Billing Address</label>
+                {{ form.billing_address }}
+                {% if form.billing_address.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.billing_address.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label class="form-label" style="font-weight: 600;">Shipping Charges ($)</label>
+            {{ form.shipping_amount }}
+            {% if form.shipping_amount.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.shipping_amount.errors }}</div>{% endif %}
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <label class="form-label" style="font-weight: 600;">Customer Facing Notes</label>
+            {{ form.customer_notes }}
+            {% if form.customer_notes.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.customer_notes.errors }}</div>{% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label class="form-label" style="font-weight: 600;">Internal Notes</label>
+            {{ form.internal_notes }}
+            {% if form.internal_notes.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.internal_notes.errors }}</div>{% endif %}
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <a href="{% url 'sales:order_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                {% if object %}Save Changes{% else %}Create Order & Add Products{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
