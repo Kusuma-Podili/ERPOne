@@ -1,0 +1,103 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ title }} &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<a href="{% url 'procurement:rfq_list' %}">RFQs</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 1000px; margin: 0 auto;">
+    <div class="page-header" style="margin-bottom: 1.5rem;">
+        <h1 class="page-title">{{ title }}</h1>
+        <p class="page-subtitle" style="color: var(--text-muted);">Author procurement requirements, delivery dates, and technical specifications for competitive bidding.</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <!-- Header Card -->
+        <div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; margin-bottom: 1.5rem;">
+            <h2 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">RFQ General Parameters</h2>
+            {% if form.errors %}
+            <div class="alert alert-danger" style="background: rgba(239,68,68,0.1); border: 1px solid #ef4444; color: #ef4444; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">
+                {{ form.errors }}
+            </div>
+            {% endif %}
+
+            <div style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">RFQ Title / Procurement Objective *</label>
+                {{ form.title }}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+                <div>
+                    <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Bid Submission Deadline *</label>
+                    {{ form.submission_deadline }}
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Target Delivery Date</label>
+                    {{ form.delivery_deadline }}
+                </div>
+            </div>
+
+            <div>
+                <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Commercial Terms & Sourcing Scope</label>
+                {{ form.notes }}
+            </div>
+        </div>
+
+        <!-- Lines Card -->
+        <div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; margin-bottom: 1.5rem;">
+            <h2 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">Requested Products & Materials</h2>
+            {{ formset.management_form }}
+
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                {% for line_form in formset %}
+                <div class="line-row" style="background: rgba(0,0,0,0.02); border: 1px solid var(--border-color); border-radius: 0.375rem; padding: 1rem;">
+                    {{ line_form.id }}
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 1rem; margin-bottom: 0.75rem;">
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Product SKU *</label>
+                            {{ line_form.product }}
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Target Quantity *</label>
+                            {{ line_form.target_quantity }}
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Unit of Measure *</label>
+                            {{ line_form.uom }}
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Delivery Date</label>
+                            {{ line_form.target_delivery_date }}
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">Technical Specifications / Packaging</label>
+                        {{ line_form.specifications }}
+                    </div>
+                    {% if line_form.instance.pk %}
+                    <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        {{ line_form.DELETE }}
+                        <label style="color: #ef4444; font-size: 0.8rem;">Delete line</label>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 2rem;">
+            <a href="{% url 'procurement:rfq_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save RFQ</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
