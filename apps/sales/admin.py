@@ -14,6 +14,9 @@ from .models import (
     Quote,
     QuoteLineItem,
     QuoteApproval,
+    SalesOrder,
+    OrderLineItem,
+    OrderStatusHistory,
 )
 
 
@@ -107,4 +110,41 @@ class QuoteAdmin(admin.ModelAdmin):
     list_filter = ("organization", "status")
     search_fields = ("quote_number", "title", "account__name")
     inlines = [QuoteLineItemInline, QuoteApprovalInline]
+
+
+class OrderLineItemInline(admin.TabularInline):
+    model = OrderLineItem
+    extra = 0
+    fields = ("line_number", "product", "quantity_ordered", "quantity_fulfilled", "unit_price", "discount_amount", "tax_amount", "total_price")
+    readonly_fields = ("total_price",)
+
+
+class OrderStatusHistoryInline(admin.TabularInline):
+    model = OrderStatusHistory
+    extra = 0
+    fields = ("from_status", "to_status", "changed_by", "timestamp", "notes")
+    readonly_fields = ("timestamp",)
+
+
+@admin.register(SalesOrder)
+class SalesOrderAdmin(admin.ModelAdmin):
+    list_display = ("order_number", "account", "organization", "status", "grand_total", "order_date", "fulfillment_percentage", "created_at")
+    list_filter = ("organization", "status")
+    search_fields = ("order_number", "account__name")
+    inlines = [OrderLineItemInline, OrderStatusHistoryInline]
+
+
+@admin.register(OrderLineItem)
+class OrderLineItemAdmin(admin.ModelAdmin):
+    list_display = ("order", "line_number", "product", "quantity_ordered", "quantity_fulfilled", "unit_price", "total_price")
+    list_filter = ("order__status", "product")
+    search_fields = ("order__order_number", "product__name")
+
+
+@admin.register(OrderStatusHistory)
+class OrderStatusHistoryAdmin(admin.ModelAdmin):
+    list_display = ("order", "from_status", "to_status", "changed_by", "timestamp")
+    list_filter = ("from_status", "to_status")
+    search_fields = ("order__order_number",)
+
 

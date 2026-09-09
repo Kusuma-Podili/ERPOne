@@ -35,4 +35,15 @@ urlpatterns = [
     path("quotes/<uuid:pk>/reject/", views.QuoteRejectView.as_view(), name="quote_reject"),
     path("quotes/<uuid:pk>/present/", views.QuotePresentView.as_view(), name="quote_present"),
     path("quotes/<uuid:pk>/accept/", views.QuoteAcceptView.as_view(), name="quote_accept"),
+    path("quotes/<uuid:pk>/convert-to-order/", views.QuoteConvertToOrderView.as_view(), name="quote_convert_order"),
+
+    # Sales Orders & State Machine
+    path("orders/", views.OrderListView.as_view(), name="order_list"),
+    path("orders/create/", views.OrderCreateView.as_view(), name="order_create"),
+    path("orders/<uuid:pk>/", views.OrderDetailView.as_view(), name="order_detail"),
+    path("orders/<uuid:pk>/edit/", views.OrderUpdateView.as_view(), name="order_edit"),
+    path("orders/<uuid:pk>/add-line/", views.OrderLineItemCreateView.as_view(), name="order_line_create"),
+    path("orders/lines/<uuid:pk>/delete/", views.OrderLineItemDeleteView.as_view(), name="order_line_delete"),
+    path("orders/<uuid:pk>/transition/", views.OrderStatusTransitionView.as_view(), name="order_transition"),
+    path("orders/<uuid:pk>/fulfill/", views.OrderFulfillView.as_view(), name="order_fulfill"),
 ]

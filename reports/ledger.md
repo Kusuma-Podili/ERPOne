@@ -13,5 +13,7 @@
 | Phase 3 | 3.4 Activities, Dashboard & QA | Touchpoints, CRM Executive Dashboard, 18 Automated Unit & Integration Tests | 14 | 18 | 13,342 | 14,224 | 2095596 | PR #12 | Completed |
 | Phase 4 | 4.1 Product Catalog & Price Books | Product, Category, UOM, PriceBook, TieredDiscount, PricingEngineService, 6 Tests | 17 | 6 | 14,224 | 16,585 | a2021aa | PR #13 | Completed |
 | Phase 4 | 4.2 Quotes & Approval Workflows | TaxRule, TaxRate, Quote, QuoteLineItem, QuoteApproval, QuoteApprovalService, 8 Tests | 12 | 8 | 16,585 | 18,920 | 93d5b4b | PR #14 | Completed |
+| Phase 4 | 4.3 Orders & Fulfillment Lifecycle | SalesOrder, OrderLineItem, OrderStatusHistory, OrderStateMachineService, QuoteToOrderConversionService, 6 Tests | 12 | 6 | 18,920 | 22,802 | 40d4054 | PR #15 | Completed |
+
 
 

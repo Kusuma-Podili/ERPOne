@@ -5,6 +5,8 @@ Provides PricingEngineService, product catalog initialization, and multi-tier pr
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional
+from django.db import transaction
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import (
     Product,
@@ -17,6 +19,10 @@ from .models import (
     QuoteLineItem,
     QuoteApproval,
     QuoteStatus,
+    SalesOrder,
+    OrderLineItem,
+    OrderStatusHistory,
+    OrderStatus,
 )
 
 
@@ -418,4 +424,193 @@ class QuoteApprovalService:
         quote.rejection_reason = reason
         quote.save(update_fields=["status", "rejection_reason", "updated_at"])
         return quote
+
+
+class OrderStateMachineService:
+    """
+    Finite State Machine governing permissible sales order transitions and fulfillment.
+    """
+    PERMISSIBLE_TRANSITIONS = {
+        OrderStatus.DRAFT: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+        OrderStatus.CONFIRMED: [
+            OrderStatus.PROCESSING,
+            OrderStatus.PARTIALLY_FULFILLED,
+            OrderStatus.FULFILLED,
+            OrderStatus.CANCELLED,
+        ],
+        OrderStatus.PROCESSING: [OrderStatus.PARTIALLY_FULFILLED, OrderStatus.FULFILLED, OrderStatus.CANCELLED],
+        OrderStatus.PARTIALLY_FULFILLED: [OrderStatus.FULFILLED, OrderStatus.CANCELLED],
+        OrderStatus.FULFILLED: [OrderStatus.INVOICED],
+        OrderStatus.INVOICED: [],
+        OrderStatus.CANCELLED: [],
+    }
+
+    @classmethod
+    def transition_order(cls, order: SalesOrder, target_status: str, user, notes: str = "") -> SalesOrder:
+        """
+        Executes a validated order state machine transition and records an immutable audit log.
+        """
+        current_status = order.status
+        allowed = cls.PERMISSIBLE_TRANSITIONS.get(current_status, [])
+
+        if target_status not in allowed:
+            raise ValidationError(
+                f"Illegal state transition from '{order.get_status_display()}' to '{target_status}'. "
+                f"Permitted next states: {', '.join(allowed) if allowed else 'None (Terminal State)'}."
+            )
+
+        OrderStatusHistory.objects.create(
+            organization=order.organization,
+            order=order,
+            from_status=current_status,
+            to_status=target_status,
+            changed_by=user,
+            notes=notes,
+        )
+
+        order.status = target_status
+        order.save(update_fields=["status", "updated_at"])
+        return order
+
+    @classmethod
+    def fulfill_line_item(cls, line_item: OrderLineItem, quantity: int, user, notes: str = "") -> SalesOrder:
+        """
+        Convenience method to fulfill quantity on a single line item.
+        """
+        if quantity > line_item.remaining_quantity:
+            raise ValidationError(
+                f"Fulfillment quantity ({quantity}) exceeds remaining ({line_item.remaining_quantity})."
+            )
+        return cls.fulfill_line_items(line_item.order, {str(line_item.id): quantity}, user, notes=notes)
+
+    @classmethod
+    def fulfill_line_items(
+        cls,
+        order: SalesOrder,
+        fulfillment_quantities: dict[str, int],
+        user,
+        notes: str = "",
+    ) -> SalesOrder:
+        """
+        Records physical or service fulfillment against order lines and updates order state.
+        fulfillment_quantities: dict mapping line_item_id to integer quantity to fulfill.
+        """
+        if order.status not in [OrderStatus.CONFIRMED, OrderStatus.PROCESSING, OrderStatus.PARTIALLY_FULFILLED]:
+            raise ValidationError(f"Cannot fulfill items when order is in status '{order.get_status_display()}'.")
+
+        updated_any = False
+        for line in order.line_items.all():
+            str_id = str(line.id)
+            if str_id in fulfillment_quantities:
+                qty_to_add = int(fulfillment_quantities[str_id])
+                if qty_to_add > 0:
+                    remaining = line.remaining_quantity
+                    actual_add = min(qty_to_add, remaining)
+                    line.quantity_fulfilled += actual_add
+                    line.save(update_fields=["quantity_fulfilled", "updated_at"])
+                    updated_any = True
+
+        if updated_any:
+            # Determine new status
+            if order.is_fully_fulfilled:
+                target = OrderStatus.FULFILLED
+            else:
+                target = OrderStatus.PARTIALLY_FULFILLED
+
+            if order.status != target:
+                cls.transition_order(order, target, user, notes=notes or f"Fulfillment updated ({order.fulfillment_percentage}% complete).")
+            else:
+                OrderStatusHistory.objects.create(
+                    organization=order.organization,
+                    order=order,
+                    from_status=order.status,
+                    to_status=order.status,
+                    changed_by=user,
+                    notes=notes or f"Additional items fulfilled. Overall progress: {order.fulfillment_percentage}%.",
+                )
+
+        return order
+
+
+class QuoteToOrderConversionService:
+    """
+    Atomic transaction promoting an accepted commercial quotation into a binding sales order.
+    """
+
+    @classmethod
+    @transaction.atomic
+    def convert_quote_to_order(
+        cls,
+        quote: Quote,
+        user,
+        required_date=None,
+        shipping_address: str = "",
+        billing_address: str = "",
+    ) -> SalesOrder:
+        """
+        Converts an accepted quotation into a confirmed sales order.
+        """
+        if not quote.can_convert:
+            raise ValidationError(
+                f"Quotation '{quote.quote_number}' cannot be converted. "
+                f"Current status is '{quote.get_status_display()}'; must be 'Accepted by Customer'."
+            )
+
+        # 1. Create SalesOrder header
+        order = SalesOrder.objects.create(
+            organization=quote.organization,
+            quote=quote,
+            account=quote.account,
+            contact=quote.contact,
+            deal=quote.deal,
+            status=OrderStatus.CONFIRMED,
+            order_date=timezone.now().date(),
+            required_date=required_date,
+            shipping_address=shipping_address,
+            billing_address=billing_address,
+            payment_terms=quote.payment_terms,
+            currency=quote.currency,
+            subtotal_amount=quote.subtotal_amount,
+            discount_amount=quote.discount_amount,
+            tax_amount=quote.tax_amount,
+            shipping_amount=quote.shipping_amount,
+            grand_total=quote.grand_total,
+            customer_notes=quote.customer_notes,
+            internal_notes=f"Converted from quotation {quote.quote_number}.",
+            created_by=user,
+        )
+
+        # 2. Clone QuoteLineItems to OrderLineItems with exact price snapshots
+        for q_line in quote.line_items.all():
+            OrderLineItem.objects.create(
+                organization=quote.organization,
+                order=order,
+                product=q_line.product,
+                line_number=q_line.line_number,
+                description=q_line.description,
+                quantity_ordered=q_line.quantity,
+                quantity_fulfilled=0,
+                unit_price=q_line.unit_price,
+                discount_amount=q_line.discount_amount,
+                tax_amount=q_line.tax_amount,
+                subtotal=q_line.subtotal,
+                total_price=q_line.total_price,
+            )
+
+        # 3. Create initial status history
+        OrderStatusHistory.objects.create(
+            organization=order.organization,
+            order=order,
+            from_status=OrderStatus.DRAFT,
+            to_status=OrderStatus.CONFIRMED,
+            changed_by=user,
+            notes=f"Order created via quote conversion from {quote.quote_number}.",
+        )
+
+        # 4. Mark quote as converted
+        quote.status = QuoteStatus.CONVERTED
+        quote.save(update_fields=["status", "updated_at"])
+
+        return order
+
 

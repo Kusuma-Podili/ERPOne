@@ -78,6 +78,22 @@
         </form>
         {% endif %}
 
+        {% if quote.status == 'accepted' %}
+        <button type="button" onclick="document.getElementById('convert-order-modal').style.display='flex';" class="btn btn-primary" style="background: #2563eb;">
+            &rarr; Convert to Sales Order
+        </button>
+        {% endif %}
+
+        {% if quote.status == 'converted' %}
+        {% with ord=quote.sales_orders.first %}
+        {% if ord %}
+        <a href="{% url 'sales:order_detail' ord.pk %}" class="btn btn-secondary">
+            View Sales Order ({{ ord.order_number }})
+        </a>
+        {% endif %}
+        {% endwith %}
+        {% endif %}
+
         {% if quote.status == 'draft' %}
         <a href="{% url 'sales:quote_delete' quote.pk %}" class="btn btn-danger">Delete</a>
         {% endif %}
@@ -324,6 +340,35 @@
         <div style="text-align: right;">
             <button type="button" onclick="document.getElementById('approval-action-modal').style.display='none';" class="btn btn-secondary btn-sm">Cancel</button>
         </div>
+    </div>
+</div>
+
+<!-- Modal for Converting to Sales Order -->
+<div id="convert-order-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 520px; padding: 1.5rem; background: var(--bg-primary);">
+        <h3 style="margin-top: 0; font-weight: 600; margin-bottom: 0.5rem;">Convert to Sales Order</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+            Promote accepted quotation {{ quote.quote_number }} into a confirmed binding sales order with exact line item pricing snapshots.
+        </p>
+        <form method="post" action="{% url 'sales:quote_convert_order' quote.pk %}">
+            {% csrf_token %}
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Required Delivery Date</label>
+                <input type="date" name="required_date" class="form-input">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Shipping Address</label>
+                <textarea name="shipping_address" rows="2" class="form-textarea" placeholder="Customer destination delivery address..."></textarea>
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Billing Address</label>
+                <textarea name="billing_address" rows="2" class="form-textarea" placeholder="Accounts payable billing address..."></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" onclick="document.getElementById('convert-order-modal').style.display='none';" class="btn btn-secondary btn-sm">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-sm">&check; Confirm & Generate Order</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
