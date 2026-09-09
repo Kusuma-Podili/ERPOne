@@ -15,6 +15,7 @@ urlpatterns = [
     path("crm/", include("apps.crm.urls", namespace="crm")),
     path("sales/", include("apps.sales.urls", namespace="sales")),
     path("inventory/", include("apps.inventory.urls", namespace="inventory")),
+    path("procurement/", include("apps.procurement.urls", namespace="procurement")),
     path("api/", include("enterpriseone.urls.api")),
     path("", RedirectView.as_view(pattern_name="accounts:dashboard", permanent=False), name="home"),
 ]

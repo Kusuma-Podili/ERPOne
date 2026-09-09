@@ -1,0 +1,80 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Add Catalog Offering &bull; {{ supplier.name }} &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_detail' pk=supplier.pk %}">{{ supplier.name }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Add Catalog Offering</span>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 700px; margin: 0 auto;">
+    <div class="page-header" style="margin-bottom: 1.5rem;">
+        <h1 class="page-title">Add Supplier Catalog Offering</h1>
+        <p class="page-subtitle" style="color: var(--text-muted);">Link an inventory product SKU to <strong>{{ supplier.name }}</strong> with agreed pricing and lead time.</p>
+    </div>
+
+    <div class="card" style="padding: 2rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.errors %}
+            <div class="alert alert-danger" style="background: rgba(239,68,68,0.1); border: 1px solid #ef4444; color: #ef4444; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1.5rem;">
+                {{ form.errors }}
+            </div>
+            {% endif %}
+
+            <div style="margin-bottom: 1.5rem;">
+                <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Select Product Master Item *</label>
+                {{ form.product }}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div>
+                    <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Vendor Part Number / SKU</label>
+                    {{ form.supplier_sku }}
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Unit Price *</label>
+                    {{ form.unit_price }}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div>
+                    <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Currency</label>
+                    {{ form.currency }}
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">MOQ</label>
+                    {{ form.minimum_order_quantity }}
+                </div>
+                <div>
+                    <label class="form-label" style="font-weight: 600; margin-bottom: 0.4rem; display: block;">Lead Time (Days)</label>
+                    {{ form.lead_time_days }}
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    {{ form.is_preferred }}
+                    <label class="form-check-label" style="font-weight: 500;">Set as Preferred Supplier for this item (used by auto-replenishment)</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    {{ form.is_active }}
+                    <label class="form-check-label" style="font-weight: 500;">Active Offering</label>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <a href="{% url 'procurement:supplier_detail' pk=supplier.pk %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Catalog Offering</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

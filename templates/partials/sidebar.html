@@ -185,6 +185,20 @@
             <span class="badge badge-secondary" style="margin-left: auto; font-size: 0.65rem;">Select Org</span>
         </div>
         {% endif %}
+
+        <div class="nav-section-title">Procurement & Sourcing</div>
+        {% if active_organization %}
+        <a href="{% url 'procurement:supplier_list' %}" class="nav-item {% if request.resolver_match.app_name == 'procurement' and 'supplier' in request.resolver_match.url_name %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Suppliers & Vendors</span>
+        </a>
+        {% else %}
+        <div class="nav-item" style="opacity: 0.6; cursor: default;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            <span>Procurement</span>
+            <span class="badge badge-secondary" style="margin-left: auto; font-size: 0.65rem;">Select Org</span>
+        </div>
+        {% endif %}
         <div class="nav-item" style="opacity: 0.6; cursor: default;">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             <span>Finance & Ledger</span>

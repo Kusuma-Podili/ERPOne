@@ -1,0 +1,131 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Suppliers & Sourcing &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Suppliers</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0.25rem;">Suppliers & Vendors</h1>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-bottom: 0;">
+            Manage commercial vendor master records, payment credit terms, contacts, and catalog price offerings.
+        </p>
+    </div>
+    <div>
+        <a href="{% url 'procurement:supplier_create' %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Register Supplier
+        </a>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem; background: var(--surface-card); border-radius: 0.5rem; border: 1px solid var(--border-color);">
+    <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+        <div style="flex: 2; min-width: 200px;">
+            <input type="text" name="q" value="{{ current_q }}" class="form-control" placeholder="Search by name, code, tax ID, city, or email...">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <select name="type" class="form-select">
+                <option value="">All Supplier Types</option>
+                {% for val, label in supplier_types %}
+                <option value="{{ val }}" {% if current_type == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                {% for val, label in supplier_statuses %}
+                <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            {% if current_q or current_type or current_status %}
+            <a href="{% url 'procurement:supplier_list' %}" class="btn btn-secondary">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Suppliers Table -->
+<div class="card" style="background: var(--surface-card); border-radius: 0.5rem; border: 1px solid var(--border-color); overflow: hidden;">
+    <div style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); text-align: left; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.85rem 1rem;">Supplier Name & Code</th>
+                    <th style="padding: 0.85rem 1rem;">Type</th>
+                    <th style="padding: 0.85rem 1rem;">Status</th>
+                    <th style="padding: 0.85rem 1rem;">Payment Terms</th>
+                    <th style="padding: 0.85rem 1rem;">Location</th>
+                    <th style="padding: 0.85rem 1rem;">Rating</th>
+                    <th style="padding: 0.85rem 1rem;">Products</th>
+                    <th style="padding: 0.85rem 1rem; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in suppliers %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.85rem 1rem;">
+                        <a href="{% url 'procurement:supplier_detail' pk=s.pk %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none;">
+                            {{ s.name }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">{{ s.code }}</div>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <span style="font-size: 0.85rem;">{{ s.get_supplier_type_display }}</span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        {% if s.status == 'active' %}
+                        <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Active</span>
+                        {% elif s.status == 'pending_review' %}
+                        <span class="badge badge-warning" style="background: #f59e0b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Pending</span>
+                        {% elif s.status == 'on_hold' %}
+                        <span class="badge badge-secondary" style="background: #64748b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">On Hold</span>
+                        {% else %}
+                        <span class="badge badge-danger" style="background: #ef4444; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">{{ s.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <span style="font-size: 0.85rem;">{{ s.get_payment_terms_display }}</span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <span style="font-size: 0.85rem;">{% if s.city %}{{ s.city }}, {% endif %}{{ s.country }}</span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <span style="font-weight: 600; color: #f59e0b;">★ {{ s.overall_rating|floatformat:1 }}</span>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">L:{{ s.lead_time_rating }} | Q:{{ s.quality_rating }}</div>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <span class="badge" style="background: rgba(99,102,241,0.1); color: #6366f1; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
+                            {{ s.total_products_count }} items
+                        </span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; text-align: right;">
+                        <a href="{% url 'procurement:supplier_detail' pk=s.pk %}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">View</a>
+                        <a href="{% url 'procurement:supplier_edit' pk=s.pk %}" class="btn btn-sm btn-outline-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted);">
+                        <p style="margin-bottom: 0.5rem;">No suppliers registered yet.</p>
+                        <a href="{% url 'procurement:supplier_create' %}" class="btn btn-primary btn-sm">Register First Supplier</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
