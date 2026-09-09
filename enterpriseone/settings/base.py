@@ -43,6 +43,8 @@ ENTERPRISE_APPS = [
     "apps.payroll.apps.PayrollConfig",
     "apps.projects.apps.ProjectsConfig",
     "apps.support.apps.SupportConfig",
+    "apps.analytics.apps.AnalyticsConfig",
+    "apps.ai_engine.apps.AiEngineConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + ENTERPRISE_APPS

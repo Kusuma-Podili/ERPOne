@@ -303,6 +303,22 @@
             <span>Knowledge Base</span>
         </a>
         {% endif %}
+
+        <div class="nav-section-title">Analytics & Intelligence</div>
+        {% if active_organization %}
+        <a href="{% url 'analytics:dashboard' %}" class="nav-item {% if request.resolver_match.app_name == 'analytics' and request.resolver_match.url_name in 'dashboard,index' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span>Analytics BI</span>
+        </a>
+        <a href="{% url 'analytics:reports' %}" class="nav-item {% if request.resolver_match.app_name == 'analytics' and 'report' in request.resolver_match.url_name %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>Reports & Metrics</span>
+        </a>
+        <a href="{% url 'ai_engine:model_list' %}" class="nav-item {% if request.resolver_match.app_name == 'ai_engine' %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M12 2a10 10 0 0 1 10 10h-10V2z"/><circle cx="12" cy="12" r="4"/></svg>
+            <span>AI & Machine Learning</span>
+        </a>
+        {% endif %}
     </nav>
 
     <div class="sidebar-footer">
