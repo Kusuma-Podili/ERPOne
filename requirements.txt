@@ -1,0 +1,23 @@
+# EnterpriseOne Core Dependencies
+Django>=5.0,<6.0
+mysqlclient>=2.2.0
+python-dotenv>=1.0.0
+djangorestframework>=3.14.0
+django-filter>=24.0
+cryptography>=42.0.0
+bcrypt>=4.0.0
+whitenoise>=6.6.0
+
+# Scientific & AI/ML Stack
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.4.0
+
+# Document & Reporting
+openpyxl>=3.1.0
+reportlab>=4.0.0
+
+# Testing & Quality Assurance
+pytest>=8.0.0
+pytest-django>=4.8.0
+coverage>=7.4.0
