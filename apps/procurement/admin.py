@@ -11,6 +11,9 @@ from .models import (
     RFQVendorInvitation,
     VendorBid,
     VendorBidLine,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseOrderApproval,
 )
 
 
@@ -80,4 +83,26 @@ class VendorBidAdmin(admin.ModelAdmin):
     list_filter = ("is_winning_bid", "submission_date", "currency")
     search_fields = ("bid_reference", "supplier__name", "rfq__rfq_number")
     inlines = [VendorBidLineInline]
+
+
+class PurchaseOrderLineInline(admin.TabularInline):
+    model = PurchaseOrderLine
+    extra = 0
+    fields = ("line_number", "product", "ordered_quantity", "received_quantity", "billed_quantity", "uom", "unit_price", "tax_rate", "line_total")
+    readonly_fields = ("line_total",)
+
+
+class PurchaseOrderApprovalInline(admin.TabularInline):
+    model = PurchaseOrderApproval
+    extra = 0
+    fields = ("tier", "threshold_amount", "approver", "status", "comments", "decided_at")
+
+
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(admin.ModelAdmin):
+    list_display = ("po_number", "organization", "supplier", "status", "order_date", "expected_delivery_date", "total_amount", "currency", "created_by")
+    list_filter = ("status", "order_date", "currency")
+    search_fields = ("po_number", "supplier__name", "notes")
+    inlines = [PurchaseOrderLineInline, PurchaseOrderApprovalInline]
+
 

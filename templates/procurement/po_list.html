@@ -1,0 +1,131 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Purchase Orders &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Purchase Orders</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0.25rem;">Purchase Orders (PO)</h1>
+        <p class="page-subtitle" style="color: var(--text-muted); margin-bottom: 0;">
+            Track supplier commitments, multi-tier financial approvals, delivery status, and receiving balances.
+        </p>
+    </div>
+    <div>
+        <a href="{% url 'procurement:po_create' %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Purchase Order
+        </a>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem; background: var(--surface-card); border-radius: 0.5rem; border: 1px solid var(--border-color);">
+    <form method="get" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+        <div style="flex: 3; min-width: 200px;">
+            <input type="text" name="q" value="{{ current_q }}" class="form-control" placeholder="Search by PO number, vendor name, or instructions...">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                {% for val, label in po_statuses %}
+                <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            {% if current_q or current_status %}
+            <a href="{% url 'procurement:po_list' %}" class="btn btn-secondary">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- PO Table -->
+<div class="card" style="background: var(--surface-card); border-radius: 0.5rem; border: 1px solid var(--border-color); overflow: hidden;">
+    <div style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); text-align: left; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.85rem 1rem;">PO Number</th>
+                    <th style="padding: 0.85rem 1rem;">Vendor</th>
+                    <th style="padding: 0.85rem 1rem;">Order Date</th>
+                    <th style="padding: 0.85rem 1rem;">Delivery Expected</th>
+                    <th style="padding: 0.85rem 1rem;">Lines</th>
+                    <th style="padding: 0.85rem 1rem;">Total Value</th>
+                    <th style="padding: 0.85rem 1rem;">Status</th>
+                    <th style="padding: 0.85rem 1rem; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.85rem 1rem;">
+                        <a href="{% url 'procurement:po_detail' pk=order.pk %}" style="font-weight: 600; color: var(--color-primary); text-decoration: none; font-family: monospace;">
+                            {{ order.po_number }}
+                        </a>
+                        {% if order.rfq %}
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">From {{ order.rfq.rfq_number }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <a href="{% url 'procurement:supplier_detail' pk=order.supplier.pk %}" style="font-weight: 500; color: var(--text-primary); text-decoration: none;">
+                            {{ order.supplier.name }}
+                        </a>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; font-size: 0.85rem;">
+                        {{ order.order_date|date:"M d, Y" }}
+                    </td>
+                    <td style="padding: 0.85rem 1rem; font-size: 0.85rem;">
+                        {{ order.expected_delivery_date|date:"M d, Y"|default:"&mdash;" }}
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <span class="badge" style="background: rgba(99,102,241,0.1); color: #6366f1; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">
+                            {{ order.total_lines_count }} lines
+                        </span>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; font-size: 1rem; font-weight: 700; color: #10b981;">
+                        ${{ order.total_amount }} {{ order.currency }}
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        {% if order.status == 'draft' %}
+                        <span class="badge" style="background: #64748b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Draft</span>
+                        {% elif order.status == 'pending_approval' %}
+                        <span class="badge" style="background: #f59e0b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Pending Approval</span>
+                        {% elif order.status == 'approved' %}
+                        <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Approved</span>
+                        {% elif order.status == 'issued' %}
+                        <span class="badge" style="background: #0284c7; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Issued to Vendor</span>
+                        {% elif order.status == 'partially_received' %}
+                        <span class="badge" style="background: #8b5cf6; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Partially Received</span>
+                        {% elif order.status == 'completed' %}
+                        <span class="badge badge-success" style="background: #059669; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Completed</span>
+                        {% else %}
+                        <span class="badge badge-danger" style="background: #ef4444; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">{{ order.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem; text-align: right;">
+                        <a href="{% url 'procurement:po_detail' pk=order.pk %}" class="btn btn-sm btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">View</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted);">
+                        <p style="margin-bottom: 0.5rem;">No purchase orders generated yet.</p>
+                        <a href="{% url 'procurement:po_create' %}" class="btn btn-primary btn-sm">Create First Purchase Order</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

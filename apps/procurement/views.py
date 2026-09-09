@@ -479,3 +479,234 @@ class RFQPrintView(OrganizationAccessMixin, DetailView):
             "lines__product",
             "lines__uom",
         )
+
+
+from .models import (
+    POStatus,
+    ApprovalTier,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseOrderApproval,
+)
+from .forms import (
+    PurchaseOrderForm,
+    PurchaseOrderLineForm,
+    POLineFormSet,
+    POApprovalDecisionForm,
+)
+from .services import PurchaseOrderService
+
+
+class POListView(OrganizationAccessMixin, ListView):
+    model = PurchaseOrder
+    template_name = "procurement/po_list.html"
+    context_object_name = "orders"
+    paginate_by = 25
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return PurchaseOrder.objects.none()
+
+        qs = PurchaseOrder.objects.filter(organization=org).select_related("supplier", "created_by")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(po_number__icontains=q) |
+                Q(supplier__name__icontains=q) |
+                Q(notes__icontains=q)
+            )
+
+        status = self.request.GET.get("status", "").strip()
+        if status:
+            qs = qs.filter(status=status)
+
+        return qs.order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["po_statuses"] = POStatus.choices
+        context["current_q"] = self.request.GET.get("q", "")
+        context["current_status"] = self.request.GET.get("status", "")
+        return context
+
+
+class PODetailView(OrganizationAccessMixin, DetailView):
+    model = PurchaseOrder
+    template_name = "procurement/po_detail.html"
+    context_object_name = "po"
+
+    def get_queryset(self):
+        org = self.request.organization
+        if not org:
+            return PurchaseOrder.objects.none()
+        return PurchaseOrder.objects.filter(organization=org).select_related(
+            "supplier", "created_by", "approved_by", "rfq"
+        ).prefetch_related(
+            "lines__product",
+            "lines__uom",
+            "approvals__approver",
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["approval_form"] = POApprovalDecisionForm()
+        return context
+
+
+class POCreateView(OrganizationAccessMixin, View):
+    def get(self, request, *args, **kwargs):
+        form = PurchaseOrderForm(organization=request.organization)
+        formset = POLineFormSet(form_kwargs={"organization": request.organization})
+        return render(request, "procurement/po_form.html", {
+            "form": form,
+            "formset": formset,
+            "title": "Create Purchase Order",
+        })
+
+    def post(self, request, *args, **kwargs):
+        form = PurchaseOrderForm(request.POST, organization=request.organization)
+        formset = POLineFormSet(request.POST, form_kwargs={"organization": request.organization})
+
+        if form.is_valid() and formset.is_valid():
+            po = form.save(commit=False)
+            po.organization = request.organization
+            po.po_number = PurchaseOrder.generate_po_number(request.organization)
+            po.created_by = request.user
+            po.status = POStatus.DRAFT
+            po.save()
+
+            lines = formset.save(commit=False)
+            for idx, line in enumerate(lines, start=1):
+                line.purchase_order = po
+                line.line_number = idx
+                line.save()
+
+            po.recalculate_totals()
+            messages.success(request, f"Purchase Order '{po.po_number}' created.")
+            return redirect("procurement:po_detail", pk=po.pk)
+
+        return render(request, "procurement/po_form.html", {
+            "form": form,
+            "formset": formset,
+            "title": "Create Purchase Order",
+        })
+
+
+class POUpdateView(OrganizationAccessMixin, View):
+    def dispatch(self, request, *args, **kwargs):
+        self.po = get_object_or_404(PurchaseOrder, pk=kwargs["pk"], organization=request.organization)
+        if self.po.status != POStatus.DRAFT:
+            messages.error(request, "Only draft Purchase Orders can be modified.")
+            return redirect("procurement:po_detail", pk=self.po.pk)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        form = PurchaseOrderForm(instance=self.po, organization=request.organization)
+        formset = POLineFormSet(instance=self.po, form_kwargs={"organization": request.organization})
+        return render(request, "procurement/po_form.html", {
+            "form": form,
+            "formset": formset,
+            "po": self.po,
+            "title": f"Edit {self.po.po_number}",
+        })
+
+    def post(self, request, *args, **kwargs):
+        form = PurchaseOrderForm(request.POST, instance=self.po, organization=request.organization)
+        formset = POLineFormSet(request.POST, instance=self.po, form_kwargs={"organization": request.organization})
+
+        if form.is_valid() and formset.is_valid():
+            po = form.save()
+            lines = formset.save(commit=False)
+            for idx, line in enumerate(lines, start=1):
+                line.purchase_order = po
+                line.line_number = idx
+                line.save()
+            for obj in formset.deleted_objects:
+                obj.delete()
+
+            po.recalculate_totals()
+            messages.success(request, f"Purchase Order '{po.po_number}' updated.")
+            return redirect("procurement:po_detail", pk=po.pk)
+
+        return render(request, "procurement/po_form.html", {
+            "form": form,
+            "formset": formset,
+            "po": self.po,
+            "title": f"Edit {self.po.po_number}",
+        })
+
+
+class POSubmitApprovalView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        po = get_object_or_404(PurchaseOrder, pk=kwargs["pk"], organization=request.organization)
+        try:
+            PurchaseOrderService.submit_for_approval(po, submitted_by=request.user)
+            messages.success(request, f"Purchase Order '{po.po_number}' submitted to financial approval routing.")
+        except ValidationError as e:
+            messages.error(request, f"Cannot submit for approval: {e.message if hasattr(e, 'message') else e}")
+        return redirect("procurement:po_detail", pk=po.pk)
+
+
+class POApproveView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        po = get_object_or_404(PurchaseOrder, pk=kwargs["pk"], organization=request.organization)
+        form = POApprovalDecisionForm(request.POST)
+        comments = form.cleaned_data.get("comments", "") if form.is_valid() else ""
+        try:
+            PurchaseOrderService.approve_po(po, approver=request.user, comments=comments)
+            messages.success(request, f"Approval granted for '{po.po_number}'.")
+        except ValidationError as e:
+            messages.error(request, f"Approval error: {e.message if hasattr(e, 'message') else e}")
+        return redirect("procurement:po_detail", pk=po.pk)
+
+
+class PORejectView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        po = get_object_or_404(PurchaseOrder, pk=kwargs["pk"], organization=request.organization)
+        form = POApprovalDecisionForm(request.POST)
+        comments = form.cleaned_data.get("comments", "") if form.is_valid() else ""
+        try:
+            PurchaseOrderService.reject_po(po, rejector=request.user, comments=comments)
+            messages.warning(request, f"Purchase Order '{po.po_number}' rejected.")
+        except ValidationError as e:
+            messages.error(request, f"Rejection error: {e.message if hasattr(e, 'message') else e}")
+        return redirect("procurement:po_detail", pk=po.pk)
+
+
+class POIssueView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        po = get_object_or_404(PurchaseOrder, pk=kwargs["pk"], organization=request.organization)
+        try:
+            PurchaseOrderService.issue_po(po, issued_by=request.user)
+            messages.success(request, f"Purchase Order '{po.po_number}' issued to vendor '{po.supplier.name}'.")
+        except ValidationError as e:
+            messages.error(request, f"Cannot issue PO: {e.message if hasattr(e, 'message') else e}")
+        return redirect("procurement:po_detail", pk=po.pk)
+
+
+class ConvertRFQToPOView(OrganizationAccessMixin, View):
+    def post(self, request, *args, **kwargs):
+        rfq = get_object_or_404(RequestForQuotation, pk=kwargs["pk"], organization=request.organization)
+        try:
+            po = PurchaseOrderService.convert_rfq_to_po(rfq, created_by=request.user)
+            messages.success(request, f"Purchase Order '{po.po_number}' generated from awarded RFQ '{rfq.rfq_number}'.")
+            return redirect("procurement:po_detail", pk=po.pk)
+        except ValidationError as e:
+            messages.error(request, f"Cannot convert RFQ: {e.message if hasattr(e, 'message') else e}")
+            return redirect("procurement:rfq_detail", pk=rfq.pk)
+
+
+class POPrintView(OrganizationAccessMixin, DetailView):
+    model = PurchaseOrder
+    template_name = "procurement/po_print.html"
+    context_object_name = "po"
+
+    def get_queryset(self):
+        org = self.request.organization
+        return PurchaseOrder.objects.filter(organization=org).select_related(
+            "supplier", "created_by", "approved_by"
+        ).prefetch_related(
+            "lines__product",
+            "lines__uom",
+        )
