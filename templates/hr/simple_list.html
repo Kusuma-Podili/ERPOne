@@ -1,0 +1,1 @@
+{% extends 'hr/base.html' %}{% block content %}<table><tr><th>Name</th><th>Code</th></tr>{% for x in items %}<tr><td>{{ x.name|default:x.title }}</td><td>{{ x.code|default:'-' }}</td></tr>{% empty %}<tr><td colspan="2">No records</td></tr>{% endfor %}</table>{% endblock %}
