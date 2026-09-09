@@ -1,0 +1,133 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}Lot {{ lot.batch_number }} &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:warehouse_list' %}">Inventory</a>
+<span>/</span>
+<a href="{% url 'inventory:lot_list' %}">Lots & Batches</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ lot.batch_number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h1 class="page-title mb-0">Lot {{ lot.batch_number }}</h1>
+            {% if lot.qc_status == 'approved' %}
+            <span class="badge bg-success text-white px-2 py-1">QC Approved</span>
+            {% elif lot.qc_status == 'quarantined' %}
+            <span class="badge bg-warning text-dark px-2 py-1">Quarantined</span>
+            {% elif lot.qc_status == 'rejected' %}
+            <span class="badge bg-danger text-white px-2 py-1">QC Rejected</span>
+            {% elif lot.qc_status == 'expired' %}
+            <span class="badge bg-secondary text-white px-2 py-1">Expired</span>
+            {% endif %}
+            {% if lot.is_expired %}
+            <span class="badge bg-danger text-white px-2 py-1">Past Expiration</span>
+            {% endif %}
+        </div>
+        <p class="page-subtitle">{{ lot.product.name }} &bull; SKU: {{ lot.product.sku }}</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'inventory:lot_qc_update' lot.pk %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            Update QC Status
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Batch Metrics</h6>
+                <p class="mb-1 small">Current Available Qty: <strong>{{ lot.current_quantity }}</strong></p>
+                <p class="mb-1 small">Initial Received Qty: <strong>{{ lot.initial_quantity }}</strong></p>
+                <p class="mb-0 small">Supplier Lot: <strong>{{ lot.supplier_lot_number|default:"N/A" }}</strong></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Shelf Life & Expiry</h6>
+                <p class="mb-1 small">Mfg Date: <strong>{{ lot.manufacturing_date|date:"F d, Y"|default:"Not recorded" }}</strong></p>
+                <p class="mb-1 small">Expiration Date: <strong>{{ lot.expiration_date|date:"F d, Y"|default:"Indefinite" }}</strong></p>
+                {% if lot.expiration_date %}
+                <p class="mb-0 small">Days Remaining:
+                    {% if lot.is_expired %}<span class="text-danger fw-bold">Expired</span>
+                    {% else %}<strong>{{ lot.days_until_expiration }} days</strong>{% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted fw-bold mb-3 small">Quality Control & CoA</h6>
+                <p class="mb-1 small">Inspector: <strong>{{ lot.qc_inspected_by.get_full_name|default:"Not recorded" }}</strong></p>
+                <p class="mb-1 small">Inspection Date: <strong>{{ lot.qc_inspected_at|date:"M d, Y H:i"|default:"Pending" }}</strong></p>
+                <p class="mb-0 small">CoA: <strong>{{ lot.certificate_of_analysis|default:"No CoA on file" }}</strong></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if lot.qc_notes %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+        <h5 class="card-title mb-0">Quality Control Audit Notes</h5>
+    </div>
+    <div class="card-body">
+        <pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">{{ lot.qc_notes }}</pre>
+    </div>
+</div>
+{% endif %}
+
+<!-- Associated Serial Numbers -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Associated Serial Numbers ({{ lot.serials.count }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Serial Number</th>
+                        <th>Warehouse</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Warranty End</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sn in lot.serials.all %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'inventory:serial_detail' sn.pk %}" class="fw-bold text-decoration-none">
+                                {{ sn.serial_number }}
+                            </a>
+                        </td>
+                        <td>{{ sn.warehouse.code|default:"&mdash;" }}</td>
+                        <td>{{ sn.location.code|default:"&mdash;" }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ sn.get_status_display }}</span></td>
+                        <td>{{ sn.warranty_end_date|date:"M d, Y"|default:"N/A" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">No serialized units linked to this production lot.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}\n

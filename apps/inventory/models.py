@@ -556,3 +556,170 @@ class StockMovementLine(models.Model):
         if self.destination_location and self.movement.destination_warehouse_id:
             if self.destination_location.warehouse_id != self.movement.destination_warehouse_id:
                 raise ValidationError({"destination_location": _("Destination location must belong to movement destination warehouse.")})
+
+
+class QCStatus(models.TextChoices):
+    QUARANTINED = "quarantined", _("Under Quarantine / Pending Inspection")
+    APPROVED = "approved", _("QC Approved / Released")
+    REJECTED = "rejected", _("QC Rejected / Non-Conforming")
+    EXPIRED = "expired", _("Expired / Disposition Required")
+
+
+class SerialStatus(models.TextChoices):
+    IN_STOCK = "in_stock", _("In Stock / Available")
+    RESERVED = "reserved", _("Reserved for Order")
+    DISPATCHED = "dispatched", _("Dispatched / Sold")
+    CONSUMED = "consumed", _("Consumed in Manufacturing")
+    RETURNED = "returned", _("Returned by Customer")
+    DEFECTIVE = "defective", _("Defective / Damaged")
+
+
+class LotBatch(models.Model):
+    """
+    Tracks manufacturing lot or receipt batch identifiers, expiry dates,
+    quality control inspection states, and certificates of analysis (CoA).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="lot_batches",
+    )
+    product = models.ForeignKey(
+        "sales.Product",
+        on_delete=models.CASCADE,
+        related_name="lots",
+    )
+    batch_number = models.CharField(_("Lot / Batch Code"), max_length=80, db_index=True)
+    supplier_lot_number = models.CharField(_("Supplier Lot Identifier"), max_length=80, blank=True)
+    manufacturing_date = models.DateField(_("Manufacturing Date"), null=True, blank=True)
+    expiration_date = models.DateField(_("Expiration Date"), null=True, blank=True, db_index=True)
+    qc_status = models.CharField(
+        _("Quality Control Status"),
+        max_length=30,
+        choices=QCStatus.choices,
+        default=QCStatus.APPROVED,
+    )
+    qc_inspected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="qc_inspected_lots",
+    )
+    qc_inspected_at = models.DateTimeField(_("QC Inspection Timestamp"), null=True, blank=True)
+    qc_notes = models.TextField(_("QC Findings / Lab Notes"), blank=True)
+    certificate_of_analysis = models.CharField(_("CoA Document Ref / URL"), max_length=255, blank=True)
+    initial_quantity = models.DecimalField(
+        _("Initial Received Quantity"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    current_quantity = models.DecimalField(
+        _("Current Quantity"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    is_active = models.BooleanField(_("Active"), default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Lot / Batch")
+        verbose_name_plural = _("Lots / Batches")
+        ordering = ["expiration_date", "-created_at"]
+        unique_together = ("organization", "product", "batch_number")
+
+    def __str__(self):
+        exp_str = f" (Exp: {self.expiration_date})" if self.expiration_date else ""
+        return f"{self.product.sku} - Lot {self.batch_number}{exp_str}"
+
+    @property
+    def is_expired(self) -> bool:
+        if self.expiration_date:
+            return self.expiration_date < timezone.now().date()
+        return False
+
+    @property
+    def days_until_expiration(self):
+        if self.expiration_date:
+            return (self.expiration_date - timezone.now().date()).days
+        return None
+
+    @property
+    def is_usable(self) -> bool:
+        return self.qc_status == QCStatus.APPROVED and not self.is_expired and self.is_active
+
+    def clean(self):
+        super().clean()
+        if self.manufacturing_date and self.expiration_date:
+            if self.expiration_date <= self.manufacturing_date:
+                raise ValidationError({"expiration_date": _("Expiration date must be later than manufacturing date.")})
+
+
+class SerialNumber(models.Model):
+    """
+    Unique item-level serial number identity tracking warranty, location, and operational status.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="serial_numbers",
+    )
+    product = models.ForeignKey(
+        "sales.Product",
+        on_delete=models.CASCADE,
+        related_name="serial_numbers",
+    )
+    serial_number = models.CharField(_("Serial Number Identifier"), max_length=100, db_index=True)
+    lot = models.ForeignKey(
+        LotBatch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="serials",
+        help_text=_("Associated production lot or batch."),
+    )
+    warehouse = models.ForeignKey(
+        Warehouse,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="serials",
+    )
+    location = models.ForeignKey(
+        StorageLocation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="serials",
+    )
+    status = models.CharField(
+        _("Serial Status"),
+        max_length=30,
+        choices=SerialStatus.choices,
+        default=SerialStatus.IN_STOCK,
+    )
+    warranty_start_date = models.DateField(_("Warranty Start Date"), null=True, blank=True)
+    warranty_end_date = models.DateField(_("Warranty Expiration Date"), null=True, blank=True)
+    notes = models.TextField(_("Unit Service History / Notes"), blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Serial Number")
+        verbose_name_plural = _("Serial Numbers")
+        ordering = ["product__name", "serial_number"]
+        unique_together = ("organization", "product", "serial_number")
+
+    def __str__(self):
+        return f"{self.product.name} [SN: {self.serial_number}]"
+
+    @property
+    def is_under_warranty(self) -> bool:
+        if self.warranty_end_date:
+            return self.warranty_end_date >= timezone.now().date()
+        return False

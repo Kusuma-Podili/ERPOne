@@ -1,0 +1,156 @@
+{% extends "layouts/app.html" %}
+{% load static %}
+
+{% block title %}Serial Numbers &bull; Inventory &bull; {{ active_organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'inventory:warehouse_list' %}">Inventory</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Serial Numbers</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Asset & Unit Serial Numbers</h1>
+        <p class="page-subtitle">Granular serialization tracking warranty, physical location, and lifecycle status.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'inventory:serial_bulk_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Bulk Register Serials
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-12 col-md-5">
+                <input type="text" name="q" value="{{ current_q }}" class="form-control" placeholder="Search serial #, SKU, product name, lot...">
+            </div>
+            <div class="col-12 col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Serial Statuses</option>
+                    {% for val, label in serial_statuses %}
+                    <option value="{{ val }}" {% if current_status == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <select name="warehouse" class="form-select">
+                    <option value="">All Warehouses</option>
+                    {% for wh in warehouses %}
+                    <option value="{{ wh.id }}" {% if current_warehouse == wh.id|stringformat:"s" %}selected{% endif %}>{{ wh.code }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                {% if current_q or current_status or current_warehouse %}
+                <a href="{% url 'inventory:serial_list' %}" class="btn btn-outline-secondary">Reset</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Serials Table -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Serial Number</th>
+                        <th>Product & SKU</th>
+                        <th>Lot / Batch</th>
+                        <th>Warehouse</th>
+                        <th>Bin Location</th>
+                        <th>Status</th>
+                        <th>Warranty Active</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sn in serials %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'inventory:serial_detail' sn.pk %}" class="fw-bold font-monospace text-decoration-none">
+                                {{ sn.serial_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <strong>{{ sn.product.name }}</strong>
+                            <small class="text-muted d-block">{{ sn.product.sku }}</small>
+                        </td>
+                        <td>
+                            {% if sn.lot %}
+                            <a href="{% url 'inventory:lot_detail' sn.lot.pk %}" class="text-decoration-none">{{ sn.lot.batch_number }}</a>
+                            {% else %}
+                            <span class="text-muted">&mdash;</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ sn.warehouse.code|default:"&mdash;" }}</td>
+                        <td>{{ sn.location.code|default:"&mdash;" }}</td>
+                        <td>
+                            {% if sn.status == 'in_stock' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">In Stock</span>
+                            {% elif sn.status == 'reserved' %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Reserved</span>
+                            {% elif sn.status == 'dispatched' %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">Dispatched</span>
+                            {% elif sn.status == 'defective' %}
+                            <span class="badge bg-danger text-white px-2 py-1">Defective</span>
+                            {% else %}
+                            <span class="badge bg-secondary text-white px-2 py-1">{{ sn.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if sn.warranty_end_date %}
+                                {% if sn.is_under_warranty %}
+                                <span class="text-success small fw-bold">Active (thru {{ sn.warranty_end_date|date:"M Y" }})</span>
+                                {% else %}
+                                <span class="text-muted small">Expired ({{ sn.warranty_end_date|date:"M Y" }})</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-muted small">No warranty</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'inventory:serial_detail' sn.pk %}" class="btn btn-sm btn-outline-secondary">Details</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <h5>No serialized items found</h5>
+                            <p>Register serial numbers individually or upload bulk serial ranges.</p>
+                            <a href="{% url 'inventory:serial_bulk_create' %}" class="btn btn-sm btn-primary">Bulk Register Serials</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if is_paginated %}
+    <div class="card-footer bg-white border-0 py-3">
+        <nav>
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}\n
