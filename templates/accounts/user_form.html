@@ -1,0 +1,112 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ title }} &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Dashboard</a>
+<span>/</span>
+<a href="{% url 'accounts:user_list' %}">Enterprise Users</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ title }}</h1>
+        <p class="page-subtitle">Provision or manage enterprise user credentials and access tier.</p>
+    </div>
+    <div>
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary">
+            &larr; Back to Users
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 800px;">
+    <div class="card-body" style="padding: 2rem;">
+        <form method="post">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                {% if form.email %}
+                <div class="form-group" style="grid-column: span 2;">
+                    <label class="form-label">Email Address *</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}<div style="color: var(--danger); font-size: 0.8rem; margin-top: 0.25rem;">{{ form.email.errors }}</div>{% endif %}
+                </div>
+                {% endif %}
+
+                {% if form.password %}
+                <div class="form-group" style="grid-column: span 2;">
+                    <label class="form-label">Initial Password *</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}<div style="color: var(--danger); font-size: 0.8rem; margin-top: 0.25rem;">{{ form.password.errors }}</div>{% endif %}
+                </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label class="form-label">First Name</label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}<div style="color: var(--danger); font-size: 0.8rem; margin-top: 0.25rem;">{{ form.first_name.errors }}</div>{% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Last Name</label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}<div style="color: var(--danger); font-size: 0.8rem; margin-top: 0.25rem;">{{ form.last_name.errors }}</div>{% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    {{ form.phone }}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Job Title</label>
+                    {{ form.job_title }}
+                </div>
+
+                <div class="form-group" style="grid-column: span 2;">
+                    <label class="form-label" style="font-weight: 600; color: var(--brand-primary, #2563eb);">Application Role / Access Tier *</label>
+                    {{ form.role }}
+                    <small style="display: block; color: var(--text-muted); margin-top: 0.25rem;">
+                        <strong>ADMIN:</strong> Full platform visibility &amp; settings | 
+                        <strong>EMPLOYEE:</strong> Operational ERP modules | 
+                        <strong>CUSTOMER:</strong> Isolated customer self-service portal
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Account Status</label>
+                    {{ form.account_status }}
+                </div>
+
+                <div class="form-group" style="display: flex; align-items: center; gap: 1.5rem; padding-top: 1.5rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        {{ form.is_active }} Active
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        {{ form.is_verified }} Verified
+                    </label>
+                </div>
+            </div>
+
+            <div style="margin-top: 2rem; display: flex; gap: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">
+                    Save User
+                </button>
+                <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}\n

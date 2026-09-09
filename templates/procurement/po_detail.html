@@ -78,9 +78,9 @@
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Commercial Value</div>
         <div style="font-size: 1.7rem; font-weight: 800; color: #10b981; margin-top: 0.25rem;">
-            ${{ po.total_amount }} {{ po.currency }}
+            ₹{{ po.total_amount }} {{ po.currency }}
         </div>
-        <div style="font-size: 0.75rem; color: var(--text-muted);">Inc. ${{ po.tax_amount }} Tax, ${{ po.shipping_cost }} Freight</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Inc. ₹{{ po.tax_amount }} Tax, ₹{{ po.shipping_cost }} Freight</div>
     </div>
     <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Payment Terms</div>
@@ -163,10 +163,10 @@
                         <span class="badge" style="background: #10b981; color: #fff; font-size: 0.7rem;">Fulfilled</span>
                         {% endif %}
                     </td>
-                    <td style="padding: 0.75rem 1rem;">${{ line.unit_price }}</td>
+                    <td style="padding: 0.75rem 1rem;">₹{{ line.unit_price }}</td>
                     <td style="padding: 0.75rem 1rem;">{{ line.tax_rate }}%</td>
                     <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 700;">
-                        ${{ line.line_total }}
+                        ₹{{ line.line_total }}
                     </td>
                 </tr>
                 {% endfor %}
@@ -174,19 +174,19 @@
             <tfoot>
                 <tr style="border-top: 2px solid var(--border-color);">
                     <td colspan="7" style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: var(--text-muted);">Line Items Subtotal:</td>
-                    <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 600;">${{ po.subtotal }}</td>
+                    <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 600;">₹{{ po.subtotal }}</td>
                 </tr>
                 <tr>
                     <td colspan="7" style="padding: 0.5rem 1rem; text-align: right; font-weight: 600; color: var(--text-muted);">Tax Amount:</td>
-                    <td style="padding: 0.5rem 1rem; text-align: right; font-weight: 600;">${{ po.tax_amount }}</td>
+                    <td style="padding: 0.5rem 1rem; text-align: right; font-weight: 600;">₹{{ po.tax_amount }}</td>
                 </tr>
                 <tr>
                     <td colspan="7" style="padding: 0.5rem 1rem; text-align: right; font-weight: 600; color: var(--text-muted);">Freight & Shipping:</td>
-                    <td style="padding: 0.5rem 1rem; text-align: right; font-weight: 600;">${{ po.shipping_cost }}</td>
+                    <td style="padding: 0.5rem 1rem; text-align: right; font-weight: 600;">₹{{ po.shipping_cost }}</td>
                 </tr>
                 <tr style="background: rgba(16,185,129,0.05);">
                     <td colspan="7" style="padding: 0.85rem 1rem; text-align: right; font-size: 1.1rem; font-weight: 800; color: var(--text-primary);">Grand Total (USD):</td>
-                    <td style="padding: 0.85rem 1rem; text-align: right; font-size: 1.25rem; font-weight: 800; color: #10b981;">${{ po.total_amount }}</td>
+                    <td style="padding: 0.85rem 1rem; text-align: right; font-size: 1.25rem; font-weight: 800; color: #10b981;">₹{{ po.total_amount }}</td>
                 </tr>
             </tfoot>
         </table>
@@ -201,7 +201,7 @@
         <div style="border: 1px solid var(--border-color); border-radius: 0.375rem; padding: 0.85rem 1.25rem; display: flex; justify-content: space-between; align-items: center;">
             <div>
                 <div style="font-weight: 600; font-size: 0.95rem;">{{ app.get_tier_display }}</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Threshold: ${{ app.threshold_amount }}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Threshold: ₹{{ app.threshold_amount }}</div>
                 {% if app.comments %}
                 <div style="font-size: 0.85rem; color: var(--text-primary); margin-top: 0.25rem; font-style: italic;">"{{ app.comments }}"</div>
                 {% endif %}
@@ -228,7 +228,7 @@
     <div style="max-width: 500px; margin: 5rem auto; background: var(--surface-card); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-color);">
         <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem;">Authorize Purchase Order</h3>
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
-            Grant approval for commercial commitment of <strong>${{ po.total_amount }}</strong> to <strong>{{ po.supplier.name }}</strong>.
+            Grant approval for commercial commitment of <strong>₹{{ po.total_amount }}</strong> to <strong>{{ po.supplier.name }}</strong>.
         </p>
         <form method="post" action="{% url 'procurement:po_approve' pk=po.pk %}">
             {% csrf_token %}

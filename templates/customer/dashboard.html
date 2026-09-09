@@ -1,0 +1,141 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Customer Portal &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-primary); font-weight: 500;">Customer Portal</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">Customer Self-Service Portal</h1>
+        <p class="page-subtitle">
+            Welcome, {{ request.user.get_full_name }} &bull; 
+            <strong>{{ account.name|default:"Client Portal" }}</strong>
+            {% if account.account_number %}({{ account.account_number }}){% endif %}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'customer:ticket_create' %}" class="btn btn-primary">
+            + New Support Ticket
+        </a>
+    </div>
+</div>
+
+<!-- KPI Summary -->
+<div class="grid-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">My Commercial Orders</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #4f46e5; margin-top: 0.25rem;">
+            {{ total_orders_count }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Fulfillment &amp; delivery orders</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem;">
+        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Open Support Tickets</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #0d9488; margin-top: 0.25rem;">
+            {{ open_tickets_count }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Active requests with support desk</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem;">
+        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Enterprise Account</div>
+        <div style="font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin-top: 0.5rem; word-break: break-all;">
+            {{ account.name|default:request.user.email }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Billing: INR (₹)</div>
+    </div>
+</div>
+
+<!-- Recent Orders & Tickets Grid -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+    <!-- Recent Orders -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="font-size: 1rem; margin: 0;">My Orders</h3>
+            <a href="{% url 'customer:order_list' %}" style="font-size: 0.8rem; color: var(--brand-primary, #2563eb);">View All Orders &rarr;</a>
+        </div>
+        <div class="table-responsive">
+            <table class="enterprise-table">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Date</th>
+                        <th>Total (₹)</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in recent_orders %}
+                    <tr>
+                        <td><strong>{{ o.order_number }}</strong></td>
+                        <td>{{ o.created_at|date:"Y-m-d" }}</td>
+                        <td><strong>₹{{ o.total_amount|default:"0.00" }}</strong></td>
+                        <td>
+                            <span class="badge badge-info">{{ o.status }}</span>
+                        </td>
+                        <td>
+                            <a href="{% url 'customer:order_detail' o.id %}" class="btn btn-sm btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">View</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                            No commercial orders placed yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Tickets -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="font-size: 1rem; margin: 0;">Recent Support Tickets</h3>
+            <a href="{% url 'customer:ticket_list' %}" style="font-size: 0.8rem; color: var(--brand-primary, #2563eb);">View All Tickets &rarr;</a>
+        </div>
+        <div class="table-responsive">
+            <table class="enterprise-table">
+                <thead>
+                    <tr>
+                        <th>Ticket #</th>
+                        <th>Subject</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in recent_tickets %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'customer:ticket_detail' t.id %}"><strong>{{ t.number }}</strong></a>
+                        </td>
+                        <td>{{ t.subject|truncatechars:30 }}</td>
+                        <td>
+                            <span class="badge badge-{% if t.priority == 'CRITICAL' or t.priority == 'HIGH' %}danger{% else %}secondary{% endif %}">
+                                {{ t.priority }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-info">{{ t.status }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                            No support tickets on record.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

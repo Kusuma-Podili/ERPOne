@@ -1,0 +1,85 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Ticket {{ ticket.number }} &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'customer:dashboard' %}">Customer Portal</a>
+<span>/</span>
+<a href="{% url 'customer:ticket_list' %}">Support Tickets</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ ticket.number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">{{ ticket.number }}: {{ ticket.subject }}</h1>
+        <p class="page-subtitle">Submitted on {{ ticket.created_at|date:"F d, Y H:i" }} &bull; Priority: <span class="badge badge-secondary">{{ ticket.priority }}</span> &bull; Status: <span class="badge badge-info">{{ ticket.status }}</span></p>
+    </div>
+    <a href="{% url 'customer:ticket_list' %}" class="btn btn-secondary">&larr; Back to Tickets</a>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <div>
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title" style="font-size: 1rem; margin: 0;">Description</h3>
+            </div>
+            <div class="card-body" style="padding: 1.25rem; white-space: pre-wrap; font-size: 0.95rem;">{{ ticket.description }}</div>
+        </div>
+
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+                <h3 class="card-title" style="font-size: 1rem; margin: 0;">Messages & Updates</h3>
+            </div>
+            <div class="card-body" style="padding: 1.25rem;">
+                {% for msg in ticket.messages.all %}
+                <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+                        <strong>{{ msg.author.get_full_name|default:msg.author.email }}</strong> &bull; {{ msg.created_at|date:"M d, Y H:i" }}
+                    </div>
+                    <div style="white-space: pre-wrap;">{{ msg.body }}</div>
+                </div>
+                {% empty %}
+                <p style="color: var(--text-muted); margin: 0;">No reply messages yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title" style="font-size: 1rem; margin: 0;">Add Reply / Update</h3>
+            </div>
+            <div class="card-body" style="padding: 1.25rem;">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <textarea name="body" class="form-control enterprise-input" rows="3" placeholder="Type your response here..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Send Reply</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" style="font-size: 1rem; margin: 0;">Ticket Info</h3>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;">
+            <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Customer Entity</div>
+                <strong>{{ ticket.customer.name|default:"Individual Client" }}</strong>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Category</div>
+                <div>{{ ticket.category.name|default:"General Support" }}</div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Status</div>
+                <span class="badge badge-info">{{ ticket.status }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

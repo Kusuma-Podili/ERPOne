@@ -105,7 +105,7 @@
                     <td style="padding: 0.85rem 1rem; font-size: 0.85rem;">
                         {% if r.winning_bid %}
                         <div style="font-weight: 600; color: #10b981;">{{ r.winning_bid.supplier.name }}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">${{ r.winning_bid.total_amount }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">₹{{ r.winning_bid.total_amount }}</div>
                         {% else %}
                         <span style="color: var(--text-muted);">&mdash;</span>
                         {% endif %}

@@ -95,7 +95,7 @@
                     <td style="padding: 0.85rem 1rem; font-size: 0.85rem;">{{ bill.bill_date|date:"M d, Y" }}</td>
                     <td style="padding: 0.85rem 1rem; font-size: 0.85rem;">{{ bill.due_date|date:"M d, Y" }}</td>
                     <td style="padding: 0.85rem 1rem; font-weight: 700; color: #10b981;">
-                        ${{ bill.total_amount }} {{ bill.currency }}
+                        ₹{{ bill.total_amount }} {{ bill.currency }}
                     </td>
                     <td style="padding: 0.85rem 1rem;">
                         {% if bill.match_status == 'matched' %}

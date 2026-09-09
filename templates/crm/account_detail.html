@@ -51,7 +51,7 @@
     <div class="card" style="padding: 1.25rem;">
         <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Annual Revenue</div>
         <div style="font-size: 1.5rem; font-weight: 700; color: #10b981; margin-top: 0.25rem;">
-            {% if account.annual_revenue %}${{ account.annual_revenue|floatformat:2 }}{% else %}&mdash;{% endif %}
+            {% if account.annual_revenue %}₹{{ account.annual_revenue|floatformat:2 }}{% else %}&mdash;{% endif %}
         </div>
     </div>
     <div class="card" style="padding: 1.25rem;">

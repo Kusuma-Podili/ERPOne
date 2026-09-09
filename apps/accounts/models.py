@@ -15,6 +15,12 @@ from enterpriseone.configuration.roles import SystemRole, ROLE_METADATA
 from apps.accounts.managers import UserManager
 
 
+class AppRole(models.TextChoices):
+    ADMIN = "ADMIN", _("Admin")
+    EMPLOYEE = "EMPLOYEE", _("Employee")
+    CUSTOMER = "CUSTOMER", _("Customer")
+
+
 class User(AbstractBaseUser, PermissionsMixin):
     """
     Custom Enterprise User model identified by unique email and UUID.
@@ -26,6 +32,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone = models.CharField(_("Phone Number"), max_length=30, blank=True)
     job_title = models.CharField(_("Job Title"), max_length=100, blank=True)
     avatar = models.ImageField(_("Avatar"), upload_to="avatars/%Y/%m/", blank=True, null=True)
+
+    # Multi-Role Application Classification
+    role = models.CharField(
+        _("Application Role"),
+        max_length=20,
+        choices=AppRole.choices,
+        default=AppRole.EMPLOYEE,
+        db_index=True,
+    )
 
     # Status & Flags
     account_status = models.CharField(
@@ -84,6 +99,77 @@ class User(AbstractBaseUser, PermissionsMixin):
         return False
 
     @property
+    def is_admin(self) -> bool:
+        """Check if user has administrative authority."""
+        if self.is_superuser or self.role == AppRole.ADMIN:
+            return True
+        return self.has_role(SystemRole.ADMIN) or self.has_role(SystemRole.SUPER_ADMIN) or self.has_role(SystemRole.ORG_ADMIN)
+
+    @property
+    def is_customer(self) -> bool:
+        """Check if user is a customer client."""
+        if self.is_superuser or self.role == AppRole.ADMIN:
+            return False
+        if self.role == AppRole.CUSTOMER:
+            return True
+        return self.user_roles.filter(role__code=SystemRole.CUSTOMER).exists()
+
+    @property
+    def is_employee(self) -> bool:
+        """Check if user is an employee / staff member."""
+        if self.is_customer:
+            return False
+        if self.is_admin:
+            return True
+        return self.role == AppRole.EMPLOYEE or self.has_role(SystemRole.EMPLOYEE)
+
+    def set_role(self, new_role: str, actor=None, reason: str = ""):
+        """Assign application role, synchronize with RBAC Role, and record audit event."""
+        if new_role not in AppRole.values:
+            raise ValueError(f"Invalid role: {new_role}. Must be one of {AppRole.values}")
+        old_role = self.role
+        self.role = new_role
+        if new_role == AppRole.ADMIN:
+            self.is_staff = True
+        elif new_role == AppRole.CUSTOMER:
+            self.is_staff = False
+        self.save(update_fields=["role", "is_staff", "updated_at"])
+
+        # Sync RBAC Role
+        role_obj, _ = Role.objects.get_or_create(
+            code=new_role,
+            defaults={
+                "name": new_role.title(),
+                "description": f"Standard {new_role.title()} role",
+                "is_system_role": True,
+            }
+        )
+        UserRole.objects.get_or_create(user=self, role=role_obj, defaults={"assigned_by": actor})
+
+        # Phase 14 Audit & Security integration
+        try:
+            from apps.security.services import AuditService, SecurityEventService
+            AuditService.record(
+                actor=actor or self,
+                action="UPDATE",
+                instance=self,
+                before={"role": old_role},
+                after={"role": new_role},
+                reason=reason or f"Role updated from {old_role} to {new_role}",
+            )
+            SecurityEventService.emit(
+                event_type="ROLE_CHANGED",
+                user=self,
+                severity="MEDIUM" if new_role == AppRole.ADMIN else "INFO",
+                outcome="SUCCESS",
+                action="change_role",
+                resource=self,
+                metadata={"old_role": old_role, "new_role": new_role},
+            )
+        except Exception:
+            pass
+
+    @property
     def primary_role(self):
         """Retrieve highest priority assigned role."""
         assignment = self.user_roles.select_related("role").order_by("-role__priority").first()
@@ -94,6 +180,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         """Formatted role title for UI display."""
         if self.is_superuser:
             return "Super Administrator"
+        if self.role == AppRole.ADMIN:
+            return "Administrator"
+        if self.is_customer:
+            return "Customer"
         role = self.primary_role
         return role.name if role else "Employee"
 

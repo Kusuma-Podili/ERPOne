@@ -24,6 +24,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         extra_fields.setdefault("account_status", AccountStatus.ACTIVE)
+        extra_fields.setdefault("role", "EMPLOYEE")
 
         user = self.model(email=email, **extra_fields)
         if password:
@@ -43,6 +44,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_active", True)
         extra_fields.setdefault("is_verified", True)
         extra_fields.setdefault("account_status", AccountStatus.ACTIVE)
+        extra_fields.setdefault("role", "ADMIN")
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Superuser must have is_staff=True.")

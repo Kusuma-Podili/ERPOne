@@ -65,7 +65,7 @@ class Supplier(models.Model):
         choices=PaymentTerms.choices,
         default=PaymentTerms.NET30,
     )
-    currency = models.CharField(_("Default Currency"), max_length=3, default="USD")
+    currency = models.CharField(_("Default Currency"), max_length=3, default="INR")
     tax_id = models.CharField(_("Tax ID / EIN / VAT"), max_length=50, blank=True)
     email = models.EmailField(_("Primary Contact Email"), blank=True)
     phone = models.CharField(_("Telephone"), max_length=50, blank=True)
@@ -165,7 +165,7 @@ class SupplierProduct(models.Model):
         decimal_places=2,
         default=Decimal("0.00"),
     )
-    currency = models.CharField(_("Currency"), max_length=3, default="USD")
+    currency = models.CharField(_("Currency"), max_length=3, default="INR")
     minimum_order_quantity = models.DecimalField(
         _("Minimum Order Quantity (MOQ)"),
         max_digits=10,
@@ -394,7 +394,7 @@ class VendorBid(models.Model):
         decimal_places=2,
         default=Decimal("0.00"),
     )
-    currency = models.CharField(_("Currency"), max_length=3, default="USD")
+    currency = models.CharField(_("Currency"), max_length=3, default="INR")
     is_winning_bid = models.BooleanField(_("Awarded Winning Bid"), default=False)
     award_reason = models.TextField(_("Award Justification / Evaluation"), blank=True)
     awarded_at = models.DateTimeField(null=True, blank=True)
@@ -526,7 +526,7 @@ class PurchaseOrder(models.Model):
         choices=PaymentTerms.choices,
         default=PaymentTerms.NET30,
     )
-    currency = models.CharField(_("Currency"), max_length=3, default="USD")
+    currency = models.CharField(_("Currency"), max_length=3, default="INR")
     subtotal = models.DecimalField(
         _("Line Items Subtotal"),
         max_digits=14,
@@ -802,7 +802,7 @@ class VendorBill(models.Model):
         decimal_places=2,
         default=Decimal("0.00"),
     )
-    currency = models.CharField(_("Currency"), max_length=3, default="USD")
+    currency = models.CharField(_("Currency"), max_length=3, default="INR")
     notes = models.TextField(_("Invoice Notes"), blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

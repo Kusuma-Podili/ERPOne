@@ -30,4 +30,4 @@ def drop_security_tables(apps,schema_editor):
 class Migration(migrations.Migration):
     initial=True
     dependencies=[("accounts","0001_initial"),("organizations","0001_initial")]
-    operations=[migrations.RunPython(create_security_tables,drop_security_tables)]
+    operations=[]

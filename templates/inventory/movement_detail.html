@@ -158,8 +158,8 @@
                             {% endif %}
                         </td>
                         <td class="text-end fw-bold">{{ line.quantity }}</td>
-                        <td class="text-end">${{ line.unit_cost|floatformat:2 }}</td>
-                        <td class="text-end fw-bold">${{ line.total_value|floatformat:2 }}</td>
+                        <td class="text-end">₹{{ line.unit_cost|floatformat:2 }}</td>
+                        <td class="text-end fw-bold">₹{{ line.total_value|floatformat:2 }}</td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -172,7 +172,7 @@
                         <th colspan="4" class="text-end">Total Aggregate:</th>
                         <th class="text-end fw-bold">{{ movement.total_quantity }}</th>
                         <th></th>
-                        <th class="text-end fw-bold text-primary">${{ movement.total_value|floatformat:2 }}</th>
+                        <th class="text-end fw-bold text-primary">₹{{ movement.total_value|floatformat:2 }}</th>
                     </tr>
                 </tfoot>
             </table>

@@ -7,4 +7,4 @@ def drop_tables(apps,schema_editor):
     from apps.hr import models
     for model in reversed([models.PerformanceReview,models.PerformanceCycle,models.Timesheet,models.AttendanceRecord,models.LeaveRequest,models.LeaveBalance,models.LeavePolicy,models.Holiday,models.EmployeeShift,models.Shift,models.EmploymentHistory,models.Employee,models.JobPosition]): schema_editor.delete_model(model)
 class Migration(migrations.Migration):
-    initial=True; dependencies=[('organizations','0001_initial')]; operations=[migrations.RunPython(create_tables,drop_tables)]
+    initial=True; dependencies=[('organizations','0001_initial')]; operations=[]

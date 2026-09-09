@@ -8,11 +8,18 @@ from .services import PredictionService, ModelMonitoringService, ForecastingServ
 
 class ModelListView(LoginRequiredMixin,ListView):
     model=MLModel; template_name='ai_engine/model_list.html'; context_object_name='models'; paginate_by=25
-    def get_queryset(self): return MLModel.objects.filter(organization__in=self.request.user.organizations.all()).order_by('name')
+    def get_queryset(self):
+        org = getattr(self.request, "organization", None)
+        if org: return MLModel.objects.filter(organization=org).order_by('name')
+        return MLModel.objects.all().order_by('name')
 class ModelCreateView(LoginRequiredMixin,CreateView):
     model=MLModel; form_class=MLModelForm; template_name='ai_engine/model_form.html'; success_url='/ai/models/'
     def form_valid(self,form):
-        form.instance.organization=self.request.user.organizations.first(); form.instance.owner=self.request.user; return super().form_valid(form)
+        org = getattr(self.request, "organization", None)
+        if not org:
+            from apps.organizations.models import Organization
+            org = Organization.objects.first()
+        form.instance.organization=org; form.instance.owner=self.request.user; return super().form_valid(form)
 class ModelDetailView(LoginRequiredMixin,DetailView):
     model=MLModel; template_name='ai_engine/model_detail.html'; context_object_name='model'
     def get_context_data(self,**kwargs):

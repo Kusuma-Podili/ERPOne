@@ -1,0 +1,59 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Submit Support Ticket &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'customer:dashboard' %}">Customer Portal</a>
+<span>/</span>
+<a href="{% url 'customer:ticket_list' %}">My Support Tickets</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Submit Ticket</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">Submit a Support Ticket</h1>
+        <p class="page-subtitle">Our support desk responds to enterprise requests within agreed SLAs.</p>
+    </div>
+    <a href="{% url 'customer:ticket_list' %}" class="btn btn-secondary">&larr; Back to Tickets</a>
+</div>
+
+<div class="card" style="max-width: 750px;">
+    <div class="card-body" style="padding: 2rem;">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" style="margin-bottom: 1.5rem;">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div class="form-group">
+                    <label class="form-label">Subject *</label>
+                    {{ form.subject }}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    {{ form.category }}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Priority</label>
+                    {{ form.priority }}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description / Problem Details *</label>
+                    {{ form.description }}
+                </div>
+
+                <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                    <button type="submit" class="btn btn-primary">Submit Ticket</button>
+                    <a href="{% url 'customer:ticket_list' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

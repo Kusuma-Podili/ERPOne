@@ -166,8 +166,8 @@
                 <td>{{ line.destination_location.code|default:"-" }}</td>
                 <td>{{ line.batch_number|default:"-" }}</td>
                 <td class="text-end" style="font-weight: bold;">{{ line.quantity }}</td>
-                <td class="text-end">${{ line.unit_cost|floatformat:2 }}</td>
-                <td class="text-end" style="font-weight: bold;">${{ line.total_value|floatformat:2 }}</td>
+                <td class="text-end">₹{{ line.unit_cost|floatformat:2 }}</td>
+                <td class="text-end" style="font-weight: bold;">₹{{ line.total_value|floatformat:2 }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -176,7 +176,7 @@
                 <td colspan="4" class="text-end">Total Aggregate:</td>
                 <td class="text-end">{{ movement.total_quantity }}</td>
                 <td></td>
-                <td class="text-end">${{ movement.total_value|floatformat:2 }}</td>
+                <td class="text-end">₹{{ movement.total_value|floatformat:2 }}</td>
             </tr>
         </tfoot>
     </table>

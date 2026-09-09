@@ -137,9 +137,9 @@
                             <td style="text-align: right; font-family: monospace; {% if item.remaining_quantity > 0 %}color: #f59e0b; font-weight: 600;{% else %}color: var(--text-muted);{% endif %}">
                                 {{ item.remaining_quantity }}
                             </td>
-                            <td style="text-align: right; font-family: monospace;">${{ item.unit_price|floatformat:2 }}</td>
+                            <td style="text-align: right; font-family: monospace;">₹{{ item.unit_price|floatformat:2 }}</td>
                             <td style="text-align: right; font-family: monospace; font-weight: 600; color: var(--primary);">
-                                ${{ item.total_price|floatformat:2 }}
+                                ₹{{ item.total_price|floatformat:2 }}
                             </td>
                         </tr>
                         {% endfor %}
@@ -181,25 +181,25 @@
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 <div style="display: flex; justify-content: space-between;">
                     <span style="color: var(--text-muted);">Subtotal:</span>
-                    <span style="font-family: monospace; font-weight: 600;">${{ order.subtotal_amount|floatformat:2 }}</span>
+                    <span style="font-family: monospace; font-weight: 600;">₹{{ order.subtotal_amount|floatformat:2 }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span style="color: var(--text-muted);">Discounts:</span>
                     <span style="font-family: monospace; font-weight: 600; {% if order.discount_amount > 0 %}color: #ef4444;{% endif %}">
-                        {% if order.discount_amount > 0 %}-${{ order.discount_amount|floatformat:2 }}{% else %}$0.00{% endif %}
+                        {% if order.discount_amount > 0 %}-₹{{ order.discount_amount|floatformat:2 }}{% else %}₹0.00{% endif %}
                     </span>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span style="color: var(--text-muted);">Taxes:</span>
-                    <span style="font-family: monospace; font-weight: 600;">${{ order.tax_amount|floatformat:2 }}</span>
+                    <span style="font-family: monospace; font-weight: 600;">₹{{ order.tax_amount|floatformat:2 }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span style="color: var(--text-muted);">Shipping:</span>
-                    <span style="font-family: monospace; font-weight: 600;">${{ order.shipping_amount|floatformat:2 }}</span>
+                    <span style="font-family: monospace; font-weight: 600;">₹{{ order.shipping_amount|floatformat:2 }}</span>
                 </div>
                 <div style="border-top: 2px solid var(--border-color); padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 1.1rem; font-weight: 700;">Grand Total:</span>
-                    <span style="font-size: 1.35rem; font-weight: 700; color: var(--primary); font-family: monospace;">${{ order.grand_total|floatformat:2 }}</span>
+                    <span style="font-size: 1.35rem; font-weight: 700; color: var(--primary); font-family: monospace;">₹{{ order.grand_total|floatformat:2 }}</span>
                 </div>
             </div>
         </div>

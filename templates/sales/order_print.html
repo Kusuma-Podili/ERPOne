@@ -106,8 +106,8 @@
                     </td>
                     <td class="text-end">{{ line.quantity_ordered }}</td>
                     <td class="text-end">{{ line.quantity_fulfilled }}</td>
-                    <td class="text-end">${{ line.unit_price }}</td>
-                    <td class="text-end fw-semibold">${{ line.total_price }}</td>
+                    <td class="text-end">₹{{ line.unit_price }}</td>
+                    <td class="text-end fw-semibold">₹{{ line.total_price }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -117,27 +117,27 @@
             <table class="totals-table">
                 <tr>
                     <td class="text-muted">Subtotal:</td>
-                    <td class="text-end">${{ order.subtotal_amount }}</td>
+                    <td class="text-end">₹{{ order.subtotal_amount }}</td>
                 </tr>
                 {% if order.discount_amount > 0 %}
                 <tr>
                     <td class="text-muted">Discounts:</td>
-                    <td class="text-end text-success">-${{ order.discount_amount }}</td>
+                    <td class="text-end text-success">-₹{{ order.discount_amount }}</td>
                 </tr>
                 {% endif %}
                 <tr>
                     <td class="text-muted">Taxes:</td>
-                    <td class="text-end">${{ order.tax_amount }}</td>
+                    <td class="text-end">₹{{ order.tax_amount }}</td>
                 </tr>
                 {% if order.shipping_amount > 0 %}
                 <tr>
                     <td class="text-muted">Shipping:</td>
-                    <td class="text-end">${{ order.shipping_amount }}</td>
+                    <td class="text-end">₹{{ order.shipping_amount }}</td>
                 </tr>
                 {% endif %}
                 <tr class="grand-total">
                     <td>Grand Total ({{ order.currency }}):</td>
-                    <td class="text-end">${{ order.grand_total }}</td>
+                    <td class="text-end">₹{{ order.grand_total }}</td>
                 </tr>
             </table>
         </div>

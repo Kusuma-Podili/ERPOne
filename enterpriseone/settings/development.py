@@ -7,6 +7,7 @@ import socket
 from .base import *
 
 DEBUG = True
+ALLOWED_HOSTS = ["*"]
 
 def _is_service_reachable(host: str, port: int, timeout: float = 1.0) -> bool:
     """Helper to verify if a network service port is listening."""

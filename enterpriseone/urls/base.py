@@ -8,9 +8,23 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
+from django.shortcuts import redirect
+
+def home_redirect(request):
+    """Dynamic root landing page routing to role-specific dashboard."""
+    if not request.user.is_authenticated:
+        return redirect("accounts:login")
+    if getattr(request.user, "is_admin", False):
+        return redirect("accounts:dashboard")
+    if getattr(request.user, "is_employee", False):
+        return redirect("employee:dashboard")
+    return redirect("customer:dashboard")
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("apps.accounts.urls", namespace="accounts")),
+    path("employee/", include("apps.accounts.urls_employee", namespace="employee")),
+    path("customer/", include("apps.accounts.urls_customer", namespace="customer")),
     path("organizations/", include("apps.organizations.urls", namespace="organizations")),
     path("crm/", include("apps.crm.urls", namespace="crm")),
     path("sales/", include("apps.sales.urls", namespace="sales")),
@@ -29,7 +43,7 @@ urlpatterns = [
     path("monitoring/", include("apps.monitoring.urls", namespace="monitoring")),
     path("integration/", include("apps.integration.urls", namespace="integration")),
     path("api/", include("enterpriseone.urls.api")),
-    path("", RedirectView.as_view(pattern_name="accounts:dashboard", permanent=False), name="home"),
+    path("", home_redirect, name="home"),
 ]
 
 if settings.DEBUG:

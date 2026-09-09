@@ -173,7 +173,7 @@
                     </td>
                     <td>
                         {% if l.estimated_value %}
-                        ${{ l.estimated_value|floatformat:2 }}
+                        ₹{{ l.estimated_value|floatformat:2 }}
                         {% else %}
                         <span style="color: var(--text-muted);">&mdash;</span>
                         {% endif %}

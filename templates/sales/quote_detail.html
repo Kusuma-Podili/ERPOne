@@ -147,15 +147,15 @@
                                 <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">SKU: {{ item.product.sku }}</div>
                             </td>
                             <td style="text-align: right; font-family: monospace;">{{ item.quantity }}</td>
-                            <td style="text-align: right; font-family: monospace;">${{ item.unit_price|floatformat:2 }}</td>
+                            <td style="text-align: right; font-family: monospace;">₹{{ item.unit_price|floatformat:2 }}</td>
                             <td style="text-align: right; font-family: monospace; {% if item.discount_percent > 15 %}color: #ef4444; font-weight: 600;{% endif %}">
-                                {% if item.discount_percent > 0 %}{{ item.discount_percent }}% (-${{ item.discount_amount|floatformat:2 }}){% else %}—{% endif %}
+                                {% if item.discount_percent > 0 %}{{ item.discount_percent }}% (-₹{{ item.discount_amount|floatformat:2 }}){% else %}—{% endif %}
                             </td>
                             <td style="text-align: right; font-family: monospace; color: var(--text-muted);">
                                 {% if item.tax_rate > 0 %}{{ item.tax_rate }}%{% else %}—{% endif %}
                             </td>
                             <td style="text-align: right; font-weight: 600; font-family: monospace; color: var(--primary);">
-                                ${{ item.total_price|floatformat:2 }}
+                                ₹{{ item.total_price|floatformat:2 }}
                             </td>
                             {% if quote.can_edit %}
                             <td style="text-align: right;">
@@ -196,7 +196,7 @@
                         {{ line_form.quantity }}
                     </div>
                     <div>
-                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Unit Price ($) *</label>
+                        <label class="form-label" style="font-size: 0.85rem; font-weight: 600;">Unit Price (₹) *</label>
                         {{ line_form.unit_price }}
                     </div>
                 </div>
@@ -277,25 +277,25 @@
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 <div style="display: flex; justify-content: space-between;">
                     <span style="color: var(--text-muted);">Subtotal:</span>
-                    <span style="font-family: monospace; font-weight: 600;">${{ quote.subtotal_amount|floatformat:2 }}</span>
+                    <span style="font-family: monospace; font-weight: 600;">₹{{ quote.subtotal_amount|floatformat:2 }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span style="color: var(--text-muted);">Line Item Discounts:</span>
                     <span style="font-family: monospace; font-weight: 600; {% if quote.discount_amount > 0 %}color: #ef4444;{% endif %}">
-                        {% if quote.discount_amount > 0 %}-${{ quote.discount_amount|floatformat:2 }}{% else %}$0.00{% endif %}
+                        {% if quote.discount_amount > 0 %}-₹{{ quote.discount_amount|floatformat:2 }}{% else %}₹0.00{% endif %}
                     </span>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span style="color: var(--text-muted);">Taxes:</span>
-                    <span style="font-family: monospace; font-weight: 600;">${{ quote.tax_amount|floatformat:2 }}</span>
+                    <span style="font-family: monospace; font-weight: 600;">₹{{ quote.tax_amount|floatformat:2 }}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span style="color: var(--text-muted);">Shipping:</span>
-                    <span style="font-family: monospace; font-weight: 600;">${{ quote.shipping_amount|floatformat:2 }}</span>
+                    <span style="font-family: monospace; font-weight: 600;">₹{{ quote.shipping_amount|floatformat:2 }}</span>
                 </div>
                 <div style="border-top: 2px solid var(--border-color); padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 1.1rem; font-weight: 700;">Grand Total:</span>
-                    <span style="font-size: 1.35rem; font-weight: 700; color: var(--primary); font-family: monospace;">${{ quote.grand_total|floatformat:2 }}</span>
+                    <span style="font-size: 1.35rem; font-weight: 700; color: var(--primary); font-family: monospace;">₹{{ quote.grand_total|floatformat:2 }}</span>
                 </div>
             </div>
         </div>

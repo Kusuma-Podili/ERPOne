@@ -4,10 +4,12 @@ Defines the 11 enterprise roles, hierarchy levels, and default permission mappin
 """
 
 class SystemRole:
+    ADMIN = "ADMIN"
     SUPER_ADMIN = "SUPER_ADMIN"
     ORG_ADMIN = "ORG_ADMIN"
     MANAGER = "MANAGER"
     EMPLOYEE = "EMPLOYEE"
+    CUSTOMER = "CUSTOMER"
     SALES_USER = "SALES_USER"
     FINANCE_USER = "FINANCE_USER"
     HR_USER = "HR_USER"
@@ -17,10 +19,12 @@ class SystemRole:
     ANALYST = "ANALYST"
 
     CHOICES = [
+        (ADMIN, "Administrator"),
         (SUPER_ADMIN, "Super Administrator"),
         (ORG_ADMIN, "Organization Administrator"),
         (MANAGER, "Manager"),
         (EMPLOYEE, "Employee"),
+        (CUSTOMER, "Customer"),
         (SALES_USER, "Sales User"),
         (FINANCE_USER, "Finance User"),
         (HR_USER, "HR User"),
@@ -32,6 +36,12 @@ class SystemRole:
 
 # Priority level determines administrative hierarchy (higher integer = higher authority)
 ROLE_METADATA = {
+    SystemRole.ADMIN: {
+        "name": "Administrator",
+        "description": "Full platform and organizational administrative authority.",
+        "priority": 95,
+        "is_system_role": True,
+    },
     SystemRole.SUPER_ADMIN: {
         "name": "Super Administrator",
         "description": "Full platform-level administrative privileges across all organizations and modules.",
@@ -54,6 +64,12 @@ ROLE_METADATA = {
         "name": "Employee",
         "description": "Standard enterprise employee with self-service portal, profile, and task access.",
         "priority": 10,
+        "is_system_role": True,
+    },
+    SystemRole.CUSTOMER: {
+        "name": "Customer",
+        "description": "External client with self-service access to own orders, invoices, tickets, and documents.",
+        "priority": 5,
         "is_system_role": True,
     },
     SystemRole.SALES_USER: {

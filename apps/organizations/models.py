@@ -19,7 +19,7 @@ class Organization(models.Model):
     code = models.CharField(_("Organization Code"), max_length=50, unique=True, db_index=True)
     registration_number = models.CharField(_("Business Registration Number"), max_length=100, blank=True)
     tax_id = models.CharField(_("Tax Identification Number"), max_length=100, blank=True)
-    currency = models.CharField(_("Base Currency"), max_length=10, default="USD")
+    currency = models.CharField(_("Base Currency"), max_length=10, default="INR")
     fiscal_year_start_month = models.PositiveSmallIntegerField(_("Fiscal Year Start Month"), default=1)
     website = models.URLField(_("Corporate Website"), blank=True)
     logo = models.ImageField(_("Company Logo"), upload_to="org_logos/%Y/", blank=True, null=True)

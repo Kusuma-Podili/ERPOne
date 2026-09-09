@@ -111,7 +111,7 @@
                             {{ entry.batch_number|default:entry.serial_number|default:"&mdash;" }}
                         </td>
                         <td class="text-end fw-bold">{{ entry.quantity }}</td>
-                        <td class="text-end">${{ entry.total_value|floatformat:2 }}</td>
+                        <td class="text-end">₹{{ entry.total_value|floatformat:2 }}</td>
                         <td class="small">{{ entry.movement.posted_by.get_full_name|default:entry.movement.posted_by.email }}</td>
                     </tr>
                     {% empty %}

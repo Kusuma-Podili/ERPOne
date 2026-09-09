@@ -67,6 +67,7 @@ MIDDLEWARE = [
     "enterpriseone.middleware.session.SessionSecurityMiddleware",
     "enterpriseone.middleware.organization.OrganizationContextMiddleware",
     "enterpriseone.middleware.audit.AuditContextMiddleware",
+    "enterpriseone.middleware.role_security.RoleSecurityMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 

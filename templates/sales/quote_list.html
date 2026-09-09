@@ -82,13 +82,13 @@
                         {% endif %}
                     </td>
                     <td style="text-align: right; font-family: monospace; color: var(--text-muted);">
-                        ${{ quote.subtotal_amount|floatformat:2 }}
+                        ₹{{ quote.subtotal_amount|floatformat:2 }}
                     </td>
                     <td style="text-align: right; font-family: monospace; {% if quote.discount_amount > 0 %}color: #ef4444;{% else %}color: var(--text-muted);{% endif %}">
-                        {% if quote.discount_amount > 0 %}-${{ quote.discount_amount|floatformat:2 }}{% else %}$0.00{% endif %}
+                        {% if quote.discount_amount > 0 %}-₹{{ quote.discount_amount|floatformat:2 }}{% else %}₹0.00{% endif %}
                     </td>
                     <td style="text-align: right; font-weight: 700; color: var(--primary); font-family: monospace; font-size: 1.05rem;">
-                        ${{ quote.grand_total|floatformat:2 }}
+                        ₹{{ quote.grand_total|floatformat:2 }}
                     </td>
                     <td>
                         {% if quote.status == 'draft' %}

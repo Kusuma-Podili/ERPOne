@@ -36,7 +36,7 @@
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
                 <span class="text-muted text-uppercase fw-semibold small">Total Stock Valuation</span>
-                <h2 class="display-6 fw-bold mt-2 mb-1 text-primary">${{ kpis.total_valuation|floatformat:2 }}</h2>
+                <h2 class="display-6 fw-bold mt-2 mb-1 text-primary">₹{{ kpis.total_valuation|floatformat:2 }}</h2>
                 <div class="text-muted small">{{ kpis.total_distinct_products }} Distinct SKUs across {{ kpis.total_warehouses }} facilities</div>
             </div>
         </div>

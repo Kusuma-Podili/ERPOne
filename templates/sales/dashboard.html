@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "layouts/app.html" %}
 {% load static %}
 
 {% block title %}Sales Operations Dashboard ? EnterpriseOne{% endblock %}
@@ -37,9 +37,9 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                         </div>
                     </div>
-                    <h2 class="fw-bold mb-1">${{ total_sales_revenue|floatformat:2 }}</h2>
+                    <h2 class="fw-bold mb-1">₹{{ total_sales_revenue|floatformat:2 }}</h2>
                     <div class="small text-muted">
-                        <span>${{ fulfilled_revenue|floatformat:2 }}</span> fulfilled / invoiced
+                        <span>₹{{ fulfilled_revenue|floatformat:2 }}</span> fulfilled / invoiced
                     </div>
                 </div>
             </div>
@@ -71,9 +71,9 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         </div>
                     </div>
-                    <h2 class="fw-bold mb-1">${{ quote_pipeline_value|floatformat:2 }}</h2>
+                    <h2 class="fw-bold mb-1">₹{{ quote_pipeline_value|floatformat:2 }}</h2>
                     <div class="small text-muted">
-                        <span>${{ accepted_quote_value|floatformat:2 }}</span> accepted or converted
+                        <span>₹{{ accepted_quote_value|floatformat:2 }}</span> accepted or converted
                     </div>
                 </div>
             </div>
@@ -135,7 +135,7 @@
                                     <td><a href="{% url 'sales:quote_detail' q.pk %}" class="fw-semibold text-decoration-none">{{ q.quote_number }}</a></td>
                                     <td>{{ q.account.name|truncatechars:20 }}</td>
                                     <td><span class="badge bg-secondary-subtle text-secondary small">{{ q.get_status_display }}</span></td>
-                                    <td class="text-end fw-semibold">${{ q.grand_total }}</td>
+                                    <td class="text-end fw-semibold">₹{{ q.grand_total }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
@@ -185,7 +185,7 @@
                                     <td><a href="{% url 'sales:order_detail' o.pk %}" class="fw-semibold text-decoration-none">{{ o.order_number }}</a></td>
                                     <td>{{ o.account.name|truncatechars:20 }}</td>
                                     <td><span class="badge bg-primary-subtle text-primary small">{{ o.get_status_display }}</span></td>
-                                    <td class="text-end fw-semibold">${{ o.grand_total }}</td>
+                                    <td class="text-end fw-semibold">₹{{ o.grand_total }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>

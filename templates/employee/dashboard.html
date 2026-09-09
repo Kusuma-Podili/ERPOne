@@ -1,0 +1,226 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Employee Workspace &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-primary); font-weight: 500;">Employee Workspace</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: 1.5rem;">
+    <div>
+        <h1 class="page-title">Operational Workspace</h1>
+        <p class="page-subtitle">
+            Welcome, {{ request.user.get_full_name }} &bull; 
+            <strong>{{ employee_record.department.name|default:request.user.job_title|default:"Enterprise Staff" }}</strong>
+            {% if employee_record.employee_number %}({{ employee_record.employee_number }}){% endif %}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'accounts:profile' %}" class="btn btn-secondary">
+            My Profile
+        </a>
+        <a href="{% url 'projects:dashboard' %}" class="btn btn-primary">
+            Projects Workspace
+        </a>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="grid-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem;">
+        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">My Active Tasks</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #4f46e5; margin-top: 0.25rem;">
+            {{ total_assigned_tasks }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Assigned project work</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem;">
+        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Assigned Support Tickets</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #0284c7; margin-top: 0.25rem;">
+            {{ total_assigned_tickets }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Pending resolution</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem;">
+        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Leave Balance</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #0d9488; margin-top: 0.25rem;">
+            {{ leave_balance.available|default:"18.0" }} <span style="font-size: 1rem; font-weight: 400;">days</span>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Annual leave remaining</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem;">
+        <div style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">Notifications</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: #f59e0b; margin-top: 0.25rem;">
+            {{ unread_notifications_count }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Unread alerts &amp; updates</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+    <!-- My Assigned Tasks -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="font-size: 1rem; margin: 0;">My Assigned Tasks</h3>
+            <a href="{% url 'projects:dashboard' %}" style="font-size: 0.8rem; color: var(--brand-primary, #2563eb);">Projects &rarr;</a>
+        </div>
+        <div class="table-responsive">
+            <table class="enterprise-table">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Task Title</th>
+                        <th>Project</th>
+                        <th>Priority</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in my_tasks %}
+                    <tr>
+                        <td><strong>{{ t.task_key }}</strong></td>
+                        <td>{{ t.title }}</td>
+                        <td>{{ t.project.name }}</td>
+                        <td>
+                            <span class="badge badge-{% if t.priority == 'CRITICAL' or t.priority == 'HIGH' %}danger{% elif t.priority == 'MEDIUM' %}warning{% else %}secondary{% endif %}">
+                                {{ t.priority }}
+                            </span>
+                        </td>
+                        <td>{{ t.due_date|default:"—" }}</td>
+                        <td>
+                            <span class="badge badge-info">{{ t.status }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                            No pending tasks assigned to you.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Operations Navigation -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title" style="font-size: 1rem; margin: 0;">Operational Modules</h3>
+        </div>
+        <div class="card-body" style="padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+            <a href="{% url 'crm:dashboard' %}" class="btn btn-secondary" style="text-align: left; display: flex; align-items: center; justify-content: space-between;">
+                <span>CRM &amp; Pipeline</span>
+                <span>&rarr;</span>
+            </a>
+            <a href="{% url 'sales:dashboard' %}" class="btn btn-secondary" style="text-align: left; display: flex; align-items: center; justify-content: space-between;">
+                <span>Sales Orders &amp; Quotes</span>
+                <span>&rarr;</span>
+            </a>
+            <a href="{% url 'inventory:dashboard' %}" class="btn btn-secondary" style="text-align: left; display: flex; align-items: center; justify-content: space-between;">
+                <span>Inventory &amp; Warehousing</span>
+                <span>&rarr;</span>
+            </a>
+            <a href="{% url 'procurement:dashboard' %}" class="btn btn-secondary" style="text-align: left; display: flex; align-items: center; justify-content: space-between;">
+                <span>Purchase Orders &amp; RFQs</span>
+                <span>&rarr;</span>
+            </a>
+            <a href="{% url 'hr:employee_list' %}" class="btn btn-secondary" style="text-align: left; display: flex; align-items: center; justify-content: space-between;">
+                <span>HR &amp; Directory</span>
+                <span>&rarr;</span>
+            </a>
+            <a href="{% url 'support:dashboard' %}" class="btn btn-secondary" style="text-align: left; display: flex; align-items: center; justify-content: space-between;">
+                <span>Support Desk</span>
+                <span>&rarr;</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <!-- My Assigned Support Tickets -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="font-size: 1rem; margin: 0;">Assigned Support Tickets</h3>
+            <a href="{% url 'support:dashboard' %}" style="font-size: 0.8rem; color: var(--brand-primary, #2563eb);">Support Desk &rarr;</a>
+        </div>
+        <div class="table-responsive">
+            <table class="enterprise-table">
+                <thead>
+                    <tr>
+                        <th>Number</th>
+                        <th>Subject</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in my_tickets %}
+                    <tr>
+                        <td><strong>{{ t.number }}</strong></td>
+                        <td>{{ t.subject|truncatechars:35 }}</td>
+                        <td>
+                            <span class="badge badge-{% if t.priority == 'CRITICAL' or t.priority == 'HIGH' %}danger{% elif t.priority == 'URGENT' %}warning{% else %}secondary{% endif %}">
+                                {{ t.priority }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-info">{{ t.status }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                            No support tickets assigned.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Sales Orders -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="font-size: 1rem; margin: 0;">Recent Commercial Orders</h3>
+            <a href="{% url 'sales:order_list' %}" style="font-size: 0.8rem; color: var(--brand-primary, #2563eb);">All Orders &rarr;</a>
+        </div>
+        <div class="table-responsive">
+            <table class="enterprise-table">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Client</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in recent_orders %}
+                    <tr>
+                        <td><strong>{{ o.order_number }}</strong></td>
+                        <td>{{ o.account.name|default:"Corporate Client" }}</td>
+                        <td><strong>₹{{ o.total_amount|default:"0.00" }}</strong></td>
+                        <td>
+                            <span class="badge badge-success">{{ o.status }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                            No recent sales orders.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}\n

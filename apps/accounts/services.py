@@ -163,6 +163,7 @@ class AuthenticationService:
                 user_agent=user_agent,
                 failure_reason=f"Account locked. {remaining_mins} minutes remaining.",
             )
+            cls._record_security_audit(user, success=False, event="ACCOUNT_LOCKED", request=request)
             return None, f"This account is temporarily locked due to security policy. Try again in {remaining_mins} minutes."
 
         # Check if account is active
@@ -175,6 +176,7 @@ class AuthenticationService:
                 user_agent=user_agent,
                 failure_reason="Account suspended or deactivated",
             )
+            cls._record_security_audit(user, success=False, event="ACCOUNT_INACTIVE", request=request)
             return None, "Your account is not active. Please contact your system administrator."
 
         # Verify password
@@ -182,6 +184,7 @@ class AuthenticationService:
             is_now_locked = LockoutService.record_failure_and_check_lockout(
                 user=user, ip_address=ip_address, user_agent=user_agent
             )
+            cls._record_security_audit(user, success=False, event="LOGIN_FAILURE", request=request)
             if is_now_locked:
                 lockout_duration = getattr(settings, "AUTH_LOCKOUT_DURATION_MINUTES", 15)
                 return None, f"Maximum failed login attempts exceeded. Account is locked for {lockout_duration} minutes."
@@ -191,6 +194,7 @@ class AuthenticationService:
         # Successful authentication
         user.record_login_success(ip_address=ip_address, user_agent=user_agent)
         login(request, user, backend="apps.accounts.backends.EmailAuthBackend")
+        cls._record_security_audit(user, success=True, event="LOGIN_SUCCESS", request=request)
 
         # Remember me configuration
         if remember_me:
@@ -201,6 +205,38 @@ class AuthenticationService:
         return user, None
 
     @classmethod
+    def _record_security_audit(cls, user: Optional[User], success: bool, event: str, request: Optional[HttpRequest] = None):
+        """Helper to invoke Phase 14 Security & Auditing and Phase 16 Monitoring."""
+        try:
+            from apps.security.services import AuditService, SecurityEventService
+            if user:
+                AuditService.login(user, success, request=request, reason=event)
+                SecurityEventService.emit(
+                    event_type="LOGIN_SUCCESS" if success else "LOGIN_FAILURE",
+                    user=user,
+                    severity="INFO" if success else "LOW",
+                    outcome="SUCCESS" if success else "FAILURE",
+                    action="login",
+                    request=request,
+                    metadata={"event": event},
+                )
+        except Exception:
+            pass
+
+        try:
+            from apps.monitoring.models import MetricDefinition, MetricSample
+            metric_code = "auth.login.success" if success else "auth.login.failure"
+            metric = MetricDefinition.objects.filter(code=metric_code).first()
+            if metric:
+                MetricSample.objects.create(
+                    metric=metric,
+                    value=1.0,
+                    labels={"status": "success" if success else "failure"},
+                )
+        except Exception:
+            pass
+
+    @classmethod
     def register_user(
         cls,
         email: str,
@@ -209,12 +245,16 @@ class AuthenticationService:
         last_name: str = "",
         phone: str = "",
         job_title: str = "",
-        role_code: str = SystemRole.EMPLOYEE,
+        role: str = "CUSTOMER",
+        role_code: Optional[str] = None,
         request: Optional[HttpRequest] = None,
     ) -> User:
         """
         Creates a new user, assigns initial role, creates profile, and triggers activation.
         """
+        if role not in ["ADMIN", "EMPLOYEE", "CUSTOMER"]:
+            role = "CUSTOMER"
+
         user = User.objects.create_user(
             email=email,
             password=password,
@@ -222,14 +262,20 @@ class AuthenticationService:
             last_name=last_name,
             phone=phone,
             job_title=job_title,
+            role=role,
             account_status=AccountStatus.ACTIVE,
             is_active=True,
             is_verified=False,
         )
 
-        role = Role.objects.filter(code=role_code).first()
-        if role:
-            UserRole.objects.get_or_create(user=user, role=role)
+        effective_role_code = role_code or (
+            SystemRole.CUSTOMER if role == "CUSTOMER" else (
+                SystemRole.ADMIN if role == "ADMIN" else SystemRole.EMPLOYEE
+            )
+        )
+        role_obj = Role.objects.filter(code=effective_role_code).first()
+        if role_obj:
+            UserRole.objects.get_or_create(user=user, role=role_obj)
 
         # Send activation email
         cls.send_activation_email(user, request)

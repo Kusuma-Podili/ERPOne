@@ -1,1 +1,9 @@
-{% extends 'base.html' %}{% block layout_content %}<main class="enterprise-page"><header><h1>Payroll</h1><nav><a href="/payroll/">Dashboard</a> | <a href="/payroll/components/">Components</a> | <a href="/payroll/structures/">Structures</a> | <a href="/payroll/periods/">Periods</a> | <a href="/payroll/payslips/">Payslips</a> | <a href="/hr/">HR</a></nav></header>{% for m in messages %}<div class="message">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main>{% endblock %}
+{% extends "layouts/app.html" %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Dashboard</a>
+<span>/</span>
+<a href="/payroll/">Payroll</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{% block section_title %}Payroll Engine{% endblock %}</span>
+{% endblock %}\n

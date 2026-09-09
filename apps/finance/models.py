@@ -173,7 +173,7 @@ class GLAccount(models.Model):
         related_name="children",
         help_text="Parent account for hierarchical reporting trees"
     )
-    currency = models.CharField(max_length=3, default="USD")
+    currency = models.CharField(max_length=3, default="INR")
     is_reconciliation = models.BooleanField(
         default=False,
         help_text="If True, acts as an AR/AP control reconciliation account"
