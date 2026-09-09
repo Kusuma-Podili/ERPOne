@@ -11,6 +11,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("apps.accounts.urls", namespace="accounts")),
+    path("organizations/", include("apps.organizations.urls", namespace="organizations")),
     path("api/", include("enterpriseone.urls.api")),
     path("", RedirectView.as_view(pattern_name="accounts:dashboard", permanent=False), name="home"),
 ]
