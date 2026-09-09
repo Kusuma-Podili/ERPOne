@@ -1,0 +1,112 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Enterprise Users Directory &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Dashboard</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Enterprise Users</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Enterprise Users & Directory</h1>
+        <p class="page-subtitle">Manage organization users, role assignments, and security unlock actions.</p>
+    </div>
+    <div>
+        <a href="{% url 'accounts:register' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add New User
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <form method="get" style="display: flex; gap: 0.75rem; width: 100%; max-width: 400px;">
+            <input type="text" name="q" value="{{ request.GET.q|default:'' }}" class="enterprise-input" placeholder="Search by name or email..." style="padding: 0.4rem 0.75rem;">
+            <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+            {% if request.GET.q %}
+            <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary btn-sm">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Assigned Roles</th>
+                    <th>Status</th>
+                    <th>Security / Lockout</th>
+                    <th>Joined Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div class="user-avatar" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                                {{ u.first_name|default:u.email|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <strong>{{ u.get_full_name }}</strong>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ u.job_title|default:"Staff" }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ u.email }}</td>
+                    <td>
+                        {% for ur in u.user_roles.all %}
+                        <span class="badge badge-primary" style="margin-right: 4px;">{{ ur.role.name }}</span>
+                        {% empty %}
+                        <span class="badge badge-secondary">Employee</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.is_locked %}
+                        <span class="badge badge-danger">LOCKED ({{ u.locked_until|timeuntil }} left)</span>
+                        {% elif u.failed_login_attempts > 0 %}
+                        <span class="badge badge-warning">{{ u.failed_login_attempts }} Failed</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Clean</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.created_at|date:"Y-m-d" }}</td>
+                    <td>
+                        {% if u.is_locked %}
+                        <form method="post" action="{% url 'accounts:unlock_user' u.id %}" style="display: inline;" onsubmit="return confirm('Unlock user {{ u.email }}?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                Unlock
+                            </button>
+                        </form>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.8rem;">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No enterprise users found matching query.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Security & Audit Log &bull; {{ PLATFORM_NAME }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Dashboard</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Security & Audit</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Security & Session Audit Log</h1>
+        <p class="page-subtitle">Track your account authentication history, active sessions, and access incidents.</p>
+    </div>
+</div>
+
+<!-- Security Status Row -->
+<div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Failed Attempts</div>
+            <div class="stat-value">{{ request.user.failed_login_attempts }} / 5</div>
+            <div class="stat-subtext" style="color: {% if request.user.failed_login_attempts > 0 %}var(--color-warning){% else %}var(--color-success){% endif %};">
+                Lockout threshold at 5
+            </div>
+        </div>
+        <div class="stat-icon {% if request.user.failed_login_attempts > 0 %}warning{% else %}success{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Account Security State</div>
+            <div class="stat-value" style="font-size: 1.4rem;">
+                {% if request.user.is_locked %}
+                <span style="color: var(--color-danger);">LOCKED</span>
+                {% else %}
+                <span style="color: var(--color-success);">NORMAL</span>
+                {% endif %}
+            </div>
+            <div class="stat-subtext">
+                Status: {{ request.user.account_status }}
+            </div>
+        </div>
+        <div class="stat-icon info">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-label">Last Password Change</div>
+            <div class="stat-value" style="font-size: 1.25rem;">
+                {{ request.user.last_password_change|date:"M d, Y" }}
+            </div>
+            <div class="stat-subtext">
+                Enterprise rotation recommended every 90 days
+            </div>
+        </div>
+        <div class="stat-icon primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+    </div>
+</div>
+
+<!-- Lockout Incidents (If any) -->
+{% if lockout_audits %}
+<div class="card">
+    <div class="card-header" style="background-color: var(--color-danger-bg);">
+        <h3 class="card-title" style="color: var(--color-danger);">Historical Lockout Incidents</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Locked At</th>
+                    <th>Duration</th>
+                    <th>Reason</th>
+                    <th>Triggering IP</th>
+                    <th>Unlocked Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for audit in lockout_audits %}
+                <tr>
+                    <td>{{ audit.locked_at|date:"Y-m-d H:i:s" }}</td>
+                    <td>{{ audit.duration_minutes }} minutes</td>
+                    <td>{{ audit.reason }}</td>
+                    <td><code>{{ audit.ip_address|default:"N/A" }}</code></td>
+                    <td>
+                        {% if audit.unlocked_at %}
+                        <span class="badge badge-success">Unlocked at {{ audit.unlocked_at|date:"Y-m-d H:i" }}</span>
+                        {% else %}
+                        <span class="badge badge-danger">Active Lock</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Login History Table -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Authentication Activity Log</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Email Attempted</th>
+                    <th>Result / Status</th>
+                    <th>IP Address</th>
+                    <th>Failure Reason</th>
+                    <th>User Agent</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in history_entries %}
+                <tr>
+                    <td>{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td><strong>{{ log.email_attempted }}</strong></td>
+                    <td>
+                        {% if log.status == 'SUCCESS' %}
+                        <span class="badge badge-success">Success</span>
+                        {% elif log.status == 'LOGOUT' %}
+                        <span class="badge badge-secondary">Logout</span>
+                        {% elif log.status == 'FAILED_ACCOUNT_LOCKED' %}
+                        <span class="badge badge-danger">Account Locked</span>
+                        {% else %}
+                        <span class="badge badge-danger">{{ log.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ log.ip_address|default:"127.0.0.1" }}</code></td>
+                    <td style="color: var(--text-secondary);">{{ log.failure_reason|default:"—" }}</td>
+                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 0.8rem;">
+                        {{ log.user_agent|truncatechars:45 }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No audit records found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

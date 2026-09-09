@@ -1,0 +1,7 @@
+<nav class="breadcrumbs-bar" aria-label="Breadcrumbs">
+    <a href="{% url 'accounts:dashboard' %}">Home</a>
+    <span>/</span>
+    {% block breadcrumbs %}
+    <span style="color: var(--text-primary); font-weight: 500;">Dashboard</span>
+    {% endblock %}
+</nav>
