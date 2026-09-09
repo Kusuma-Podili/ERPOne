@@ -1,0 +1,75 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Organization Settings &bull; {{ organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'organizations:dashboard' %}">{{ organization.name }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Organization Settings</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Organization Policies & Configuration</h1>
+        <p class="page-subtitle">Configure security, multi-factor authentication policies, and tenant access rules.</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 650px;">
+    <div class="card-body">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div style="margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    {{ form.allow_user_registration }}
+                    <div>
+                        <label class="form-label" for="{{ form.allow_user_registration.id_for_label }}" style="margin-bottom: 0; cursor: pointer; font-weight: 600;">
+                            Allow Self-Registration
+                        </label>
+                        <div class="form-text">When enabled, users with authorized email domains can register self-service accounts.</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    {{ form.enforce_mfa }}
+                    <div>
+                        <label class="form-label" for="{{ form.enforce_mfa.id_for_label }}" style="margin-bottom: 0; cursor: pointer; font-weight: 600;">
+                            Enforce Multi-Factor Authentication (MFA)
+                        </label>
+                        <div class="form-text">Require all members of this organization to authenticate with MFA.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.session_timeout_minutes.id_for_label }}">{{ form.session_timeout_minutes.label }}</label>
+                    {{ form.session_timeout_minutes }}
+                    <div class="form-text">Idle timeout in minutes before auto-logout.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.password_expiration_days.id_for_label }}">{{ form.password_expiration_days.label }}</label>
+                    {{ form.password_expiration_days }}
+                    <div class="form-text">Days before password rotation is mandated.</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">Save Configuration</button>
+                <a href="{% url 'organizations:dashboard' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

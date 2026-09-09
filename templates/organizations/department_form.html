@@ -1,0 +1,85 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Add Department &bull; {{ organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'organizations:dashboard' %}">{{ organization.name }}</a>
+<span>/</span>
+<a href="{% url 'organizations:departments' %}">Departments</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Add Department</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Create Department</h1>
+        <p class="page-subtitle">Configure a functional department and designate organizational hierarchy.</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 650px;">
+    <div class="card-body">
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                    <div class="form-error">{{ form.name.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+                    {{ form.code }}
+                    {% if form.code.errors %}
+                    <div class="form-error">{{ form.code.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.branch.id_for_label }}">{{ form.branch.label }}</label>
+                    {{ form.branch }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.parent_department.id_for_label }}">{{ form.parent_department.label }}</label>
+                    {{ form.parent_department }}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.head_of_department.id_for_label }}">{{ form.head_of_department.label }}</label>
+                    {{ form.head_of_department }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="{{ form.budget_code.id_for_label }}">{{ form.budget_code.label }}</label>
+                    {{ form.budget_code }}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+                {{ form.description }}
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">Save Department</button>
+                <a href="{% url 'organizations:departments' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

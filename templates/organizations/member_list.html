@@ -1,0 +1,115 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Members Roster &bull; {{ organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'organizations:dashboard' %}">{{ organization.name }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Member Directory</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Organization Employee Directory</h1>
+        <p class="page-subtitle">View staff assignments, department alignments, and reporting managers.</p>
+    </div>
+    {% if is_org_admin or is_super_admin %}
+    <div>
+        <a href="{% url 'organizations:invitation_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Invite New Member
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <form method="get" style="display: flex; gap: 0.75rem; width: 100%; max-width: 400px;">
+            <input type="text" name="q" value="{{ request.GET.q|default:'' }}" class="enterprise-input" placeholder="Search by name, email, or employee ID..." style="padding: 0.4rem 0.75rem;">
+            <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+            {% if request.GET.q %}
+            <a href="{% url 'organizations:members' %}" class="btn btn-secondary btn-sm">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Employee ID</th>
+                    <th>Corporate Job Title</th>
+                    <th>Department</th>
+                    <th>Branch</th>
+                    <th>Reports To</th>
+                    <th>Org Admin</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in members %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div class="user-avatar" style="width: 30px; height: 30px; font-size: 0.75rem;">
+                                {{ m.user.first_name|default:m.user.email|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <strong>{{ m.user.get_full_name }}</strong>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ m.user.email }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><code>{{ m.employee_id|default:"—" }}</code></td>
+                    <td>{{ m.job_title|default:"Staff" }}</td>
+                    <td>
+                        {% if m.department %}
+                        {{ m.department.name }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if m.branch %}
+                        {{ m.branch.name }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if m.reports_to %}
+                        {{ m.reports_to.get_full_name }}
+                        {% else %}
+                        <span class="badge badge-secondary">Senior Leadership</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if m.is_org_admin %}
+                        <span class="badge badge-primary">Admin</span>
+                        {% else %}
+                        <span style="color: var(--text-muted);">Member</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if is_org_admin or is_super_admin %}
+                        <a href="{% url 'organizations:member_edit' m.id %}" class="btn btn-secondary btn-sm">Edit</a>
+                        {% else %}
+                        <span style="color: var(--text-muted);">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No members found matching query.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

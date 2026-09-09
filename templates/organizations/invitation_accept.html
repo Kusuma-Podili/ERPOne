@@ -1,0 +1,44 @@
+{% extends "layouts/auth.html" %}
+
+{% block title %}Accept Invitation &bull; {{ invitation.organization.name }}{% endblock %}
+
+{% block auth_content %}
+<div class="auth-form-header">
+    <h2 class="auth-form-title">Organization Invitation</h2>
+    <p class="auth-form-subtitle">You have been invited to join <strong>{{ invitation.organization.name }}</strong>.</p>
+</div>
+
+<div class="card" style="margin-bottom: 1.5rem; background-color: var(--bg-surface-secondary);">
+    <div class="card-body" style="font-size: 0.9rem;">
+        <div style="margin-bottom: 0.5rem;">
+            <span style="color: var(--text-muted);">Organization:</span>
+            <strong>{{ invitation.organization.name }} ({{ invitation.organization.code }})</strong>
+        </div>
+        <div style="margin-bottom: 0.5rem;">
+            <span style="color: var(--text-muted);">Assigned Role:</span>
+            <strong>{{ invitation.role.name|default:"Employee" }}</strong>
+        </div>
+        {% if invitation.job_title %}
+        <div style="margin-bottom: 0.5rem;">
+            <span style="color: var(--text-muted);">Job Title:</span>
+            <strong>{{ invitation.job_title }}</strong>
+        </div>
+        {% endif %}
+        <div>
+            <span style="color: var(--text-muted);">Invited Email:</span>
+            <code>{{ invitation.email }}</code>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 0.95rem;">
+        Accept Invitation & Join Workspace
+    </button>
+</form>
+
+<div class="auth-form-footer">
+    Signed in as a different user? <a href="{% url 'accounts:logout' %}">Sign out</a>
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Invitations &bull; {{ organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'organizations:dashboard' %}">{{ organization.name }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Invitations</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Employee Invitations</h1>
+        <p class="page-subtitle">Track outbound invitations, expiration windows, and onboarding status.</p>
+    </div>
+    <div>
+        <a href="{% url 'organizations:invitation_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Send New Invitation
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Invitation History</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Invited Email</th>
+                    <th>Designated Role</th>
+                    <th>Department</th>
+                    <th>Branch</th>
+                    <th>Status</th>
+                    <th>Sent By</th>
+                    <th>Expires</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invitations %}
+                <tr>
+                    <td><strong>{{ inv.email }}</strong></td>
+                    <td>
+                        {% if inv.role %}
+                        <span class="badge badge-primary">{{ inv.role.name }}</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Employee</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ inv.department.name|default:"Unassigned" }}</td>
+                    <td>{{ inv.branch.name|default:"Corporate Wide" }}</td>
+                    <td>
+                        {% if inv.status == 'ACCEPTED' %}
+                        <span class="badge badge-success">Accepted</span>
+                        {% elif inv.is_expired or inv.status == 'EXPIRED' %}
+                        <span class="badge badge-danger">Expired</span>
+                        {% else %}
+                        <span class="badge badge-warning">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ inv.invited_by.get_full_name|default:"System" }}</td>
+                    <td>{{ inv.expires_at|date:"M d, Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No invitations have been dispatched yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

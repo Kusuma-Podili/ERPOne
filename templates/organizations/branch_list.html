@@ -1,0 +1,129 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Branches & Locations &bull; {{ organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'organizations:dashboard' %}">{{ organization.name }}</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">Branches & Locations</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Branches & Operational Facilities</h1>
+        <p class="page-subtitle">Manage regional branches, campuses, and physical office sites.</p>
+    </div>
+    {% if is_org_admin or is_super_admin %}
+    <div>
+        <a href="{% url 'organizations:branch_create' %}" class="btn btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Branch
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Branches Table -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Operational Branches</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Branch Name</th>
+                    <th>Code</th>
+                    <th>Physical Location</th>
+                    <th>Manager</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in branches %}
+                <tr>
+                    <td><strong>{{ b.name }}</strong></td>
+                    <td><code>{{ b.code }}</code></td>
+                    <td>
+                        {% if b.location %}
+                        {{ b.location.name }} ({{ b.location.city }}, {{ b.location.country }})
+                        {% if b.location.is_headquarters %}
+                        <span class="badge badge-primary" style="margin-left: 0.5rem;">HQ</span>
+                        {% endif %}
+                        {% else %}
+                        <span style="color: var(--text-muted);">No location assigned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if b.manager %}
+                        {{ b.manager.get_full_name }}
+                        {% else %}
+                        <span style="color: var(--text-muted);">Unassigned</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if b.is_active %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No branches configured for this organization.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Physical Locations Directory -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Physical Facilities & Addresses</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Facility Name</th>
+                    <th>Address</th>
+                    <th>City / State</th>
+                    <th>Country</th>
+                    <th>Timezone</th>
+                    <th>Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for loc in locations %}
+                <tr>
+                    <td><strong>{{ loc.name }}</strong></td>
+                    <td>{{ loc.address_line1 }}</td>
+                    <td>{{ loc.city }}{% if loc.state_province %}, {{ loc.state_province }}{% endif %}</td>
+                    <td>{{ loc.country }}</td>
+                    <td><code>{{ loc.timezone }}</code></td>
+                    <td>
+                        {% if loc.is_headquarters %}
+                        <span class="badge badge-primary">Corporate Headquarters</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Facility</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No physical locations recorded.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
