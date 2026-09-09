@@ -1,0 +1,264 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}{{ po.po_number }} &bull; Purchase Order &bull; EnterpriseOne{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounts:dashboard' %}">Home</a>
+<span>/</span>
+<a href="{% url 'procurement:supplier_list' %}">Procurement</a>
+<span>/</span>
+<a href="{% url 'procurement:po_list' %}">Purchase Orders</a>
+<span>/</span>
+<span style="color: var(--text-primary); font-weight: 500;">{{ po.po_number }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <h1 class="page-title" style="margin-bottom: 0; font-family: monospace;">{{ po.po_number }}</h1>
+            {% if po.status == 'draft' %}
+            <span class="badge" style="background: #64748b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Draft</span>
+            {% elif po.status == 'pending_approval' %}
+            <span class="badge" style="background: #f59e0b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Pending Approval Gate</span>
+            {% elif po.status == 'approved' %}
+            <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Approved</span>
+            {% elif po.status == 'issued' %}
+            <span class="badge" style="background: #0284c7; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Issued to Vendor</span>
+            {% elif po.status == 'partially_received' %}
+            <span class="badge" style="background: #8b5cf6; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Partially Received</span>
+            {% elif po.status == 'completed' %}
+            <span class="badge badge-success" style="background: #059669; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Completed</span>
+            {% else %}
+            <span class="badge badge-danger" style="background: #ef4444; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">{{ po.get_status_display }}</span>
+            {% endif %}
+        </div>
+        <p class="page-subtitle" style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem; margin-bottom: 0;">
+            Vendor: <a href="{% url 'procurement:supplier_detail' pk=po.supplier.pk %}" style="color: var(--color-primary); text-decoration: none;">{{ po.supplier.name }}</a>
+        </p>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+            Order Date: <strong>{{ po.order_date|date:"M d, Y" }}</strong>
+            {% if po.expected_delivery_date %} &bull; Expected Delivery: <strong>{{ po.expected_delivery_date|date:"M d, Y" }}</strong>{% endif %}
+            {% if po.rfq %} &bull; Sourced from <a href="{% url 'procurement:rfq_detail' pk=po.rfq.pk %}">{{ po.rfq.rfq_number }}</a>{% endif %}
+        </div>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        {% if po.can_submit_for_approval %}
+        <form method="post" action="{% url 'procurement:po_submit_approval' pk=po.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Submit for Approval</button>
+        </form>
+        <a href="{% url 'procurement:po_edit' pk=po.pk %}" class="btn btn-secondary">Edit PO</a>
+        {% endif %}
+
+        {% if po.can_approve %}
+        <button type="button" class="btn btn-success" style="background: #10b981; color: white;" onclick="document.getElementById('approveModal').style.display='block'">
+            ✓ Approve Order
+        </button>
+        <button type="button" class="btn btn-danger" style="background: #ef4444; color: white;" onclick="document.getElementById('rejectModal').style.display='block'">
+            ✕ Reject Order
+        </button>
+        {% endif %}
+
+        {% if po.can_issue %}
+        <form method="post" action="{% url 'procurement:po_issue' pk=po.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">✉ Issue to Vendor</button>
+        </form>
+        {% endif %}
+
+        <a href="{% url 'procurement:po_print' pk=po.pk %}" target="_blank" class="btn btn-secondary">
+            🖨 Print PO Voucher
+        </a>
+    </div>
+</div>
+
+<!-- Highlight Metrics -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Total Commercial Value</div>
+        <div style="font-size: 1.7rem; font-weight: 800; color: #10b981; margin-top: 0.25rem;">
+            ${{ po.total_amount }} {{ po.currency }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Inc. ${{ po.tax_amount }} Tax, ${{ po.shipping_cost }} Freight</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Payment Terms</div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem;">
+            {{ po.get_payment_terms_display }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Currency: {{ po.currency }}</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Ordered Line Items</div>
+        <div style="font-size: 1.7rem; font-weight: 700; color: #6366f1; margin-top: 0.25rem;">
+            {{ po.lines.count }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Product SKUs</div>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Approval Status</div>
+        <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-top: 0.25rem;">
+            {% if po.approved_by %}
+            Authorized by {{ po.approved_by.get_full_name }}
+            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ po.approved_at|date:"M d, Y" }}</div>
+            {% elif po.status == 'pending_approval' %}
+            <span style="color: #f59e0b;">Pending Routing</span>
+            {% else %}
+            {{ po.get_status_display }}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Commercial Addresses -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; color: var(--text-muted);">Destination Shipping Address</h3>
+        <p style="font-size: 0.9rem; color: var(--text-primary); margin: 0; white-space: pre-line;">
+            {{ po.shipping_address|default:"Standard Organization Warehouse Logistics Facility." }}
+        </p>
+    </div>
+    <div class="card" style="padding: 1.25rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem;">
+        <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; color: var(--text-muted);">Billing & Invoicing Address</h3>
+        <p style="font-size: 0.9rem; color: var(--text-primary); margin: 0; white-space: pre-line;">
+            {{ po.billing_address|default:"Accounts Payable Division." }}
+        </p>
+    </div>
+</div>
+
+<!-- Lines Table -->
+<div class="card" style="background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; overflow: hidden; margin-bottom: 1.5rem;">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color);">
+        <h3 style="font-size: 1rem; font-weight: 600; margin: 0;">Ordered Line Items & Receiving Balances</h3>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.02); font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);">
+                    <th style="padding: 0.75rem 1rem; width: 50px;">#</th>
+                    <th style="padding: 0.75rem 1rem;">Product Item & SKU</th>
+                    <th style="padding: 0.75rem 1rem;">Ordered Qty</th>
+                    <th style="padding: 0.75rem 1rem;">Received Qty</th>
+                    <th style="padding: 0.75rem 1rem;">Pending Qty</th>
+                    <th style="padding: 0.75rem 1rem;">Unit Price</th>
+                    <th style="padding: 0.75rem 1rem;">Tax Rate</th>
+                    <th style="padding: 0.75rem 1rem; text-align: right;">Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in po.lines.all %}
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.75rem 1rem; font-weight: 600;">{{ line.line_number }}</td>
+                    <td style="padding: 0.75rem 1rem;">
+                        <div style="font-weight: 600;">{{ line.product.name }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">{{ line.product.sku }}</div>
+                    </td>
+                    <td style="padding: 0.75rem 1rem; font-weight: 600;">{{ line.ordered_quantity }} {{ line.uom.code }}</td>
+                    <td style="padding: 0.75rem 1rem; color: #10b981; font-weight: 600;">{{ line.received_quantity }} {{ line.uom.code }}</td>
+                    <td style="padding: 0.75rem 1rem;">
+                        {% if line.pending_quantity > 0 %}
+                        <span style="color: #f59e0b; font-weight: 600;">{{ line.pending_quantity }}</span>
+                        {% else %}
+                        <span class="badge" style="background: #10b981; color: #fff; font-size: 0.7rem;">Fulfilled</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.75rem 1rem;">${{ line.unit_price }}</td>
+                    <td style="padding: 0.75rem 1rem;">{{ line.tax_rate }}%</td>
+                    <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 700;">
+                        ${{ line.line_total }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="border-top: 2px solid var(--border-color);">
+                    <td colspan="7" style="padding: 0.75rem 1rem; text-align: right; font-weight: 600; color: var(--text-muted);">Line Items Subtotal:</td>
+                    <td style="padding: 0.75rem 1rem; text-align: right; font-weight: 600;">${{ po.subtotal }}</td>
+                </tr>
+                <tr>
+                    <td colspan="7" style="padding: 0.5rem 1rem; text-align: right; font-weight: 600; color: var(--text-muted);">Tax Amount:</td>
+                    <td style="padding: 0.5rem 1rem; text-align: right; font-weight: 600;">${{ po.tax_amount }}</td>
+                </tr>
+                <tr>
+                    <td colspan="7" style="padding: 0.5rem 1rem; text-align: right; font-weight: 600; color: var(--text-muted);">Freight & Shipping:</td>
+                    <td style="padding: 0.5rem 1rem; text-align: right; font-weight: 600;">${{ po.shipping_cost }}</td>
+                </tr>
+                <tr style="background: rgba(16,185,129,0.05);">
+                    <td colspan="7" style="padding: 0.85rem 1rem; text-align: right; font-size: 1.1rem; font-weight: 800; color: var(--text-primary);">Grand Total (USD):</td>
+                    <td style="padding: 0.85rem 1rem; text-align: right; font-size: 1.25rem; font-weight: 800; color: #10b981;">${{ po.total_amount }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<!-- Multi-Tier Approval Audit Trail -->
+<div class="card" style="padding: 1.5rem; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 0.5rem; margin-bottom: 2rem;">
+    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Multi-Tier Financial Approval Gates</h3>
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% for app in po.approvals.all %}
+        <div style="border: 1px solid var(--border-color); border-radius: 0.375rem; padding: 0.85rem 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="font-weight: 600; font-size: 0.95rem;">{{ app.get_tier_display }}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Threshold: ${{ app.threshold_amount }}</div>
+                {% if app.comments %}
+                <div style="font-size: 0.85rem; color: var(--text-primary); margin-top: 0.25rem; font-style: italic;">"{{ app.comments }}"</div>
+                {% endif %}
+            </div>
+            <div style="text-align: right;">
+                {% if app.status == 'approved' %}
+                <span class="badge badge-success" style="background: #10b981; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Approved</span>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">By {{ app.approver.get_full_name }} &bull; {{ app.decided_at|date:"M d, Y" }}</div>
+                {% elif app.status == 'rejected' %}
+                <span class="badge badge-danger" style="background: #ef4444; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Rejected</span>
+                {% else %}
+                <span class="badge" style="background: #f59e0b; color: #fff; padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.75rem;">Awaiting Decision</span>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">No approval routing triggered yet. PO is in draft state.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Approval Modal -->
+<div id="approveModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1050; align-items: center; justify-content: center;">
+    <div style="max-width: 500px; margin: 5rem auto; background: var(--surface-card); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-color);">
+        <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem;">Authorize Purchase Order</h3>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+            Grant approval for commercial commitment of <strong>${{ po.total_amount }}</strong> to <strong>{{ po.supplier.name }}</strong>.
+        </p>
+        <form method="post" action="{% url 'procurement:po_approve' pk=po.pk %}">
+            {% csrf_token %}
+            <div style="margin-bottom: 1.25rem;">
+                <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.35rem;">Approval Comments</label>
+                {{ approval_form.comments }}
+            </div>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('approveModal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-success" style="background: #10b981; color: white;">Grant Approval</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Rejection Modal -->
+<div id="rejectModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1050; align-items: center; justify-content: center;">
+    <div style="max-width: 500px; margin: 5rem auto; background: var(--surface-card); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-color);">
+        <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.75rem; color: #ef4444;">Reject Purchase Order</h3>
+        <form method="post" action="{% url 'procurement:po_reject' pk=po.pk %}">
+            {% csrf_token %}
+            <div style="margin-bottom: 1.25rem;">
+                <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.35rem;">Rejection Justification *</label>
+                {{ approval_form.comments }}
+            </div>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('rejectModal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-danger" style="background: #ef4444; color: white;">Confirm Rejection</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

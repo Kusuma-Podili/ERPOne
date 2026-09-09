@@ -468,3 +468,259 @@ class VendorBidLine(models.Model):
     @property
     def line_total(self) -> Decimal:
         return self.offered_unit_price * self.offered_quantity
+
+
+class POStatus(models.TextChoices):
+    DRAFT = "draft", _("Draft")
+    PENDING_APPROVAL = "pending_approval", _("Pending Approval Gate")
+    APPROVED = "approved", _("Approved / Authorized")
+    REJECTED = "rejected", _("Rejected")
+    ISSUED = "issued", _("Issued to Vendor")
+    PARTIALLY_RECEIVED = "partially_received", _("Partially Received")
+    COMPLETED = "completed", _("Completed / Fully Received")
+    CANCELLED = "cancelled", _("Cancelled")
+
+
+class ApprovalTier(models.IntegerChoices):
+    TIER_1_MANAGER = 1, _("Tier 1: Department Manager (Up to $10,000)")
+    TIER_2_DIRECTOR = 2, _("Tier 2: Procurement Director (Up to $50,000)")
+    TIER_3_EXECUTIVE = 3, _("Tier 3: CFO / Executive Board (Over $50,000)")
+
+
+class PurchaseOrder(models.Model):
+    """
+    Legally binding commercial Purchase Order (PO) issued to a vendor.
+    Governs delivery commitments, unit pricing, tax rates, and multi-tier financial approval gates.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="purchase_orders",
+    )
+    po_number = models.CharField(_("PO Number"), max_length=50, db_index=True)
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name="purchase_orders",
+    )
+    rfq = models.ForeignKey(
+        RequestForQuotation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_pos",
+    )
+    status = models.CharField(
+        _("Status"),
+        max_length=30,
+        choices=POStatus.choices,
+        default=POStatus.DRAFT,
+        db_index=True,
+    )
+    order_date = models.DateField(_("Order Date"), default=timezone.now)
+    expected_delivery_date = models.DateField(_("Expected Delivery Date"), null=True, blank=True)
+    payment_terms = models.CharField(
+        _("Payment Terms"),
+        max_length=30,
+        choices=PaymentTerms.choices,
+        default=PaymentTerms.NET30,
+    )
+    currency = models.CharField(_("Currency"), max_length=3, default="USD")
+    subtotal = models.DecimalField(
+        _("Line Items Subtotal"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    tax_amount = models.DecimalField(
+        _("Tax Amount"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    shipping_cost = models.DecimalField(
+        _("Shipping / Freight"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    total_amount = models.DecimalField(
+        _("Total Commercial Value"),
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    shipping_address = models.TextField(_("Destination Warehouse / Delivery Address"), blank=True)
+    billing_address = models.TextField(_("Billing Address"), blank=True)
+    notes = models.TextField(_("Special Instructions & Commercial Terms"), blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_pos",
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_pos",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    issued_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Purchase Order")
+        verbose_name_plural = _("Purchase Orders")
+        ordering = ["-created_at"]
+        unique_together = ("organization", "po_number")
+
+    def __str__(self):
+        return f"{self.po_number} — {self.supplier.name} (${self.total_amount})"
+
+    @classmethod
+    def generate_po_number(cls, organization) -> str:
+        current_year = timezone.now().year
+        prefix = f"PO-{current_year}-"
+        last_po = cls.objects.filter(
+            organization=organization,
+            po_number__startswith=prefix,
+        ).order_by("-po_number").first()
+
+        if last_po:
+            try:
+                seq_str = last_po.po_number.split("-")[-1]
+                next_seq = int(seq_str) + 1
+            except (ValueError, IndexError):
+                next_seq = 1
+        else:
+            next_seq = 1
+
+        return f"{prefix}{next_seq:05d}"
+
+    @property
+    def total_lines_count(self) -> int:
+        return self.lines.count()
+
+    @property
+    def can_submit_for_approval(self) -> bool:
+        return self.status == POStatus.DRAFT and self.lines.exists()
+
+    @property
+    def can_approve(self) -> bool:
+        return self.status == POStatus.PENDING_APPROVAL
+
+    @property
+    def can_issue(self) -> bool:
+        return self.status == POStatus.APPROVED
+
+    @property
+    def can_receive(self) -> bool:
+        return self.status in (POStatus.ISSUED, POStatus.PARTIALLY_RECEIVED)
+
+    def recalculate_totals(self):
+        """
+        Recalculates subtotal, tax_amount, and total_amount across all lines.
+        """
+        sub = Decimal("0.00")
+        tax = Decimal("0.00")
+        for line in self.lines.all():
+            sub += line.line_subtotal
+            tax += line.line_tax
+        self.subtotal = sub
+        self.tax_amount = tax
+        self.total_amount = sub + tax + self.shipping_cost
+        self.save(update_fields=["subtotal", "tax_amount", "total_amount", "updated_at"])
+
+
+class PurchaseOrderLine(models.Model):
+    """
+    Individual product line committed on a purchase order.
+    Tracks ordered, received, and billed quantities for 3-way matching.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    line_number = models.PositiveIntegerField(_("Line No."), default=1)
+    product = models.ForeignKey(
+        "sales.Product",
+        on_delete=models.PROTECT,
+        related_name="po_lines",
+    )
+    ordered_quantity = models.DecimalField(_("Ordered Quantity"), max_digits=12, decimal_places=2)
+    received_quantity = models.DecimalField(_("Received Quantity"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    billed_quantity = models.DecimalField(_("Billed Quantity"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    uom = models.ForeignKey(
+        "sales.UnitOfMeasure",
+        on_delete=models.PROTECT,
+        related_name="po_lines",
+    )
+    unit_price = models.DecimalField(_("Unit Price"), max_digits=14, decimal_places=2)
+    tax_rate = models.DecimalField(_("Tax Rate (%)"), max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    line_subtotal = models.DecimalField(_("Subtotal"), max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    line_tax = models.DecimalField(_("Tax"), max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    line_total = models.DecimalField(_("Line Total"), max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    notes = models.CharField(_("Line Notes"), max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = _("Purchase Order Line")
+        verbose_name_plural = _("Purchase Order Lines")
+        ordering = ["line_number"]
+        unique_together = ("purchase_order", "line_number")
+
+    def __str__(self):
+        return f"{self.purchase_order.po_number} #{self.line_number}: {self.product.name} ({self.ordered_quantity} {self.uom.code})"
+
+    @property
+    def pending_quantity(self) -> Decimal:
+        return max(Decimal("0.00"), self.ordered_quantity - self.received_quantity)
+
+    @property
+    def is_fully_received(self) -> bool:
+        return self.received_quantity >= self.ordered_quantity
+
+    def save(self, *args, **kwargs):
+        self.line_subtotal = self.ordered_quantity * self.unit_price
+        self.line_tax = self.line_subtotal * (self.tax_rate / Decimal("100.00"))
+        self.line_total = self.line_subtotal + self.line_tax
+        super().save(*args, **kwargs)
+
+
+class PurchaseOrderApproval(models.Model):
+    """
+    Audit log of financial approval gates traversed for high-value purchase orders.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="approvals",
+    )
+    tier = models.IntegerField(_("Approval Tier"), choices=ApprovalTier.choices, default=ApprovalTier.TIER_1_MANAGER)
+    threshold_amount = models.DecimalField(_("Threshold Amount"), max_digits=14, decimal_places=2)
+    approver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="po_approval_decisions",
+    )
+    status = models.CharField(_("Approval Status"), max_length=20, default="pending")
+    comments = models.TextField(_("Comments / Justification"), blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("PO Approval Gate")
+        verbose_name_plural = _("PO Approval Gates")
+        ordering = ["tier"]
+
+    def __str__(self):
+        return f"{self.purchase_order.po_number} - Tier {self.tier}: {self.status}"

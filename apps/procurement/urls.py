@@ -32,4 +32,16 @@ urlpatterns = [
     path("rfqs/<uuid:pk>/compare/", views.RFQBidComparisonView.as_view(), name="rfq_comparison"),
     path("rfqs/<uuid:pk>/award/", views.RFQAwardBidView.as_view(), name="rfq_award"),
     path("rfqs/<uuid:pk>/print/", views.RFQPrintView.as_view(), name="rfq_print"),
+    path("rfqs/<uuid:pk>/convert-po/", views.ConvertRFQToPOView.as_view(), name="rfq_convert_po"),
+
+    # Purchase Orders (PO)
+    path("orders/", views.POListView.as_view(), name="po_list"),
+    path("orders/create/", views.POCreateView.as_view(), name="po_create"),
+    path("orders/<uuid:pk>/", views.PODetailView.as_view(), name="po_detail"),
+    path("orders/<uuid:pk>/edit/", views.POUpdateView.as_view(), name="po_edit"),
+    path("orders/<uuid:pk>/submit-approval/", views.POSubmitApprovalView.as_view(), name="po_submit_approval"),
+    path("orders/<uuid:pk>/approve/", views.POApproveView.as_view(), name="po_approve"),
+    path("orders/<uuid:pk>/reject/", views.PORejectView.as_view(), name="po_reject"),
+    path("orders/<uuid:pk>/issue/", views.POIssueView.as_view(), name="po_issue"),
+    path("orders/<uuid:pk>/print/", views.POPrintView.as_view(), name="po_print"),
 ]

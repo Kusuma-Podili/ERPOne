@@ -260,3 +260,89 @@ class AwardBidForm(forms.Form):
         label="Award Justification Notes",
         required=True,
     )
+
+
+from .models import (
+    POStatus,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseOrderApproval,
+)
+
+
+class PurchaseOrderForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseOrder
+        fields = [
+            "supplier",
+            "order_date",
+            "expected_delivery_date",
+            "payment_terms",
+            "shipping_cost",
+            "currency",
+            "shipping_address",
+            "billing_address",
+            "notes",
+        ]
+        widgets = {
+            "supplier": forms.Select(attrs={"class": "form-select"}),
+            "order_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "expected_delivery_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "payment_terms": forms.Select(attrs={"class": "form-select"}),
+            "shipping_cost": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "currency": forms.TextInput(attrs={"class": "form-control"}),
+            "shipping_address": forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Receiving Warehouse / Facility Address"}),
+            "billing_address": forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Accounts Payable / Invoicing Address"}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["supplier"].queryset = Supplier.objects.filter(
+                organization=organization,
+                is_active=True,
+            )
+
+
+class PurchaseOrderLineForm(forms.ModelForm):
+    class Meta:
+        model = PurchaseOrderLine
+        fields = [
+            "product",
+            "ordered_quantity",
+            "uom",
+            "unit_price",
+            "tax_rate",
+            "notes",
+        ]
+        widgets = {
+            "product": forms.Select(attrs={"class": "form-select"}),
+            "ordered_quantity": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "uom": forms.Select(attrs={"class": "form-select"}),
+            "unit_price": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "tax_rate": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "notes": forms.TextInput(attrs={"class": "form-control", "placeholder": "Line remarks"}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["product"].queryset = Product.objects.filter(organization=organization, is_active=True)
+            self.fields["uom"].queryset = UnitOfMeasure.objects.filter(organization=organization, is_active=True)
+
+
+POLineFormSet = forms.inlineformset_factory(
+    PurchaseOrder,
+    PurchaseOrderLine,
+    form=PurchaseOrderLineForm,
+    extra=1,
+    can_delete=True,
+)
+
+
+class POApprovalDecisionForm(forms.Form):
+    comments = forms.CharField(
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Approval or rejection notes..."}),
+        required=False,
+    )

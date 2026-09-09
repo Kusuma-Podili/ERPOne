@@ -394,3 +394,223 @@ class RFQService:
         rfq.save(update_fields=["status", "updated_at"])
 
         return winning_bid
+
+
+from .models import (
+    POStatus,
+    ApprovalTier,
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseOrderApproval,
+)
+
+
+class PurchaseOrderService:
+    """
+    Governs Purchase Order lifecycle, RFQ conversion, multi-tier financial approvals,
+    and issuance to vendors.
+    """
+
+    @classmethod
+    @transaction.atomic
+    def create_po(
+        cls,
+        organization: Organization,
+        supplier: Supplier,
+        order_date,
+        expected_delivery_date=None,
+        payment_terms: str = PaymentTerms.NET30,
+        shipping_cost: Decimal = Decimal("0.00"),
+        currency: str = "USD",
+        shipping_address: str = "",
+        billing_address: str = "",
+        notes: str = "",
+        lines_data: Optional[List[Dict]] = None,
+        created_by=None,
+        rfq: Optional[RequestForQuotation] = None,
+    ) -> PurchaseOrder:
+        """
+        Creates a new Purchase Order in DRAFT status with lines and computed totals.
+        """
+        po_number = PurchaseOrder.generate_po_number(organization)
+        po = PurchaseOrder.objects.create(
+            organization=organization,
+            po_number=po_number,
+            supplier=supplier,
+            rfq=rfq,
+            status=POStatus.DRAFT,
+            order_date=order_date,
+            expected_delivery_date=expected_delivery_date,
+            payment_terms=payment_terms,
+            shipping_cost=shipping_cost,
+            currency=currency,
+            shipping_address=shipping_address.strip(),
+            billing_address=billing_address.strip(),
+            notes=notes.strip(),
+            created_by=created_by,
+        )
+
+        if lines_data:
+            for idx, item in enumerate(lines_data, start=1):
+                PurchaseOrderLine.objects.create(
+                    purchase_order=po,
+                    line_number=idx,
+                    product=item["product"],
+                    ordered_quantity=item["ordered_quantity"],
+                    uom=item.get("uom") or item["product"].uom,
+                    unit_price=item["unit_price"],
+                    tax_rate=item.get("tax_rate", Decimal("0.00")),
+                    notes=item.get("notes", "").strip(),
+                )
+
+        po.recalculate_totals()
+        return po
+
+    @classmethod
+    @transaction.atomic
+    def convert_rfq_to_po(cls, rfq: RequestForQuotation, created_by=None) -> PurchaseOrder:
+        """
+        Converts the winning bid of an awarded RFQ into a formalized commercial Purchase Order.
+        """
+        winning_bid = rfq.winning_bid
+        if not winning_bid:
+            raise ValidationError("RFQ has no awarded winning bid to convert into a Purchase Order.")
+
+        lines_data = []
+        for b_line in winning_bid.lines.select_related("rfq_line__product", "rfq_line__uom"):
+            lines_data.append({
+                "product": b_line.rfq_line.product,
+                "ordered_quantity": b_line.offered_quantity,
+                "uom": b_line.rfq_line.uom,
+                "unit_price": b_line.offered_unit_price,
+                "tax_rate": Decimal("0.00"),
+                "notes": f"Awarded from {rfq.rfq_number} Line #{b_line.rfq_line.line_number}",
+            })
+
+        expected_date = None
+        if winning_bid.lead_time_days:
+            expected_date = (timezone.now() + timezone.timedelta(days=winning_bid.lead_time_days)).date()
+
+        po = cls.create_po(
+            organization=rfq.organization,
+            supplier=winning_bid.supplier,
+            order_date=timezone.now().date(),
+            expected_delivery_date=expected_date,
+            payment_terms=winning_bid.payment_terms,
+            shipping_cost=winning_bid.shipping_cost,
+            currency=winning_bid.currency,
+            notes=f"Generated from competitive bidding on {rfq.rfq_number}: {rfq.title}\n{winning_bid.notes}",
+            lines_data=lines_data,
+            created_by=created_by,
+            rfq=rfq,
+        )
+        return po
+
+    @classmethod
+    @transaction.atomic
+    def submit_for_approval(cls, po: PurchaseOrder, submitted_by=None) -> PurchaseOrder:
+        """
+        Validates PO requirements and sets up required approval gates based on financial thresholds.
+        """
+        if not po.can_submit_for_approval:
+            raise ValidationError("PO must be in draft status with at least one line item.")
+
+        po.recalculate_totals()
+        po.status = POStatus.PENDING_APPROVAL
+        po.save(update_fields=["status", "updated_at"])
+
+        # Determine approval tiers based on total amount
+        # Tier 1 (All POs): Manager
+        PurchaseOrderApproval.objects.create(
+            purchase_order=po,
+            tier=ApprovalTier.TIER_1_MANAGER,
+            threshold_amount=Decimal("10000.00"),
+            status="pending",
+        )
+
+        if po.total_amount > Decimal("10000.00"):
+            PurchaseOrderApproval.objects.create(
+                purchase_order=po,
+                tier=ApprovalTier.TIER_2_DIRECTOR,
+                threshold_amount=Decimal("50000.00"),
+                status="pending",
+            )
+
+        if po.total_amount > Decimal("50000.00"):
+            PurchaseOrderApproval.objects.create(
+                purchase_order=po,
+                tier=ApprovalTier.TIER_3_EXECUTIVE,
+                threshold_amount=Decimal("999999999.00"),
+                status="pending",
+            )
+
+        return po
+
+    @classmethod
+    @transaction.atomic
+    def approve_po(cls, po: PurchaseOrder, approver, comments: str = "") -> PurchaseOrder:
+        """
+        Records an approver's authorization decision and promotes the PO to APPROVED
+        once all required tier gates are satisfied.
+        """
+        if po.status != POStatus.PENDING_APPROVAL:
+            raise ValidationError("PO is not currently pending approval.")
+
+        pending_gate = po.approvals.filter(status="pending").order_by("tier").first()
+        if not pending_gate:
+            # All gates already satisfied
+            po.status = POStatus.APPROVED
+            po.approved_by = approver
+            po.approved_at = timezone.now()
+            po.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+            return po
+
+        pending_gate.status = "approved"
+        pending_gate.approver = approver
+        pending_gate.comments = comments.strip()
+        pending_gate.decided_at = timezone.now()
+        pending_gate.save()
+
+        # Check if more gates remain
+        remaining = po.approvals.filter(status="pending").exists()
+        if not remaining:
+            po.status = POStatus.APPROVED
+            po.approved_by = approver
+            po.approved_at = timezone.now()
+            po.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+
+        return po
+
+    @classmethod
+    @transaction.atomic
+    def reject_po(cls, po: PurchaseOrder, rejector, comments: str) -> PurchaseOrder:
+        """
+        Rejects the purchase order and records reviewer comments.
+        """
+        if po.status != POStatus.PENDING_APPROVAL:
+            raise ValidationError("PO is not currently pending approval.")
+
+        pending_gate = po.approvals.filter(status="pending").first()
+        if pending_gate:
+            pending_gate.status = "rejected"
+            pending_gate.approver = rejector
+            pending_gate.comments = comments.strip()
+            pending_gate.decided_at = timezone.now()
+            pending_gate.save()
+
+        po.status = POStatus.REJECTED
+        po.save(update_fields=["status", "updated_at"])
+        return po
+
+    @classmethod
+    def issue_po(cls, po: PurchaseOrder, issued_by=None) -> PurchaseOrder:
+        """
+        Marks approved PO as officially issued to the vendor.
+        """
+        if po.status != POStatus.APPROVED:
+            raise ValidationError("Only APPROVED purchase orders can be issued to vendors.")
+
+        po.status = POStatus.ISSUED
+        po.issued_at = timezone.now()
+        po.save(update_fields=["status", "issued_at", "updated_at"])
+        return po
