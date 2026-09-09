@@ -68,12 +68,25 @@
         </a>
         {% endif %}
 
-        <div class="nav-section-title">Enterprise Modules</div>
+        <div class="nav-section-title">Customer Relationship (CRM)</div>
+        {% if active_organization %}
+        <a href="{% url 'crm:account_list' %}" class="nav-item {% if request.resolver_match.app_name == 'crm' and 'account' in request.resolver_match.url_name %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span>Accounts</span>
+        </a>
+        <a href="{% url 'crm:contact_list' %}" class="nav-item {% if request.resolver_match.app_name == 'crm' and 'contact' in request.resolver_match.url_name %}active{% endif %}">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Contacts</span>
+        </a>
+        {% else %}
         <div class="nav-item" style="opacity: 0.6; cursor: default;">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9"/></svg>
             <span>CRM & Sales</span>
-            <span class="badge badge-secondary" style="margin-left: auto; font-size: 0.65rem;">Phases 3-4</span>
+            <span class="badge badge-secondary" style="margin-left: auto; font-size: 0.65rem;">Select Org</span>
         </div>
+        {% endif %}
+
+        <div class="nav-section-title">Enterprise Modules</div>
         <div class="nav-item" style="opacity: 0.6; cursor: default;">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="m7 11 4-4-4-4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
             <span>Supply Chain</span>

@@ -34,6 +34,7 @@ THIRD_PARTY_APPS = [
 ENTERPRISE_APPS = [
     "apps.accounts.apps.AccountsConfig",
     "apps.organizations.apps.OrganizationsConfig",
+    "apps.crm.apps.CrmConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + ENTERPRISE_APPS
