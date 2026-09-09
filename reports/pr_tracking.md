@@ -10,7 +10,8 @@ This document tracks all formal Pull Requests prepared, reviewed, and merged thr
 |---|---|---|---|---|---|
 | #1 | `feature/phase1-scaffold` | Project Scaffold, Multi-Env Settings & Enterprise Middleware | Phase 1 | Merged | 2026-09-09 |
 | #2 | `feature/phase1-custom-user-rbac` | Custom User Model, RBAC Engine & Audit Models | Phase 1 | Merged | 2026-09-09 |
-| #3 | `feature/phase1-enterprise-ui` | Responsive Enterprise Design System & Interactive Templates | Phase 1 | Ready | 2026-09-09 |
+| #3 | `feature/phase1-enterprise-ui` | Responsive Enterprise Design System & Interactive Templates | Phase 1 | Merged | 2026-09-09 |
+| #4 | `feature/phase1-testing-and-docs` | Automated Test Suite, Security Hardening & Architecture Docs | Phase 1 | Ready | 2026-09-09 |
 
 ---
 
@@ -21,7 +22,7 @@ This document tracks all formal Pull Requests prepared, reviewed, and merged thr
 - **Status**: Merged
 
 ### Purpose
-Establish the foundational infrastructure of EnterpriseOne: modular multi-environment settings (base, dev, prod, testing) with MySQL and automatic SQLite fallback, core enterprise middleware (security headers, session enforcement, thread-local audit tracking), system constants, and 11-role enterprise definitions.
+Establish foundational infrastructure: modular multi-environment settings with MySQL and automatic SQLite fallback, core enterprise middleware (security headers, session enforcement, thread-local audit tracking), system constants, and 11-role enterprise definitions.
 
 ---
 
@@ -32,7 +33,7 @@ Establish the foundational infrastructure of EnterpriseOne: modular multi-enviro
 - **Status**: Merged
 
 ### Purpose
-Implement the core identity domain: custom `User` model using UUID primary keys and case-insensitive email, `UserProfile`, enterprise RBAC (`Role`, `Permission`, `UserRole`, `RolePermission`), audit logging (`LoginHistory`, `AccountLockoutAudit`), custom authentication backend (`EmailAuthBackend`), domain services (`AuthenticationService`, `LockoutService`, `TokenService`, `RBACService`), and the foundational `seed_roles` management command.
+Implement core identity domain: custom `User` model using UUID primary keys and case-insensitive email, `UserProfile`, enterprise RBAC (`Role`, `Permission`, `UserRole`, `RolePermission`), audit logging (`LoginHistory`, `AccountLockoutAudit`), custom authentication backend (`EmailAuthBackend`), domain services (`AuthenticationService`, `LockoutService`, `TokenService`, `RBACService`), and `seed_roles`.
 
 ---
 
@@ -40,29 +41,42 @@ Implement the core identity domain: custom `User` model using UUID primary keys 
 
 - **Branch**: `feature/phase1-enterprise-ui` -> `development`
 - **Phase**: Phase 1 — Foundation & Authentication
-- **Status**: Ready
+- **Status**: Merged
 
 ### Purpose
 Deliver a human-designed, responsive, accessible enterprise design system and complete template suite for authentication, user profiles, dashboards, and identity management.
 
+---
+
+## PR #4 — Automated Test Suite, Security Hardening & Architecture Docs
+
+- **Branch**: `feature/phase1-testing-and-docs` -> `development`
+- **Phase**: Phase 1 — Foundation & Authentication
+- **Status**: Ready
+
+### Purpose
+Establish a comprehensive automated unit and integration test suite verifying user lifecycle, password validation, brute-force lockout safeguards, token expiration, session security middleware, and complete architecture documentation.
+
 ### Implementation Summary
-- Created `enterprise.css` establishing custom CSS variables, light/dark themes, responsive grid, KPI cards, tables, badges, and alerts.
-- Created `auth.css` providing clean split-card layout for login, registration, and password recovery.
-- Created `enterprise.js` client utilities for sidebar toggling, theme switching, dropdown management, alert dismissal, and password reveal controls.
-- Created base layout structure (`base.html`, `layouts/app.html`, `layouts/auth.html`) and reusable partials (`navbar.html`, `sidebar.html`, `footer.html`, `messages.html`, `breadcrumbs.html`).
-- Built functional templates for Login, Registration, Profile, Password Change, Password Reset, Security Audit Log, User Directory with Administrative Unlock, and the Executive Dashboard.
+- Built 35 comprehensive automated tests across `tests/unit/` and `tests/integration/`:
+  - `test_user_model.py`: Validates user creation, email normalization, superuser rules, profile signals, and lockout properties.
+  - `test_validators.py`: Validates password complexity, phone formatting, and enterprise work email format.
+  - `test_services.py`: Validates HMAC token lifecycle, invalidation on password change, lockout service, and RBAC operations.
+  - `test_auth_flows.py`: Validates end-to-end registration, activation, login, logout, password change, and password reset flows.
+  - `test_security_controls.py`: Validates 5-attempt brute-force lockout, administrative unlock, RBAC view protection, and security headers.
+- Hardened token fingerprinting to use SHA256 hex digest to prevent URL parsing errors.
+- Created architectural and database documentation in `documentation/`.
+- 100% test pass rate achieved across all test suites.
 
 ### Affected Modules
-- `static/css/`
-- `static/js/`
-- `templates/`
-
-### Potential Risks & Mitigation
-- *Risk*: Broken links or unresolved template tags in views.
-  *Mitigation*: Verified via `python manage.py check`, which confirmed 0 issues.
+- `tests/unit/`
+- `tests/integration/`
+- `documentation/`
+- `enterpriseone/settings/base.py`
+- `apps/accounts/services.py`
 
 ### Review Checklist
-- [x] Responsive layout collapses cleanly on mobile viewports.
-- [x] Light / Dark mode toggle persists across session in `localStorage`.
-- [x] Form inputs utilize uniform enterprise styling and error rendering.
-- [x] Administrative unlock button includes JavaScript confirmation guard.
+- [x] All 35 tests pass with 0 errors and 0 failures.
+- [x] Security headers validated by automated test.
+- [x] Brute force lockout threshold of 5 attempts verified.
+- [x] Architecture documentation accurately reflects implemented code.

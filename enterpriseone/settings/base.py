@@ -45,10 +45,10 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
     "enterpriseone.middleware.security.EnterpriseSecurityMiddleware",
     "enterpriseone.middleware.session.SessionSecurityMiddleware",
     "enterpriseone.middleware.audit.AuditContextMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 

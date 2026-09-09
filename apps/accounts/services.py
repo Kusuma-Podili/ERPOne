@@ -58,20 +58,24 @@ class TokenService:
     @classmethod
     def generate_password_reset_token(cls, user: User) -> Tuple[str, str]:
         """Generates a base64 encoded user ID and timestamp-signed password reset token."""
+        import hashlib
         uidb64 = urlsafe_base64_encode(force_bytes(str(user.id)))
         signer = TimestampSigner(salt=cls.SIGNER_SALT_PASSWORD_RESET)
-        token = signer.sign(f"{user.id}:{user.password}")
+        pwd_fingerprint = hashlib.sha256(user.password.encode()).hexdigest()
+        token = signer.sign(f"{user.id}:{pwd_fingerprint}")
         return uidb64, token
 
     @classmethod
     def verify_password_reset_token(cls, uidb64: str, token: str, max_age_hours: int = 24) -> Optional[User]:
         """Validates a password reset token and ensures the user's password hasn't changed since."""
+        import hashlib
         try:
             user_id = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=user_id)
             signer = TimestampSigner(salt=cls.SIGNER_SALT_PASSWORD_RESET)
             original_value = signer.unsign(token, max_age=max_age_hours * 3600)
-            expected_value = f"{user.id}:{user.password}"
+            pwd_fingerprint = hashlib.sha256(user.password.encode()).hexdigest()
+            expected_value = f"{user.id}:{pwd_fingerprint}"
             if original_value != expected_value:
                 return None
             return user
