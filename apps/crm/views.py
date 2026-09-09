@@ -29,9 +29,23 @@ from apps.crm.models import (
     LeadSource,
     LeadStatus,
     LeadPriority,
+    PipelineStage,
+    Deal,
+    DealStageTransition,
 )
-from apps.crm.forms import AccountForm, ContactForm, LeadForm, LeadConvertForm
-from apps.crm.services import LeadScoringService, LeadConversionService
+from apps.crm.forms import (
+    AccountForm,
+    ContactForm,
+    LeadForm,
+    LeadConvertForm,
+    DealForm,
+    DealStageTransitionForm,
+)
+from apps.crm.services import (
+    LeadScoringService,
+    LeadConversionService,
+    PipelineService,
+)
 
 
 # =====================================================================
@@ -625,4 +639,273 @@ class LeadRecalculateScoreView(OrganizationAccessMixin, View):
         LeadScoringService.score_and_save(lead)
         messages.success(request, f"Lead Score recalculated to {lead.lead_score}/100.")
         return redirect("crm:lead_detail", pk=lead.pk)
+
+
+# =====================================================================
+# SALES PIPELINE & DEAL VIEWS
+# =====================================================================
+
+class DealListView(OrganizationAccessMixin, ListView):
+    """
+    Tabular sales pipeline view of active and closed deals.
+    Provides stage filtering, forecast calculations, and deal ownership.
+    """
+    model = Deal
+    template_name = "crm/deal_list.html"
+    context_object_name = "deals"
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = Deal.objects.filter(
+            organization=self.request.organization
+        ).select_related("account", "primary_contact", "stage", "owner")
+
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(name__icontains=q)
+                | Q(deal_number__icontains=q)
+                | Q(account__name__icontains=q)
+                | Q(primary_contact__first_name__icontains=q)
+                | Q(primary_contact__last_name__icontains=q)
+            )
+
+        stage_id = self.request.GET.get("stage", "").strip()
+        if stage_id:
+            qs = qs.filter(stage_id=stage_id)
+
+        status = self.request.GET.get("status", "").strip()
+        if status == "open":
+            qs = qs.filter(is_closed=False)
+        elif status == "won":
+            qs = qs.filter(is_won=True)
+        elif status == "lost":
+            qs = qs.filter(is_closed=True, is_won=False)
+
+        sort = self.request.GET.get("sort", "-created_at")
+        allowed_sorts = ["-created_at", "created_at", "-amount", "amount", "expected_close_date", "-expected_close_date"]
+        if sort in allowed_sorts:
+            qs = qs.order_by(sort)
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        org = self.request.organization
+        # Ensure default stages are available
+        PipelineService.initialize_default_stages(org)
+
+        ctx["forecast"] = PipelineService.calculate_pipeline_forecast(org)
+        ctx["stages"] = PipelineStage.objects.filter(organization=org, is_active=True).order_by("order")
+        ctx["current_q"] = self.request.GET.get("q", "")
+        ctx["current_stage"] = self.request.GET.get("stage", "")
+        ctx["current_status"] = self.request.GET.get("status", "")
+        ctx["current_sort"] = self.request.GET.get("sort", "-created_at")
+        return ctx
+
+
+class DealKanbanView(OrganizationAccessMixin, TemplateView):
+    """
+    Interactive visual Kanban sales pipeline board.
+    Categorizes deals by stage columns with live column revenue aggregations.
+    """
+    template_name = "crm/deal_kanban.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        org = self.request.organization
+        PipelineService.initialize_default_stages(org)
+
+        stages = list(PipelineStage.objects.filter(organization=org, is_active=True).order_by("order"))
+        deals = Deal.objects.filter(organization=org, is_closed=False).select_related(
+            "account", "primary_contact", "owner"
+        )
+
+        # Build column data structure
+        columns = []
+        for st in stages:
+            stage_deals = [d for d in deals if d.stage_id == st.id]
+            col_total = sum((d.amount for d in stage_deals), start=0)
+            columns.append({
+                "stage": st,
+                "deals": stage_deals,
+                "count": len(stage_deals),
+                "total_amount": col_total,
+            })
+
+        ctx["columns"] = columns
+        ctx["forecast"] = PipelineService.calculate_pipeline_forecast(org)
+        return ctx
+
+
+class DealDetailView(OrganizationAccessMixin, DetailView):
+    """
+    Comprehensive Deal profile view.
+    Displays stage timeline, stage transition audit trail, and transition controls.
+    """
+    model = Deal
+    template_name = "crm/deal_detail.html"
+    context_object_name = "deal"
+
+    def get_queryset(self):
+        return Deal.objects.filter(
+            organization=self.request.organization
+        ).select_related("account", "primary_contact", "stage", "owner", "created_by")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        deal = self.get_object()
+        org = self.request.organization
+        ctx["stages"] = PipelineStage.objects.filter(organization=org, is_active=True).order_by("order")
+        ctx["transitions"] = deal.stage_transitions.select_related(
+            "from_stage", "to_stage", "changed_by"
+        ).order_by("-created_at")
+        ctx["transition_form"] = DealStageTransitionForm(organization=org, deal=deal)
+        if hasattr(deal, "activities"):
+            ctx["activities"] = deal.activities.select_related("assigned_to").order_by("-due_date")[:10]
+        else:
+            ctx["activities"] = []
+        return ctx
+
+
+class DealCreateView(OrganizationAccessMixin, CreateView):
+    """
+    Opens a new sales opportunity / deal in the revenue pipeline.
+    """
+    model = Deal
+    form_class = DealForm
+    template_name = "crm/deal_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.organization = self.request.organization
+        form.instance.created_by = self.request.user
+        if not form.instance.owner:
+            form.instance.owner = self.request.user
+
+        # Ensure default stage if none picked
+        if not form.instance.stage_id:
+            PipelineService.initialize_default_stages(self.request.organization)
+            first_stage = PipelineStage.objects.filter(
+                organization=self.request.organization, is_active=True
+            ).order_by("order").first()
+            form.instance.stage = first_stage
+
+        response = super().form_valid(form)
+
+        # Create initial stage transition audit entry
+        from apps.crm.models import DealStageTransition
+        DealStageTransition.objects.create(
+            organization=self.request.organization,
+            deal=self.object,
+            from_stage=None,
+            to_stage=self.object.stage,
+            changed_by=self.request.user,
+            transition_notes="Deal created in pipeline.",
+        )
+
+        messages.success(self.request, f"Deal '{self.object.name}' successfully created in pipeline.")
+        return response
+
+    def get_success_url(self):
+        return reverse("crm:deal_detail", kwargs={"pk": self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = "Create Sales Deal"
+        ctx["form_action"] = "Create Deal"
+        return ctx
+
+
+class DealUpdateView(OrganizationAccessMixin, UpdateView):
+    """
+    Modifies deal commercial terms, amount, or probability.
+    """
+    model = Deal
+    form_class = DealForm
+    template_name = "crm/deal_form.html"
+
+    def get_queryset(self):
+        return Deal.objects.filter(organization=self.request.organization)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["organization"] = self.request.organization
+        return kwargs
+
+    def form_valid(self, form):
+        old_deal = Deal.objects.get(pk=self.object.pk)
+        old_stage = old_deal.stage
+        new_stage = form.cleaned_data.get("stage")
+
+        response = super().form_valid(form)
+
+        # If stage changed via form update, record transition
+        if old_stage != new_stage:
+            PipelineService.transition_stage(
+                deal=self.object,
+                to_stage=new_stage,
+                changed_by=self.request.user,
+                transition_notes="Stage changed via deal edit form.",
+            )
+
+        messages.success(self.request, f"Deal '{self.object.name}' updated successfully.")
+        return response
+
+    def get_success_url(self):
+        return reverse("crm:deal_detail", kwargs={"pk": self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = f"Edit Deal: {self.object.name}"
+        ctx["form_action"] = "Save Changes"
+        ctx["deal"] = self.object
+        return ctx
+
+
+class DealDeleteView(OrganizationAccessMixin, DeleteView):
+    """
+    Removes a deal from the sales pipeline.
+    """
+    model = Deal
+    template_name = "crm/deal_confirm_delete.html"
+    success_url = reverse_lazy("crm:deal_list")
+
+    def get_queryset(self):
+        return Deal.objects.filter(organization=self.request.organization)
+
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        name = obj.name
+        messages.warning(request, f"Deal '{name}' was deleted.")
+        return super().delete(request, *args, **kwargs)
+
+
+class DealTransitionStageView(OrganizationAccessMixin, View):
+    """
+    Action endpoint to move a deal to a new stage with audit tracking.
+    """
+    def post(self, request, pk, *args, **kwargs):
+        deal = get_object_or_404(Deal, pk=pk, organization=request.organization)
+        to_stage_id = request.POST.get("to_stage")
+        transition_notes = request.POST.get("transition_notes", "").strip()
+        lost_reason = request.POST.get("lost_reason", "").strip()
+
+        to_stage = get_object_or_404(PipelineStage, pk=to_stage_id, organization=request.organization)
+
+        PipelineService.transition_stage(
+            deal=deal,
+            to_stage=to_stage,
+            changed_by=request.user,
+            transition_notes=transition_notes,
+            lost_reason=lost_reason,
+        )
+
+        messages.success(request, f"Deal advanced to stage '{to_stage.name}'.")
+        return redirect("crm:deal_detail", pk=deal.pk)
+
 

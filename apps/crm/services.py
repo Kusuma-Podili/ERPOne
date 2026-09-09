@@ -289,3 +289,144 @@ class LeadConversionService:
                 "contact": contact,
                 "deal": deal,
             }
+
+
+class PipelineService:
+    """
+    Sales Pipeline Management and Forecasting Engine.
+    Handles stage lifecycle, default stage initialization, transitions, and revenue forecasting.
+    """
+    DEFAULT_STAGES = [
+        {"name": "Prospecting", "code": "PROSPECTING", "order": 1, "default_probability": 10, "color": "#64748b", "is_won_stage": False, "is_lost_stage": False},
+        {"name": "Discovery & Qualification", "code": "QUALIFICATION", "order": 2, "default_probability": 25, "color": "#0284c7", "is_won_stage": False, "is_lost_stage": False},
+        {"name": "Proposal / Demonstration", "code": "PROPOSAL", "order": 3, "default_probability": 45, "color": "#2563eb", "is_won_stage": False, "is_lost_stage": False},
+        {"name": "Negotiation & Review", "code": "NEGOTIATION", "order": 4, "default_probability": 70, "color": "#8b5cf6", "is_won_stage": False, "is_lost_stage": False},
+        {"name": "Executive Commitment", "code": "COMMITMENT", "order": 5, "default_probability": 90, "color": "#f59e0b", "is_won_stage": False, "is_lost_stage": False},
+        {"name": "Closed Won", "code": "CLOSED_WON", "order": 6, "default_probability": 100, "color": "#10b981", "is_won_stage": True, "is_lost_stage": False},
+        {"name": "Closed Lost", "code": "CLOSED_LOST", "order": 7, "default_probability": 0, "color": "#ef4444", "is_won_stage": False, "is_lost_stage": True},
+    ]
+
+    @classmethod
+    def initialize_default_stages(cls, organization) -> list:
+        """
+        Ensures the organization has the standard 7 pipeline stages configured.
+        """
+        from apps.crm.models import PipelineStage
+        created_stages = []
+        for stage_def in cls.DEFAULT_STAGES:
+            stage, created = PipelineStage.objects.get_or_create(
+                organization=organization,
+                code=stage_def["code"],
+                defaults={
+                    "name": stage_def["name"],
+                    "order": stage_def["order"],
+                    "default_probability": stage_def["default_probability"],
+                    "color": stage_def["color"],
+                    "is_won_stage": stage_def["is_won_stage"],
+                    "is_lost_stage": stage_def["is_lost_stage"],
+                    "is_active": True,
+                },
+            )
+            created_stages.append(stage)
+        return created_stages
+
+    @classmethod
+    def transition_stage(
+        cls,
+        deal,
+        to_stage,
+        changed_by=None,
+        transition_notes: str = "",
+        lost_reason: str = "",
+    ):
+        """
+        Advances or moves a deal to a new stage, calculates stage duration,
+        and produces an immutable DealStageTransition audit log entry.
+        """
+        from apps.crm.models import DealStageTransition
+
+        from_stage = deal.stage
+        now = timezone.now()
+
+        # Calculate duration in previous stage
+        duration_seconds = None
+        last_transition = deal.stage_transitions.first()
+        if last_transition:
+            duration_seconds = int((now - last_transition.created_at).total_seconds())
+        elif deal.created_at:
+            duration_seconds = int((now - deal.created_at).total_seconds())
+
+        with transaction.atomic():
+            # Update deal state
+            deal.stage = to_stage
+            deal.probability = to_stage.default_probability
+
+            if to_stage.is_won_stage:
+                deal.is_closed = True
+                deal.is_won = True
+                deal.actual_close_date = now.date()
+                deal.lost_reason = ""
+            elif to_stage.is_lost_stage:
+                deal.is_closed = True
+                deal.is_won = False
+                deal.actual_close_date = now.date()
+                if lost_reason:
+                    deal.lost_reason = lost_reason
+            else:
+                deal.is_closed = False
+                deal.is_won = False
+                deal.actual_close_date = None
+
+            deal.save(update_fields=[
+                "stage", "probability", "is_closed", "is_won",
+                "actual_close_date", "lost_reason", "updated_at",
+            ])
+
+            # Record transition log
+            transition = DealStageTransition.objects.create(
+                organization=deal.organization,
+                deal=deal,
+                from_stage=from_stage,
+                to_stage=to_stage,
+                changed_by=changed_by,
+                transition_notes=transition_notes or (f"Lost Reason: {lost_reason}" if lost_reason else ""),
+                duration_in_previous_stage_seconds=duration_seconds,
+            )
+
+        return transition
+
+    @classmethod
+    def calculate_pipeline_forecast(cls, organization) -> dict:
+        """
+        Computes pipeline metrics: Total Value, Weighted Forecast, Win Rate, and stage breakdown.
+        """
+        from apps.crm.models import Deal
+        from django.db.models import Sum
+
+        deals = Deal.objects.filter(organization=organization)
+        open_deals = deals.filter(is_closed=False)
+        won_deals = deals.filter(is_won=True)
+        lost_deals = deals.filter(is_closed=True, is_won=False)
+
+        total_pipeline = open_deals.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+        # Weighted forecast: sum(amount * probability / 100)
+        weighted_sum = Decimal("0.00")
+        for d in open_deals:
+            weighted_sum += d.weighted_amount
+
+        won_revenue = won_deals.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+        total_closed = won_deals.count() + lost_deals.count()
+        win_rate = (won_deals.count() / total_closed * 100) if total_closed > 0 else 0.0
+
+        return {
+            "total_pipeline_value": total_pipeline,
+            "weighted_forecast_value": weighted_sum,
+            "won_revenue": won_revenue,
+            "open_deals_count": open_deals.count(),
+            "won_deals_count": won_deals.count(),
+            "lost_deals_count": lost_deals.count(),
+            "win_rate_percentage": round(win_rate, 1),
+        }
+

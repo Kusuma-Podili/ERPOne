@@ -6,7 +6,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from apps.accounts.forms import FormStylingMixin
 from apps.accounts.models import User
-from apps.crm.models import Account, Contact, Lead
+from apps.crm.models import Account, Contact, Lead, Deal, PipelineStage
 
 
 class AccountForm(FormStylingMixin, forms.ModelForm):
@@ -196,4 +196,86 @@ class LeadConvertForm(FormStylingMixin, forms.Form):
             self.fields["account_name"].initial = lead.company_name
             self.fields["deal_name"].initial = f"{lead.company_name} — Initial Contract"
             self.fields["deal_amount"].initial = lead.estimated_value
+
+
+class DealForm(FormStylingMixin, forms.ModelForm):
+    """
+    Form to create or update a sales Deal in the revenue pipeline.
+    """
+    class Meta:
+        model = Deal
+        fields = [
+            "name",
+            "account",
+            "primary_contact",
+            "stage",
+            "amount",
+            "probability",
+            "expected_close_date",
+            "owner",
+            "description",
+        ]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 4, "placeholder": "Deal objectives, contract deliverables, negotiation terms..."}),
+            "amount": forms.NumberInput(attrs={"placeholder": "0.00", "step": "0.01"}),
+            "probability": forms.NumberInput(attrs={"min": "0", "max": "100"}),
+            "expected_close_date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, organization=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["account"].queryset = Account.objects.filter(organization=organization).order_by("name")
+            self.fields["stage"].queryset = PipelineStage.objects.filter(organization=organization, is_active=True).order_by("order")
+            member_user_ids = organization.members.filter(status="ACTIVE").values_list("user_id", flat=True)
+            self.fields["owner"].queryset = User.objects.filter(id__in=member_user_ids)
+            self.fields["owner"].empty_label = _("-- Select Deal Owner --")
+
+            # Handle primary_contact filtering by account
+            account_id = None
+            if self.is_bound:
+                account_id = self.data.get("account")
+            elif self.instance and self.instance.account_id:
+                account_id = self.instance.account_id
+
+            if account_id:
+                self.fields["primary_contact"].queryset = Contact.objects.filter(
+                    organization=organization, account_id=account_id
+                ).order_by("last_name")
+            else:
+                self.fields["primary_contact"].queryset = Contact.objects.filter(
+                    organization=organization
+                ).order_by("last_name")
+            self.fields["primary_contact"].empty_label = _("-- Select Primary Contact --")
+
+
+class DealStageTransitionForm(FormStylingMixin, forms.Form):
+    """
+    Quick action form to transition a Deal into a target stage with audit notes.
+    """
+    to_stage = forms.ModelChoiceField(
+        label=_("Move to Stage"),
+        queryset=PipelineStage.objects.none(),
+        empty_label=None,
+    )
+    transition_notes = forms.CharField(
+        label=_("Stage Progression Notes"),
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Key updates, customer commitments, next steps..."}),
+        required=False,
+    )
+    lost_reason = forms.CharField(
+        label=_("Reason for Closed Lost"),
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "If moving to Closed Lost, provide root cause..."}),
+        required=False,
+    )
+
+    def __init__(self, *args, organization=None, deal=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields["to_stage"].queryset = PipelineStage.objects.filter(
+                organization=organization, is_active=True
+            ).order_by("order")
+        if deal:
+            self.fields["to_stage"].initial = deal.stage_id
+
 

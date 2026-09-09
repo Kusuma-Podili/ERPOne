@@ -428,3 +428,199 @@ class Lead(models.Model):
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
 
+
+class PipelineStage(models.Model):
+    """
+    Sales pipeline milestone stage for an organization.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="crm_pipeline_stages",
+        verbose_name=_("Organization"),
+    )
+    name = models.CharField(_("Stage Name"), max_length=100)
+    code = models.CharField(_("Stage Code"), max_length=50)
+    order = models.PositiveSmallIntegerField(_("Display Order"), default=1)
+    default_probability = models.PositiveSmallIntegerField(
+        _("Default Win Probability (%)"), default=10
+    )
+    is_won_stage = models.BooleanField(_("Closed Won Stage Flag"), default=False)
+    is_lost_stage = models.BooleanField(_("Closed Lost Stage Flag"), default=False)
+    is_active = models.BooleanField(_("Active Status"), default=True)
+    color = models.CharField(_("Badge Color Hex"), max_length=20, default="#2563eb")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Pipeline Stage")
+        verbose_name_plural = _("Pipeline Stages")
+        ordering = ["order", "name"]
+        unique_together = [("organization", "code")]
+        indexes = [
+            models.Index(fields=["organization", "order"]),
+            models.Index(fields=["organization", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.default_probability}%)"
+
+
+class Deal(models.Model):
+    """
+    Sales opportunity or deal tracking potential revenue through pipeline stages.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="crm_deals",
+        verbose_name=_("Organization"),
+    )
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.CASCADE,
+        related_name="deals",
+        verbose_name=_("Corporate Account"),
+    )
+    primary_contact = models.ForeignKey(
+        Contact,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deals",
+        verbose_name=_("Primary Contact"),
+    )
+    name = models.CharField(_("Deal Name"), max_length=255, db_index=True)
+    deal_number = models.CharField(_("Deal Number"), max_length=64, blank=True)
+    stage = models.ForeignKey(
+        PipelineStage,
+        on_delete=models.PROTECT,
+        related_name="deals",
+        verbose_name=_("Current Pipeline Stage"),
+    )
+    amount = models.DecimalField(
+        _("Total Contract Value ($)"),
+        max_digits=18,
+        decimal_places=2,
+        default=0.00,
+    )
+    probability = models.PositiveSmallIntegerField(
+        _("Win Probability (%)"), default=10
+    )
+    expected_close_date = models.DateField(_("Expected Close Date"), null=True, blank=True)
+    actual_close_date = models.DateField(_("Actual Close Date"), null=True, blank=True)
+    is_closed = models.BooleanField(_("Closed Flag"), default=False, db_index=True)
+    is_won = models.BooleanField(_("Won Flag"), default=False, db_index=True)
+    lost_reason = models.TextField(_("Reason for Loss"), blank=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="owned_crm_deals",
+        verbose_name=_("Deal Owner"),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_crm_deals",
+        verbose_name=_("Created By"),
+    )
+    description = models.TextField(_("Deal Overview / Scope"), blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Deal")
+        verbose_name_plural = _("Deals")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "stage"]),
+            models.Index(fields=["organization", "is_closed"]),
+            models.Index(fields=["organization", "is_won"]),
+            models.Index(fields=["account", "is_closed"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} (${self.amount})"
+
+    def save(self, *args, **kwargs):
+        if not self.deal_number:
+            import datetime
+            date_prefix = datetime.date.today().strftime("%Y%m%d")
+            self.deal_number = f"DEAL-{date_prefix}-{str(uuid.uuid4())[:6].upper()}"
+        if not self.probability and self.stage_id:
+            self.probability = self.stage.default_probability
+        super().save(*args, **kwargs)
+
+    @property
+    def weighted_amount(self):
+        from decimal import Decimal
+        prob = Decimal(str(self.probability)) / Decimal("100")
+        return self.amount * prob
+
+
+class DealStageTransition(models.Model):
+    """
+    Immutable audit log entry recording each stage movement for a deal.
+    Tracks velocity, timestamps, user responsible, and progression reasons.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="crm_deal_transitions",
+        verbose_name=_("Organization"),
+    )
+    deal = models.ForeignKey(
+        Deal,
+        on_delete=models.CASCADE,
+        related_name="stage_transitions",
+        verbose_name=_("Deal"),
+    )
+    from_stage = models.ForeignKey(
+        PipelineStage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("Previous Stage"),
+    )
+    to_stage = models.ForeignKey(
+        PipelineStage,
+        on_delete=models.CASCADE,
+        related_name="+",
+        verbose_name=_("Target Stage"),
+    )
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("Changed By"),
+    )
+    transition_notes = models.TextField(_("Transition Notes"), blank=True)
+    duration_in_previous_stage_seconds = models.PositiveIntegerField(
+        _("Duration in Previous Stage (Seconds)"), null=True, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Deal Stage Transition")
+        verbose_name_plural = _("Deal Stage Transitions")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["deal", "created_at"]),
+            models.Index(fields=["organization", "created_at"]),
+        ]
+
+    def __str__(self):
+        from_name = self.from_stage.name if self.from_stage else "Creation"
+        return f"{self.deal.name}: {from_name} -> {self.to_stage.name}"
+
+
