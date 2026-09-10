@@ -28,7 +28,7 @@ cd EnterpriseOne
 pip install -r requirements.txt
 
 # Configure environment
-cp .env.example .env
+cp example.env .env
 
 # Apply database migrations
 python manage.py migrate
