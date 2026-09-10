@@ -9,8 +9,11 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Load environment variables from .env file if it exists
-load_dotenv(BASE_DIR / ".env")
+# Load environment variables from .env file if it exists, fallback to example.env
+if (BASE_DIR / ".env").exists():
+    load_dotenv(BASE_DIR / ".env")
+elif (BASE_DIR / "example.env").exists():
+    load_dotenv(BASE_DIR / "example.env")
 
 # Security configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "enterpriseone-insecure-development-secret-key-fallback-999")

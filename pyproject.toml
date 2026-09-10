@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "enterpriseone"
+version = "2.0.0"
+description = "EnterpriseOne Large-Scale Enterprise Management Platform"
+authors = ["EnterpriseOne Team <team@enterpriseone.internal>"]
+readme = "README.md"
+packages = [{include = "apps"}, {include = "enterpriseone"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+django = ">=5.0,<6.0"
+mysqlclient = ">=2.2.0"
+python-dotenv = ">=1.0.0"
+djangorestframework = ">=3.14.0"
+django-filter = ">=24.0"
+cryptography = ">=42.0.0"
+bcrypt = ">=4.0.0"
+whitenoise = ">=6.6.0"
+numpy = ">=1.24.0"
+pandas = ">=2.0.0"
+scikit-learn = ">=1.4.0"
+openpyxl = ">=3.1.0"
+reportlab = ">=4.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0.0"
+pytest-django = ">=4.8.0"
+coverage = ">=7.4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

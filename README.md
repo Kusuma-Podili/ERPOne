@@ -18,17 +18,23 @@ EnterpriseOne is an integrated, modular enterprise resource and business managem
 - Python 3.10+
 - Git
 
-### 2. Setup Environment
+### 2. Setup Environment & Install Dependencies
 ```bash
 # Clone the repository
 git clone <repo-url>
 cd EnterpriseOne
 
-# Install dependencies
+# Option A: Install dependencies from manifest
 pip install -r requirements.txt
 
-# Configure environment
-cp .env.example .env
+# Option B: Install with pinned lockfile (reproducible build)
+pip install -r requirements.lock
+
+# Option C: Install via Poetry (using poetry.lock)
+poetry install
+
+# Configure environment from template
+cp example.env .env
 
 # Apply database migrations
 python manage.py migrate
